@@ -1,0 +1,78 @@
+version: '3.8'
+
+services:
+  # ==================== 数据库服务 ====================
+  postgres:
+    image: postgres:15-alpine
+    container_name: maf-studio-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-mafuser}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-mafpassword}
+      POSTGRES_DB: ${POSTGRES_DB:-mafstudio}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./backend/script.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    networks:
+      - maf-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-mafuser} -d ${POSTGRES_DB:-mafstudio}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ==================== 后端服务 ====================
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: maf-studio-backend
+    restart: unless-stopped
+    environment:
+      - ASPNETCORE_ENVIRONMENT=${ASPNETCORE_ENVIRONMENT:-Production}
+      - ASPNETCORE_URLS=http://+:5000
+      - ConnectionStrings__DefaultConnection=Host=postgres;Port=5432;Database=${POSTGRES_DB:-mafstudio};Username=${POSTGRES_USER:-mafuser};Password=${POSTGRES_PASSWORD:-mafpassword}
+    ports:
+      - "${BACKEND_PORT:-5000}:5000"
+    networks:
+      - maf-network
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # ==================== 前端服务 ====================
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: maf-studio-frontend
+    restart: unless-stopped
+    ports:
+      - "${FRONTEND_PORT:-80}:80"
+    networks:
+      - maf-network
+    depends_on:
+      - backend
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:80"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+# ==================== 网络配置 ====================
+networks:
+  maf-network:
+    driver: bridge
+
+# ==================== 数据卷配置 ====================
+volumes:
+  postgres_data:
+    driver: local
