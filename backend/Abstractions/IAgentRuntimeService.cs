@@ -60,6 +60,15 @@ namespace MAFStudio.Backend.Abstractions
         Task<string> ExecuteAsync(Guid agentId, string input);
 
         /// <summary>
+        /// 流式执行智能体任务
+        /// </summary>
+        /// <param name="agentId">智能体ID</param>
+        /// <param name="input">用户输入</param>
+        /// <param name="cancellationToken">取消令牌</param>
+        /// <returns>智能体响应流</returns>
+        IAsyncEnumerable<string> ExecuteStreamAsync(Guid agentId, string input, CancellationToken cancellationToken = default);
+
+        /// <summary>
         /// 获取所有活跃的智能体
         /// </summary>
         /// <returns>智能体ID到运行时实例的映射</returns>

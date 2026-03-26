@@ -58,6 +58,52 @@ namespace MAFStudio.Backend.Services
             return message;
         }
 
+        public async Task<AgentMessage> SendCollaborationMessageAsync(string content, Guid collaborationId, List<Guid>? mentionedAgentIds = null, string? senderName = null)
+        {
+            var message = new AgentMessage
+            {
+                Id = Guid.NewGuid(),
+                FromAgentId = null,
+                SenderType = SenderType.User,
+                SenderName = senderName ?? "用户",
+                ToAgentId = null,
+                Content = content,
+                Type = MessageType.Text,
+                Status = MessageStatus.Pending,
+                CreatedAt = DateTime.UtcNow,
+                CollaborationId = collaborationId,
+                MentionedAgentIds = mentionedAgentIds != null && mentionedAgentIds.Count > 0 
+                    ? string.Join(",", mentionedAgentIds) 
+                    : null
+            };
+
+            _context.AgentMessages.Add(message);
+            await _context.SaveChangesAsync();
+
+            return message;
+        }
+
+        public async Task<AgentMessage> SendAgentResponseAsync(Guid agentId, string content, Guid collaborationId)
+        {
+            var message = new AgentMessage
+            {
+                Id = Guid.NewGuid(),
+                FromAgentId = agentId,
+                SenderType = SenderType.Agent,
+                ToAgentId = null,
+                Content = content,
+                Type = MessageType.Response,
+                Status = MessageStatus.Completed,
+                CreatedAt = DateTime.UtcNow,
+                CollaborationId = collaborationId
+            };
+
+            _context.AgentMessages.Add(message);
+            await _context.SaveChangesAsync();
+
+            return message;
+        }
+
         public async Task<AgentMessage?> UpdateMessageStatusAsync(Guid messageId, MessageStatus status)
         {
             var message = await _context.AgentMessages.FindAsync(messageId);
@@ -119,8 +165,8 @@ namespace MAFStudio.Backend.Services
             if (!isAdmin)
             {
                 query = query.Where(m => 
-                    userAgentIds.Contains(m.FromAgentId) || 
-                    userAgentIds.Contains(m.ToAgentId));
+                    (m.FromAgentId.HasValue && userAgentIds.Contains(m.FromAgentId.Value)) || 
+                    (m.ToAgentId.HasValue && userAgentIds.Contains(m.ToAgentId.Value)));
             }
 
             if (before.HasValue)
@@ -170,9 +216,19 @@ namespace MAFStudio.Backend.Services
         {
             if (messages.Count == 0) return;
 
-            var fromAgentIds = messages.Select(m => m.FromAgentId).Distinct().ToList();
-            var toAgentIds = messages.Select(m => m.ToAgentId).Distinct().ToList();
+            var fromAgentIds = messages
+                .Where(m => m.FromAgentId.HasValue && m.FromAgentId != Guid.Empty)
+                .Select(m => m.FromAgentId!.Value)
+                .Distinct()
+                .ToList();
+            var toAgentIds = messages
+                .Where(m => m.ToAgentId.HasValue && m.ToAgentId != Guid.Empty)
+                .Select(m => m.ToAgentId!.Value)
+                .Distinct()
+                .ToList();
             var allAgentIds = fromAgentIds.Union(toAgentIds).Distinct().ToList();
+
+            if (allAgentIds.Count == 0) return;
 
             var agents = await _context.Agents
                 .AsNoTracking()
@@ -181,11 +237,11 @@ namespace MAFStudio.Backend.Services
 
             foreach (var message in messages)
             {
-                if (agents.TryGetValue(message.FromAgentId, out var fromAgent))
+                if (message.FromAgentId.HasValue && message.FromAgentId != Guid.Empty && agents.TryGetValue(message.FromAgentId.Value, out var fromAgent))
                 {
                     message.FromAgent = fromAgent;
                 }
-                if (agents.TryGetValue(message.ToAgentId, out var toAgent))
+                if (message.ToAgentId.HasValue && message.ToAgentId != Guid.Empty && agents.TryGetValue(message.ToAgentId.Value, out var toAgent))
                 {
                     message.ToAgent = toAgent;
                 }

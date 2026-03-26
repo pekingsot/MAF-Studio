@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RootNamespace>MAFStudio.Api</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="10.0.0-*" />
+    <PackageReference Include="Swashbuckle.AspNetCore" Version="7.3.2" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\MAFStudio.Application\MAFStudio.Application.csproj" />
+    <ProjectReference Include="..\MAFStudio.Infrastructure\MAFStudio.Infrastructure.csproj" />
+  </ItemGroup>
+</Project>

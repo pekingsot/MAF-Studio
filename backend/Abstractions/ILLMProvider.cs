@@ -51,5 +51,24 @@ namespace MAFStudio.Backend.Abstractions
         /// <param name="config">大模型配置</param>
         /// <returns>模型名称列表</returns>
         Task<List<string>> GetAvailableModelsAsync(LLMConfig config);
+
+        /// <summary>
+        /// 流式聊天完成
+        /// </summary>
+        /// <param name="config">大模型配置</param>
+        /// <param name="modelConfig">模型配置</param>
+        /// <param name="messages">消息列表</param>
+        /// <param name="cancellationToken">取消令牌</param>
+        /// <returns>响应流</returns>
+        IAsyncEnumerable<string> ChatStreamAsync(LLMConfig config, LLMModelConfig modelConfig, List<ChatMessage> messages, CancellationToken cancellationToken = default);
+    }
+
+    /// <summary>
+    /// 聊天消息
+    /// </summary>
+    public class ChatMessage
+    {
+        public string Role { get; set; } = string.Empty;
+        public string Content { get; set; } = string.Empty;
     }
 }

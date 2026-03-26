@@ -96,22 +96,32 @@ namespace MAFStudio.Backend.Migrations
 
                     b.Property<string>("Content")
                         .IsRequired()
-                        .HasMaxLength(5000)
-                        .HasColumnType("character varying(5000)");
+                        .HasMaxLength(10000)
+                        .HasColumnType("character varying(10000)");
 
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
 
-                    b.Property<Guid>("FromAgentId")
+                    b.Property<Guid?>("FromAgentId")
                         .HasColumnType("uuid");
+
+                    b.Property<string>("MentionedAgentIds")
+                        .HasColumnType("text");
 
                     b.Property<DateTime?>("ProcessedAt")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<string>("SenderName")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<int>("SenderType")
+                        .HasColumnType("integer");
+
                     b.Property<int>("Status")
                         .HasColumnType("integer");
 
-                    b.Property<Guid>("ToAgentId")
+                    b.Property<Guid?>("ToAgentId")
                         .HasColumnType("uuid");
 
                     b.Property<int>("Type")
@@ -801,14 +811,12 @@ namespace MAFStudio.Backend.Migrations
                     b.HasOne("MAFStudio.Backend.Data.Agent", "FromAgent")
                         .WithMany("SentMessages")
                         .HasForeignKey("FromAgentId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
+                        .OnDelete(DeleteBehavior.Restrict);
 
                     b.HasOne("MAFStudio.Backend.Data.Agent", "ToAgent")
                         .WithMany("ReceivedMessages")
                         .HasForeignKey("ToAgentId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
+                        .OnDelete(DeleteBehavior.Restrict);
 
                     b.Navigation("Collaboration");
 

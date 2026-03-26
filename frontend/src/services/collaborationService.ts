@@ -108,4 +108,26 @@ export const collaborationService = {
   deleteTask: async (taskId: string): Promise<void> => {
     await api.delete(`/collaborations/tasks/${taskId}`);
   },
+
+  sendChatMessage: async (collaborationId: string, content: string, mentionedAgentIds?: string[]): Promise<any> => {
+    const response = await api.post(`/collaborations/${collaborationId}/chat`, {
+      content,
+      mentionedAgentIds,
+    });
+    return response.data;
+  },
+
+  sendA2AMessage: async (collaborationId: string, fromAgentId: string, toAgentId: string, content: string): Promise<any> => {
+    const response = await api.post(`/collaborations/${collaborationId}/a2a`, {
+      fromAgentId,
+      toAgentId,
+      content,
+    });
+    return response.data;
+  },
+
+  getCollaborationAgents: async (collaborationId: string): Promise<CollaborationAgent[]> => {
+    const response = await api.get<CollaborationAgent[]>(`/collaborations/${collaborationId}/agents`);
+    return response.data;
+  },
 };

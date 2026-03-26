@@ -29,6 +29,25 @@ namespace MAFStudio.Backend.Abstractions
         Task<AgentMessage> SendMessageAsync(Guid fromAgentId, Guid toAgentId, string content, MessageType type);
 
         /// <summary>
+        /// 发送协作消息（支持用户消息和@提及）
+        /// </summary>
+        /// <param name="content">消息内容</param>
+        /// <param name="collaborationId">协作ID</param>
+        /// <param name="mentionedAgentIds">提及的智能体ID列表</param>
+        /// <param name="senderName">发送者名称</param>
+        /// <returns>创建的消息实体</returns>
+        Task<AgentMessage> SendCollaborationMessageAsync(string content, Guid collaborationId, List<Guid>? mentionedAgentIds = null, string? senderName = null);
+
+        /// <summary>
+        /// 发送智能体响应消息
+        /// </summary>
+        /// <param name="agentId">智能体ID</param>
+        /// <param name="content">消息内容</param>
+        /// <param name="collaborationId">协作ID</param>
+        /// <returns>创建的消息实体</returns>
+        Task<AgentMessage> SendAgentResponseAsync(Guid agentId, string content, Guid collaborationId);
+
+        /// <summary>
         /// 更新消息状态
         /// </summary>
         /// <param name="messageId">消息ID</param>

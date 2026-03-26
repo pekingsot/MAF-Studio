@@ -291,5 +291,32 @@ namespace MAFStudio.Backend.Services
 
             return true;
         }
+
+        public async Task<List<CollaborationAgent>?> GetCollaborationAgentsAsync(Guid collaborationId)
+        {
+            var collaboration = await _context.Collaborations.FindAsync(collaborationId);
+            if (collaboration == null) return null;
+
+            var agents = await _context.CollaborationAgents
+                .AsNoTracking()
+                .Where(ca => ca.CollaborationId == collaborationId)
+                .ToListAsync();
+
+            var agentIds = agents.Select(a => a.AgentId).Distinct().ToList();
+            var agentData = await _context.Agents
+                .AsNoTracking()
+                .Where(a => agentIds.Contains(a.Id))
+                .ToDictionaryAsync(a => a.Id);
+
+            foreach (var ca in agents)
+            {
+                if (agentData.TryGetValue(ca.AgentId, out var agent))
+                {
+                    ca.Agent = agent;
+                }
+            }
+
+            return agents;
+        }
     }
 }

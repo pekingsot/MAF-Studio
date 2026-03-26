@@ -11,6 +11,7 @@ using Microsoft.EntityFrameworkCore;
 using OpenAI;
 using OpenAI.Chat;
 using System.ClientModel;
+using System.Runtime.CompilerServices;
 
 namespace MAFStudio.Backend.Services
 {
@@ -330,6 +331,69 @@ namespace MAFStudio.Backend.Services
                 _logger.LogError(ex, "智能体 {AgentId} 执行任务失败", agentId);
 
                 throw;
+            }
+        }
+
+        /// <summary>
+        /// 流式执行智能体任务
+        /// </summary>
+        public async IAsyncEnumerable<string> ExecuteStreamAsync(Guid agentId, string input, [EnumeratorCancellation] CancellationToken cancellationToken = default)
+        {
+            using var scope = _serviceProvider.CreateScope();
+            var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            var providerFactory = scope.ServiceProvider.GetRequiredService<LLMProviderFactory>();
+
+            var agent = await dbContext.Agents
+                .AsNoTracking()
+                .FirstOrDefaultAsync(a => a.Id == agentId, cancellationToken);
+
+            if (agent == null)
+            {
+                throw new InvalidOperationException($"智能体 {agentId} 不存在");
+            }
+
+            if (!agent.LLMConfigId.HasValue)
+            {
+                throw new InvalidOperationException($"智能体 {agentId} 未配置大模型");
+            }
+
+            var llmConfig = await dbContext.LLMConfigs
+                .Include(c => c.Models)
+                .AsNoTracking()
+                .FirstOrDefaultAsync(c => c.Id == agent.LLMConfigId.Value, cancellationToken);
+
+            if (llmConfig == null)
+            {
+                throw new InvalidOperationException($"大模型配置不存在");
+            }
+
+            var modelConfig = llmConfig.Models?.FirstOrDefault(m => m.IsDefault) ?? llmConfig.Models?.FirstOrDefault();
+            if (modelConfig == null)
+            {
+                throw new InvalidOperationException($"未配置模型");
+            }
+
+            var provider = providerFactory.GetProvider(llmConfig.Provider?.ToLower() ?? "");
+            if (provider == null)
+            {
+                throw new InvalidOperationException($"不支持的供应商: {llmConfig.Provider}");
+            }
+
+            var configuration = ParseConfiguration(agent.Configuration);
+            var systemPrompt = configuration.SystemPrompt ?? $"你是一个{agent.Type}类型的智能体，名称是{agent.Name}。";
+
+            var messages = new List<Abstractions.ChatMessage>
+            {
+                new Abstractions.ChatMessage { Role = "system", Content = systemPrompt },
+                new Abstractions.ChatMessage { Role = "user", Content = input }
+            };
+
+            _logger.LogInformation("流式执行智能体 {AgentId} - Provider: {Provider}, Model: {Model}", 
+                agentId, llmConfig.Provider, modelConfig.ModelName);
+
+            await foreach (var chunk in provider.ChatStreamAsync(llmConfig, modelConfig, messages, cancellationToken))
+            {
+                yield return chunk;
             }
         }
 

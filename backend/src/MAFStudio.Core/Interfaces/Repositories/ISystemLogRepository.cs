@@ -1,0 +1,11 @@
+using MAFStudio.Core.Entities;
+
+namespace MAFStudio.Core.Interfaces.Repositories;
+
+public interface ISystemLogRepository
+{
+    Task<SystemLog?> GetByIdAsync(Guid id);
+    Task<List<SystemLog>> GetAsync(string? level = null, string? category = null, string? userId = null, int limit = 100);
+    Task<SystemLog> CreateAsync(SystemLog log);
+    Task<bool> DeleteAsync(Guid id);
+}

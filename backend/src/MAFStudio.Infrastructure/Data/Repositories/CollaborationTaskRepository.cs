@@ -1,0 +1,72 @@
+using Dapper;
+using MAFStudio.Core.Entities;
+using MAFStudio.Core.Enums;
+using MAFStudio.Core.Interfaces.Repositories;
+
+namespace MAFStudio.Infrastructure.Data.Repositories;
+
+public class CollaborationTaskRepository : ICollaborationTaskRepository
+{
+    private readonly IDapperContext _context;
+
+    public CollaborationTaskRepository(IDapperContext context)
+    {
+        _context = context;
+    }
+
+    public async Task<CollaborationTask?> GetByIdAsync(Guid id)
+    {
+        using var connection = _context.CreateConnection();
+        const string sql = "SELECT * FROM collaboration_tasks WHERE id = @Id";
+        return await connection.QueryFirstOrDefaultAsync<CollaborationTask>(sql, new { Id = id });
+    }
+
+    public async Task<List<CollaborationTask>> GetByCollaborationIdAsync(Guid collaborationId)
+    {
+        using var connection = _context.CreateConnection();
+        const string sql = "SELECT * FROM collaboration_tasks WHERE collaboration_id = @CollaborationId ORDER BY created_at DESC";
+        var result = await connection.QueryAsync<CollaborationTask>(sql, new { CollaborationId = collaborationId });
+        return result.ToList();
+    }
+
+    public async Task<CollaborationTask> CreateAsync(CollaborationTask task)
+    {
+        using var connection = _context.CreateConnection();
+        const string sql = @"
+            INSERT INTO collaboration_tasks (id, collaboration_id, title, description, status, assigned_to, created_at, completed_at)
+            VALUES (@Id, @CollaborationId, @Title, @Description, @Status, @AssignedTo, @CreatedAt, @CompletedAt)
+            RETURNING *";
+        return await connection.QueryFirstAsync<CollaborationTask>(sql, task);
+    }
+
+    public async Task<CollaborationTask> UpdateAsync(CollaborationTask task)
+    {
+        using var connection = _context.CreateConnection();
+        const string sql = @"
+            UPDATE collaboration_tasks SET 
+                title = @Title,
+                description = @Description,
+                status = @Status,
+                assigned_to = @AssignedTo,
+                completed_at = @CompletedAt
+            WHERE id = @Id
+            RETURNING *";
+        return await connection.QueryFirstAsync<CollaborationTask>(sql, task);
+    }
+
+    public async Task<bool> DeleteAsync(Guid id)
+    {
+        using var connection = _context.CreateConnection();
+        const string sql = "DELETE FROM collaboration_tasks WHERE id = @Id";
+        var rows = await connection.ExecuteAsync(sql, new { Id = id });
+        return rows > 0;
+    }
+
+    public async Task<bool> UpdateStatusAsync(Guid id, CollaborationTaskStatus status)
+    {
+        using var connection = _context.CreateConnection();
+        const string sql = "UPDATE collaboration_tasks SET status = @Status WHERE id = @Id";
+        var rows = await connection.ExecuteAsync(sql, new { Id = id, Status = status });
+        return rows > 0;
+    }
+}

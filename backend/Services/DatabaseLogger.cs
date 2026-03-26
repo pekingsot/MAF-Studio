@@ -2,6 +2,7 @@ using Microsoft.Extensions.Logging;
 using MAFStudio.Backend.Data;
 using System.Collections.Concurrent;
 using System.Text.Json;
+using Microsoft.AspNetCore.Http;
 
 namespace MAFStudio.Backend.Services
 {
@@ -40,15 +41,10 @@ namespace MAFStudio.Backend.Services
 
         public bool IsEnabled(LogLevel logLevel)
         {
-            return logLevel >= LogLevel.Warning;
+            return logLevel >= LogLevel.Information;
         }
 
-        public void Log<TState>(
-            LogLevel logLevel,
-            EventId eventId,
-            TState state,
-            Exception? exception,
-            Func<TState, Exception?, string> formatter)
+        public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception? exception, Func<TState, Exception?, string> formatter)
         {
             if (!IsEnabled(logLevel))
             {
@@ -62,13 +58,24 @@ namespace MAFStudio.Backend.Services
                 return;
             }
 
+            var httpContext = _serviceProvider.GetService<IHttpContextAccessor>()?.HttpContext;
+            var user = httpContext?.User;
+            var userId = user?.FindFirst("sub")?.Value ?? user?.FindFirst("id")?.Value ?? user?.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+            var userName = user?.FindFirst("name")?.Value ?? user?.Identity?.Name;
+
             var log = new SystemLog
             {
+                Id = Guid.NewGuid(),
                 Level = logLevel.ToString(),
                 Category = _categoryName,
                 Message = message,
-                Exception = exception?.Message,
+                Exception = exception?.ToString(),
                 StackTrace = exception?.StackTrace,
+                RequestPath = httpContext?.Request?.Path,
+                RequestMethod = httpContext?.Request?.Method,
+                UserId = userId,
+                UserName = userName,
+                IpAddress = httpContext?.Connection?.RemoteIpAddress?.ToString(),
                 CreatedAt = DateTime.UtcNow
             };
 
@@ -104,43 +111,42 @@ namespace MAFStudio.Backend.Services
 
         private static void FlushLogs(object? state)
         {
-            if (_sharedQueue.IsEmpty)
+            lock (_lock)
             {
-                return;
-            }
-
-            var logsToWrite = new List<SystemLog>();
-            while (_sharedQueue.TryDequeue(out var log))
-            {
-                logsToWrite.Add(log);
-                if (logsToWrite.Count >= 100)
+                if (_sharedQueue.IsEmpty)
                 {
-                    break;
+                    return;
                 }
-            }
 
-            if (logsToWrite.Count == 0)
-            {
-                return;
-            }
-
-            Task.Run(async () =>
-            {
-                try
+                var logsToWrite = new List<SystemLog>();
+                while (_sharedQueue.TryDequeue(out var log))
                 {
-                    using var scope = Program.ServiceProvider?.CreateScope();
-                    var dbContext = scope?.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+                    logsToWrite.Add(log);
+                }
 
-                    if (dbContext != null)
+                if (logsToWrite.Count == 0)
+                {
+                    return;
+                }
+
+                Task.Run(async () =>
+                {
+                    try
                     {
-                        dbContext.SystemLogs.AddRange(logsToWrite);
-                        await dbContext.SaveChangesAsync();
+                        using var scope = Program.ServiceProvider?.CreateScope();
+                        var dbContext = scope?.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+
+                        if (dbContext != null)
+                        {
+                            dbContext.SystemLogs.AddRange(logsToWrite);
+                            await dbContext.SaveChangesAsync();
+                        }
                     }
-                }
-                catch
-                {
-                }
-            });
+                    catch
+                    {
+                    }
+                });
+            }
         }
     }
 

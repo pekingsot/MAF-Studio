@@ -4,6 +4,8 @@ using MAFStudio.Backend.Data;
 using MAFStudio.Backend.Services;
 using MAFStudio.Backend.Abstractions;
 using MAFStudio.Backend.Models.Requests;
+using MAFStudio.Backend.Models.VOs;
+using MAFStudio.Backend.Models.Mappers;
 using Microsoft.EntityFrameworkCore;
 using System.Security.Claims;
 
@@ -73,17 +75,18 @@ namespace MAFStudio.Backend.Controllers
         }
 
         [HttpGet]
-        public async Task<ActionResult<List<Agent>>> GetAllAgents()
+        public async Task<ActionResult<List<AgentListItemVo>>> GetAllAgents()
         {
             var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
             var isAdmin = await _authService.IsAdminAsync(userId!);
             
             var agents = await _agentService.GetAgentsByUserIdAsync(userId!, isAdmin);
-            return Ok(agents);
+            var vos = agents.Select(a => a.ToListItemVo()).ToList();
+            return Ok(vos);
         }
 
         [HttpGet("{id}")]
-        public async Task<ActionResult<Agent>> GetAgent(Guid id)
+        public async Task<ActionResult<AgentVo>> GetAgent(Guid id)
         {
             var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
             var isAdmin = await _authService.IsAdminAsync(userId!);
@@ -99,7 +102,7 @@ namespace MAFStudio.Backend.Controllers
                 return Forbid();
             }
             
-            return Ok(agent);
+            return Ok(agent.ToVo());
         }
 
         [HttpPost]

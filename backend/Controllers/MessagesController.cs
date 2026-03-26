@@ -104,7 +104,23 @@ namespace MAFStudio.Backend.Controllers
             var messages = await _messageService.GetCollaborationMessagesAsync(collaborationId, page, pageSize, before);
             var total = await _messageService.GetCollaborationMessagesCountAsync(collaborationId);
             
-            return Ok(new { messages, total, page, pageSize });
+            var formattedMessages = messages.Select(m => new
+            {
+                m.Id,
+                m.FromAgentId,
+                FromAgentName = m.SenderType == SenderType.User ? (m.SenderName ?? "用户") : (m.FromAgent?.Name ?? "智能体"),
+                FromAgentAvatar = m.FromAgent?.Avatar,
+                m.ToAgentId,
+                ToAgentName = m.ToAgent?.Name,
+                ToAgentAvatar = m.ToAgent?.Avatar,
+                m.Content,
+                Type = m.Type.ToString().ToLower(),
+                m.CreatedAt,
+                SenderType = m.SenderType.ToString(),
+                m.SenderName
+            });
+            
+            return Ok(new { messages = formattedMessages, total, page, pageSize });
         }
 
         [HttpPost]

@@ -1,0 +1,6 @@
+<Solution>
+  <Folder Name="/backend/">
+    <Project Path="backend/MAFStudio.Backend.csproj" />
+  </Folder>
+  <Project Path="MAFStudio.Backend.Tests/MAFStudio.Backend.Tests.csproj" />
+</Solution>

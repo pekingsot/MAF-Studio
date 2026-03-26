@@ -1,0 +1,15 @@
+using MAFStudio.Core.Entities;
+using MAFStudio.Core.Enums;
+
+namespace MAFStudio.Core.Interfaces.Repositories;
+
+public interface IAgentRepository
+{
+    Task<Agent?> GetByIdAsync(Guid id);
+    Task<List<Agent>> GetAllAsync();
+    Task<List<Agent>> GetByUserIdAsync(string userId);
+    Task<Agent> CreateAsync(Agent agent);
+    Task<Agent> UpdateAsync(Agent agent);
+    Task<bool> DeleteAsync(Guid id);
+    Task<bool> UpdateStatusAsync(Guid id, AgentStatus status);
+}

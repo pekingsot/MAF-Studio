@@ -4,6 +4,8 @@ using MAFStudio.Backend.Hubs;
 using MAFStudio.Backend.Services;
 using MAFStudio.Backend.Abstractions;
 using MAFStudio.Backend.Providers;
+using MAFStudio.Backend.Middleware;
+using MAFStudio.Backend.Filters;
 using System.Text.Json.Serialization;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
@@ -11,9 +13,15 @@ using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
 
+builder.Services.AddHttpContextAccessor();
+
 builder.Logging.AddDatabaseLogger(builder.Services.BuildServiceProvider());
 
-builder.Services.AddControllers()
+builder.Services.AddControllers(options =>
+    {
+        options.Filters.Add<GlobalExceptionFilter>();
+        options.Filters.Add<ActionLogFilter>();
+    })
     .AddJsonOptions(options =>
     {
         options.JsonSerializerOptions.ReferenceHandler = ReferenceHandler.IgnoreCycles;
@@ -91,6 +99,8 @@ if (app.Environment.IsDevelopment())
     app.UseSwagger();
     app.UseSwaggerUI();
 }
+
+app.UseMiddleware<GlobalExceptionMiddleware>();
 
 app.UseHttpsRedirection();
 app.UseCors("AllowReactApp");

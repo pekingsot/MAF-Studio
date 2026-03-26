@@ -1,17 +1,18 @@
 import React, { useEffect, useState, useRef, useCallback } from 'react';
-import { Card, Input, Button, List, Avatar, Tag, Space, Select, message, Divider, Typography, Spin, Empty } from 'antd';
+import { Card, Input, Button, List, Avatar, Tag, Space, Select, message, Divider, Typography, Spin, Empty, Mentions } from 'antd';
 import { SendOutlined, RobotOutlined, UserOutlined, MessageOutlined, LoadingOutlined, TeamOutlined } from '@ant-design/icons';
 import { agentService, Agent } from '../services/agentService';
-import { collaborationService, Collaboration } from '../services/collaborationService';
+import { collaborationService, Collaboration, CollaborationAgent } from '../services/collaborationService';
 import socketService from '../services/socketService';
 import api from '../services/api';
 
 const { TextArea } = Input;
 const { Text, Title } = Typography;
+const { Option } = Mentions;
 
 interface ChatMessage {
   id: string;
-  fromAgentId: string;
+  fromAgentId?: string;
   fromAgentName: string;
   fromAgentAvatar?: string;
   toAgentId?: string;
@@ -21,16 +22,21 @@ interface ChatMessage {
   type: string;
   timestamp: Date;
   isSystem?: boolean;
+  senderType?: 'User' | 'Agent';
+  senderName?: string;
+  isStreaming?: boolean;
 }
 
 const CollaborationChat: React.FC = () => {
   const [agents, setAgents] = useState<Agent[]>([]);
   const [collaborations, setCollaborations] = useState<Collaboration[]>([]);
+  const [collaborationAgents, setCollaborationAgents] = useState<CollaborationAgent[]>([]);
   const [selectedCollaboration, setSelectedCollaboration] = useState<string>('');
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [inputMessage, setInputMessage] = useState('');
   const [connected, setConnected] = useState(false);
   const [loadingHistory, setLoadingHistory] = useState(false);
+  const [sending, setSending] = useState(false);
   const [hasMoreHistory, setHasMoreHistory] = useState(true);
   const [page, setPage] = useState(1);
   const [totalMessages, setTotalMessages] = useState(0);
@@ -54,6 +60,7 @@ const CollaborationChat: React.FC = () => {
   useEffect(() => {
     if (selectedCollaboration) {
       loadCollaborationMessages(selectedCollaboration, 1);
+      loadCollaborationAgents(selectedCollaboration);
     }
   }, [selectedCollaboration]);
 
@@ -84,6 +91,15 @@ const CollaborationChat: React.FC = () => {
     }
   };
 
+  const loadCollaborationAgents = async (collaborationId: string) => {
+    try {
+      const data = await collaborationService.getCollaborationAgents(collaborationId);
+      setCollaborationAgents(data);
+    } catch (error) {
+      console.error('加载协作智能体失败:', error);
+    }
+  };
+
   const loadCollaborationMessages = async (collaborationId: string, pageNum: number = 1, before?: Date) => {
     if (!collaborationId) return;
     
@@ -104,14 +120,16 @@ const CollaborationChat: React.FC = () => {
       const formattedMessages: ChatMessage[] = historyMessages.map((msg: any) => ({
         id: msg.id,
         fromAgentId: msg.fromAgentId,
-        fromAgentName: msg.fromAgent?.name || '未知智能体',
-        fromAgentAvatar: msg.fromAgent?.avatar,
+        fromAgentName: msg.senderType === 'User' ? (msg.senderName || '用户') : (msg.fromAgentName || '智能体'),
+        fromAgentAvatar: msg.fromAgentAvatar,
         toAgentId: msg.toAgentId,
-        toAgentName: msg.toAgent?.name,
-        toAgentAvatar: msg.toAgent?.avatar,
+        toAgentName: msg.toAgentName,
+        toAgentAvatar: msg.toAgentAvatar,
         content: msg.content,
         type: msg.type?.toLowerCase() || 'text',
         timestamp: new Date(msg.createdAt),
+        senderType: msg.senderType,
+        senderName: msg.senderName,
       }));
 
       if (pageNum === 1) {
@@ -188,9 +206,10 @@ const CollaborationChat: React.FC = () => {
     setPage(1);
     setHasMoreHistory(true);
     setInitialLoadDone(false);
+    setCollaborationAgents([]);
   };
 
-  const handleSendMessage = () => {
+  const handleSendMessage = async () => {
     if (!selectedCollaboration) {
       message.warning('请先选择协作项目');
       return;
@@ -201,17 +220,194 @@ const CollaborationChat: React.FC = () => {
       return;
     }
 
+    const mentionRegex = /@([^\s@]+)/g;
+    const mentions = inputMessage.match(mentionRegex) || [];
+    const mentionedNames = mentions.map(m => m.substring(1).trim().toLowerCase());
+    
+    const mentionedAgentIds = collaborationAgents
+      .filter(ca => {
+        const agentName = (ca.agent?.name || '').toLowerCase();
+        return mentionedNames.includes(agentName);
+      })
+      .map(ca => ca.agentId);
+
+    const displayContent = inputMessage.replace(/@([^\s@]+)/g, (match, name) => {
+      const agent = collaborationAgents.find(ca => 
+        (ca.agent?.name || '').toLowerCase() === name.toLowerCase()
+      );
+      return agent ? `@${agent.agent?.name}` : match;
+    });
+
     const userMessage: ChatMessage = {
       id: Date.now().toString(),
-      fromAgentId: 'user',
+      fromAgentId: undefined,
       fromAgentName: '用户',
-      content: inputMessage,
+      content: displayContent,
       type: 'text',
       timestamp: new Date(),
+      senderType: 'User',
+      senderName: '用户',
     };
 
     setMessages(prev => [...prev, userMessage]);
     setInputMessage('');
+    setSending(true);
+
+    try {
+      const token = localStorage.getItem('token');
+      
+      const response = await fetch(`${api.defaults.baseURL}/collaborations/${selectedCollaboration}/chat/stream`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          content: displayContent,
+          mentionedAgentIds: mentionedAgentIds.length > 0 ? mentionedAgentIds : undefined
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const reader = response.body?.getReader();
+      const decoder = new TextDecoder();
+
+      if (!reader) {
+        throw new Error('Response body is null');
+      }
+
+      let buffer = '';
+
+      while (true) {
+        const { done, value } = await reader.read();
+        
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n');
+        
+        buffer = lines.pop() || '';
+
+        for (const line of lines) {
+          if (line.startsWith('event: ')) {
+            const eventType = line.substring(7);
+            continue;
+          }
+          
+          if (line.startsWith('data: ')) {
+            const data = line.substring(6);
+            
+            try {
+              const parsed = JSON.parse(data);
+              console.log('Received event:', parsed);
+              
+              if (parsed.messageId && parsed.agentId) {
+                if (parsed.content !== undefined && !parsed.fullContent) {
+                  setMessages(prev => {
+                    const existing = prev.find(msg => msg.id === parsed.messageId);
+                    if (existing) {
+                      return prev.map(msg => {
+                        if (msg.id === parsed.messageId) {
+                          return {
+                            ...msg,
+                            content: msg.content + parsed.content
+                          };
+                        }
+                        return msg;
+                      });
+                    } else {
+                      const agentMessage: ChatMessage = {
+                        id: parsed.messageId,
+                        fromAgentId: parsed.agentId,
+                        fromAgentName: parsed.agentName,
+                        content: parsed.content,
+                        type: 'response',
+                        timestamp: new Date(),
+                        senderType: 'Agent',
+                        isStreaming: true,
+                      };
+                      return [...prev, agentMessage];
+                    }
+                  });
+                } else if (parsed.fullContent !== undefined) {
+                  setMessages(prev => prev.map(msg => {
+                    if (msg.id === parsed.messageId) {
+                      return {
+                        ...msg,
+                        content: parsed.fullContent,
+                        isStreaming: false,
+                        timestamp: new Date(parsed.timestamp)
+                      };
+                    }
+                    return msg;
+                  }));
+                }
+              } else if (parsed.error) {
+                message.error(parsed.error);
+              } else if (parsed.collaborationId) {
+                setSending(false);
+              }
+            } catch (e) {
+              console.error('Failed to parse SSE data:', e);
+            }
+          }
+        }
+      }
+
+      setSending(false);
+    } catch (error: any) {
+      console.error('发送消息失败:', error);
+      message.error(error.message || '发送消息失败');
+      setSending(false);
+    }
+  };
+
+  const renderMessageContent = (content: string) => {
+    const mentionRegex = /@([^\s@]+)/g;
+    const parts: React.ReactNode[] = [];
+    let lastIndex = 0;
+    let match;
+
+    while ((match = mentionRegex.exec(content)) !== null) {
+      if (match.index > lastIndex) {
+        parts.push(content.substring(lastIndex, match.index));
+      }
+      
+      const mentionedName = match[1];
+      const agent = collaborationAgents.find(
+        ca => (ca.agent?.name || '').toLowerCase() === mentionedName.toLowerCase()
+      );
+      
+      if (agent) {
+        parts.push(
+          <span
+            key={match.index}
+            style={{
+              backgroundColor: '#e6f7ff',
+              color: '#1890ff',
+              padding: '2px 6px',
+              borderRadius: '4px',
+              fontWeight: 500,
+            }}
+          >
+            @{agent.agent?.name}
+          </span>
+        );
+      } else {
+        parts.push(match[0]);
+      }
+      
+      lastIndex = match.index + match[0].length;
+    }
+
+    if (lastIndex < content.length) {
+      parts.push(content.substring(lastIndex));
+    }
+
+    return parts.length > 0 ? <>{parts}</> : <Text>{content}</Text>;
   };
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
@@ -287,6 +483,35 @@ const CollaborationChat: React.FC = () => {
           </Space>
         </div>
 
+        {collaborationAgents.length > 0 && (
+          <div style={{ marginBottom: 16 }}>
+            <Space wrap>
+              <Text strong>参与智能体:</Text>
+              {collaborationAgents.map(ca => (
+                <Tag 
+                  key={ca.agentId} 
+                  color="blue" 
+                  icon={<RobotOutlined />}
+                  style={{ cursor: 'pointer' }}
+                  onClick={() => {
+                    const agentName = ca.agent?.name || '未知';
+                    setInputMessage(prev => {
+                      if (prev.includes(`@${agentName}`)) return prev;
+                      return prev + `@${agentName} `;
+                    });
+                  }}
+                >
+                  @{ca.agent?.name || '未知智能体'}
+                  {ca.role && ` (${ca.role})`}
+                </Tag>
+              ))}
+            </Space>
+            <Text type="secondary" style={{ display: 'block', marginTop: 4, fontSize: 12 }}>
+              💡 输入 @ 或点击智能体标签可以指定回复，不@则所有智能体依次回复
+            </Text>
+          </div>
+        )}
+
         <Divider style={{ margin: '12px 0' }} />
 
         <div 
@@ -329,34 +554,69 @@ const CollaborationChat: React.FC = () => {
                         <div style={{ textAlign: 'center', color: '#999', fontSize: '12px' }}>
                           <Text type="secondary">{msg.content}</Text>
                         </div>
-                      ) : (
-                        <div style={{ display: 'flex', alignItems: 'flex-start' }}>
+                      ) : msg.senderType === 'User' ? (
+                        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'flex-end', gap: '8px' }}>
+                          <div style={{ maxWidth: '70%' }}>
+                            <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
+                              <Text type="secondary" style={{ fontSize: '12px' }}>
+                                {new Date(msg.timestamp).toLocaleTimeString()}
+                              </Text>
+                              <Text strong style={{ color: '#1890ff' }}>{msg.fromAgentName}</Text>
+                            </div>
+                            <div style={{ 
+                              padding: '10px 14px', 
+                              background: 'linear-gradient(135deg, #1890ff 0%, #096dd9 100%)', 
+                              color: '#fff',
+                              borderRadius: '16px 16px 4px 16px', 
+                              boxShadow: '0 2px 8px rgba(24, 144, 255, 0.3)',
+                              wordBreak: 'break-word'
+                            }}>
+                              {renderMessageContent(msg.content)}
+                            </div>
+                          </div>
                           <Avatar 
                             size={40}
                             style={{ 
-                              backgroundColor: msg.fromAgentId === 'user' ? '#1890ff' : getAgentColor(msg.fromAgentId),
-                              marginRight: 8 
+                              background: 'linear-gradient(135deg, #1890ff 0%, #096dd9 100%)',
+                              boxShadow: '0 2px 8px rgba(24, 144, 255, 0.3)'
                             }}
-                            icon={msg.fromAgentId === 'user' ? <UserOutlined /> : undefined}
+                            icon={<UserOutlined />}
+                          />
+                        </div>
+                      ) : (
+                        <div style={{ display: 'flex', alignItems: 'flex-start', gap: '8px' }}>
+                          <Avatar 
+                            size={40}
+                            style={{ 
+                              background: `linear-gradient(135deg, ${getAgentColor(msg.fromAgentId || '')} 0%, ${getAgentColor(msg.fromAgentId || '')}dd 100%)`,
+                              boxShadow: `0 2px 8px ${getAgentColor(msg.fromAgentId || '')}40`
+                            }}
                           >
-                            {msg.fromAgentId !== 'user' && (msg.fromAgentAvatar || getAgentAvatar(msg.fromAgentId) || '🤖')}
+                            {msg.fromAgentAvatar || getAgentAvatar(msg.fromAgentId || '') || '🤖'}
                           </Avatar>
-                          <div style={{ flex: 1 }}>
-                            <Space>
-                              <Text strong>{msg.fromAgentName}</Text>
+                          <div style={{ maxWidth: '70%' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
+                              <Text strong style={{ color: getAgentColor(msg.fromAgentId || '') }}>{msg.fromAgentName}</Text>
                               {msg.toAgentName && (
                                 <>
                                   <Text type="secondary">→</Text>
                                   <Text strong>{msg.toAgentName}</Text>
                                 </>
                               )}
-                              <Tag color={getMessageTypeColor(msg.type)}>{msg.type}</Tag>
+                              <Tag color={getMessageTypeColor(msg.type)} style={{ margin: 0 }}>{msg.type}</Tag>
                               <Text type="secondary" style={{ fontSize: '12px' }}>
                                 {new Date(msg.timestamp).toLocaleTimeString()}
                               </Text>
-                            </Space>
-                            <div style={{ marginTop: 4, padding: '8px 12px', background: '#fff', borderRadius: '8px', boxShadow: '0 1px 2px rgba(0,0,0,0.1)' }}>
-                              <Text>{msg.content}</Text>
+                            </div>
+                            <div style={{ 
+                              padding: '10px 14px', 
+                              background: '#fff', 
+                              borderRadius: '16px 16px 16px 4px', 
+                              boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
+                              wordBreak: 'break-word'
+                            }}>
+                              {renderMessageContent(msg.content)}
+                              {msg.isStreaming && <span className="typing-cursor">▊</span>}
                             </div>
                           </div>
                         </div>
@@ -370,30 +630,60 @@ const CollaborationChat: React.FC = () => {
           )}
         </div>
 
-        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-          <Text type="secondary" style={{ fontSize: 12 }}>
+        <div style={{ display: 'flex', gap: '8px', alignItems: 'flex-start' }}>
+          <Text type="secondary" style={{ fontSize: 12, paddingTop: 8 }}>
             共 {totalMessages} 条消息
           </Text>
-          <TextArea
+          <Mentions
             value={inputMessage}
-            onChange={(e) => setInputMessage(e.target.value)}
-            onKeyPress={handleKeyPress}
-            placeholder="输入消息... (Enter发送, Shift+Enter换行)"
-            autoSize={{ minRows: 2, maxRows: 4 }}
+            onChange={(val) => setInputMessage(val)}
             style={{ flex: 1 }}
-            disabled={!selectedCollaboration}
-          />
+            placeholder={collaborationAgents.length > 0 
+              ? "输入消息... 输入@选择智能体，不@则所有智能体依次回复" 
+              : "请先在协作项目中添加智能体"}
+            autoSize={{ minRows: 2, maxRows: 4 }}
+            disabled={!selectedCollaboration || collaborationAgents.length === 0 || sending}
+            prefix="@"
+            onKeyPress={(e) => {
+              if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                handleSendMessage();
+              }
+            }}
+          >
+            {collaborationAgents.map(ca => (
+              <Option key={ca.agentId} value={ca.agent?.name || '未知'}>
+                <Space>
+                  <RobotOutlined />
+                  <span>{ca.agent?.name || '未知智能体'}</span>
+                  {ca.role && <Tag color="blue" style={{ marginLeft: 4 }}>{ca.role}</Tag>}
+                </Space>
+              </Option>
+            ))}
+          </Mentions>
           <Button 
             type="primary" 
-            icon={<SendOutlined />} 
+            icon={sending ? <LoadingOutlined /> : <SendOutlined />} 
             onClick={handleSendMessage}
-            style={{ height: 'auto' }}
-            disabled={!selectedCollaboration}
+            style={{ height: 40 }}
+            disabled={!selectedCollaboration || collaborationAgents.length === 0 || sending}
+            loading={sending}
           >
             发送
           </Button>
         </div>
       </Card>
+      
+      <style>{`
+        .typing-cursor {
+          animation: blink 1s infinite;
+          font-weight: bold;
+        }
+        @keyframes blink {
+          0%, 50% { opacity: 1; }
+          51%, 100% { opacity: 0; }
+        }
+      `}</style>
     </div>
   );
 };

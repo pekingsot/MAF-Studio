@@ -10,7 +10,7 @@ const { RangePicker } = DatePicker;
 interface SystemLog {
   id: string;
   level: string;
-  category: string;
+  category?: string;
   message: string;
   exception?: string;
   stackTrace?: string;
@@ -20,6 +20,7 @@ interface SystemLog {
   userName?: string;
   ipAddress?: string;
   createdAt: string;
+  extraData?: string;
 }
 
 interface LogStatistics {

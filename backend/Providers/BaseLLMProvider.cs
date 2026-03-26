@@ -4,6 +4,7 @@ using Microsoft.Extensions.Logging;
 using System.Net.Http;
 using System.Text;
 using System.Text.Json;
+using System.Runtime.CompilerServices;
 
 namespace MAFStudio.Backend.Providers
 {
@@ -33,7 +34,7 @@ namespace MAFStudio.Backend.Providers
             _logger = logger;
             _httpClient = new HttpClient
             {
-                Timeout = TimeSpan.FromSeconds(60)
+                Timeout = TimeSpan.FromSeconds(120)
             };
         }
 
@@ -204,5 +205,103 @@ namespace MAFStudio.Backend.Providers
         /// <param name="config">大模型配置</param>
         /// <returns>模型名称列表</returns>
         public abstract Task<List<string>> GetAvailableModelsAsync(LLMConfig config);
+
+        /// <summary>
+        /// 构建聊天请求体
+        /// 子类可重写以支持不同的请求格式
+        /// </summary>
+        protected virtual object BuildChatRequest(string modelId, List<ChatMessage> messages)
+        {
+            return new
+            {
+                model = modelId,
+                messages = messages.Select(m => new { role = m.Role, content = m.Content }).ToArray(),
+                stream = true
+            };
+        }
+
+        /// <summary>
+        /// 流式聊天完成
+        /// </summary>
+        public virtual async IAsyncEnumerable<string> ChatStreamAsync(
+            LLMConfig config, 
+            LLMModelConfig modelConfig, 
+            List<ChatMessage> messages, 
+            [EnumeratorCancellation] CancellationToken cancellationToken = default)
+        {
+            var endpoint = config.Endpoint ?? DefaultEndpoint;
+            var url = GetTestUrl(endpoint);
+            var modelId = modelConfig.ModelName;
+
+            _logger.LogInformation("流式聊天 - Provider: {Provider}, Model: {Model}, URL: {Url}", 
+                DisplayName, modelId, url);
+
+            var chatRequest = BuildChatRequest(modelId, messages);
+            var jsonContent = JsonSerializer.Serialize(chatRequest);
+            var content = new StringContent(jsonContent, Encoding.UTF8, "application/json");
+
+            var request = new HttpRequestMessage(HttpMethod.Post, url)
+            {
+                Content = content
+            };
+
+            foreach (var header in GetHeaders(config))
+            {
+                request.Headers.TryAddWithoutValidation(header.Key, header.Value);
+            }
+
+            var response = await _httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
+            response.EnsureSuccessStatusCode();
+
+            using var stream = await response.Content.ReadAsStreamAsync(cancellationToken);
+            using var reader = new StreamReader(stream);
+
+            while (!reader.EndOfStream && !cancellationToken.IsCancellationRequested)
+            {
+                var line = await reader.ReadLineAsync(cancellationToken);
+                
+                if (string.IsNullOrEmpty(line))
+                    continue;
+
+                if (line.StartsWith("data: "))
+                {
+                    var data = line.Substring(6);
+                    
+                    if (data == "[DONE]")
+                        break;
+
+                    var content2 = ParseStreamContent(data);
+                    if (!string.IsNullOrEmpty(content2))
+                    {
+                        yield return content2;
+                    }
+                }
+            }
+        }
+
+        /// <summary>
+        /// 解析流式响应内容
+        /// </summary>
+        protected virtual string? ParseStreamContent(string data)
+        {
+            try
+            {
+                var json = JsonSerializer.Deserialize<JsonElement>(data);
+                if (json.TryGetProperty("choices", out var choices) && choices.ValueKind == JsonValueKind.Array)
+                {
+                    var firstChoice = choices.EnumerateArray().FirstOrDefault();
+                    if (firstChoice.TryGetProperty("delta", out var delta) && 
+                        delta.TryGetProperty("content", out var content))
+                    {
+                        return content.GetString();
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "解析流式响应失败: {Data}", data);
+            }
+            return null;
+        }
     }
 }

@@ -35,12 +35,12 @@ namespace MAFStudio.Backend.Controllers
             var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
             var isAdmin = await _authService.IsAdminAsync(userId!);
 
+            var query = _context.SystemLogs.AsQueryable();
+
             if (!isAdmin)
             {
-                return Forbid();
+                query = query.Where(l => l.UserId == userId);
             }
-
-            var query = _context.SystemLogs.AsQueryable();
 
             if (!string.IsNullOrEmpty(level))
             {
@@ -107,12 +107,13 @@ namespace MAFStudio.Backend.Controllers
             var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
             var isAdmin = await _authService.IsAdminAsync(userId!);
 
+            var query = _context.SystemLogs.AsQueryable();
             if (!isAdmin)
             {
-                return Forbid();
+                query = query.Where(l => l.UserId == userId);
             }
 
-            var levels = await _context.SystemLogs
+            var levels = await query
                 .Select(l => l.Level)
                 .Distinct()
                 .ToListAsync();
@@ -126,12 +127,13 @@ namespace MAFStudio.Backend.Controllers
             var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
             var isAdmin = await _authService.IsAdminAsync(userId!);
 
+            var query = _context.SystemLogs.AsQueryable();
             if (!isAdmin)
             {
-                return Forbid();
+                query = query.Where(l => l.UserId == userId);
             }
 
-            var categories = await _context.SystemLogs
+            var categories = await query
                 .Where(l => l.Category != null)
                 .Select(l => l.Category!)
                 .Distinct()
@@ -147,16 +149,16 @@ namespace MAFStudio.Backend.Controllers
             var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
             var isAdmin = await _authService.IsAdminAsync(userId!);
 
-            if (!isAdmin)
-            {
-                return Forbid();
-            }
-
             var log = await _context.SystemLogs.FindAsync(id);
 
             if (log == null)
             {
                 return NotFound();
+            }
+
+            if (!isAdmin && log.UserId != userId)
+            {
+                return Forbid();
             }
 
             return Ok(log);
@@ -168,16 +170,16 @@ namespace MAFStudio.Backend.Controllers
             var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
             var isAdmin = await _authService.IsAdminAsync(userId!);
 
-            if (!isAdmin)
-            {
-                return Forbid();
-            }
-
             var log = await _context.SystemLogs.FindAsync(id);
 
             if (log == null)
             {
                 return NotFound();
+            }
+
+            if (!isAdmin && log.UserId != userId)
+            {
+                return Forbid();
             }
 
             _context.SystemLogs.Remove(log);
@@ -192,18 +194,17 @@ namespace MAFStudio.Backend.Controllers
             var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
             var isAdmin = await _authService.IsAdminAsync(userId!);
 
-            if (!isAdmin)
-            {
-                return Forbid();
-            }
-
             var cutoffDate = beforeDays.HasValue
                 ? DateTime.UtcNow.AddDays(-beforeDays.Value)
                 : DateTime.UtcNow;
 
-            var logsToDelete = await _context.SystemLogs
-                .Where(l => l.CreatedAt < cutoffDate)
-                .ToListAsync();
+            var query = _context.SystemLogs.Where(l => l.CreatedAt < cutoffDate);
+            if (!isAdmin)
+            {
+                query = query.Where(l => l.UserId == userId);
+            }
+
+            var logsToDelete = await query.ToListAsync();
 
             _context.SystemLogs.RemoveRange(logsToDelete);
             await _context.SaveChangesAsync();
@@ -217,20 +218,21 @@ namespace MAFStudio.Backend.Controllers
             var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
             var isAdmin = await _authService.IsAdminAsync(userId!);
 
-            if (!isAdmin)
-            {
-                return Forbid();
-            }
-
             var startDate = DateTime.UtcNow.AddDays(-days);
 
-            var levelCounts = await _context.SystemLogs
+            var query = _context.SystemLogs.AsQueryable();
+            if (!isAdmin)
+            {
+                query = query.Where(l => l.UserId == userId);
+            }
+
+            var levelCounts = await query
                 .Where(l => l.CreatedAt >= startDate)
                 .GroupBy(l => l.Level)
                 .Select(g => new { Level = g.Key, Count = g.Count() })
                 .ToListAsync();
 
-            var dailyLogs = await _context.SystemLogs
+            var dailyLogs = await query
                 .Where(l => l.CreatedAt >= startDate)
                 .Select(l => l.CreatedAt)
                 .ToListAsync();
@@ -241,7 +243,7 @@ namespace MAFStudio.Backend.Controllers
                 .OrderBy(x => x.Date)
                 .ToList();
 
-            var totalErrors = await _context.SystemLogs
+            var totalErrors = await query
                 .Where(l => l.CreatedAt >= startDate && (l.Level == "Error" || l.Level == "Critical"))
                 .CountAsync();
 

@@ -133,5 +133,12 @@ namespace MAFStudio.Backend.Abstractions
         /// <param name="userId">用户ID</param>
         /// <returns>是否移除成功</returns>
         Task<bool> RemoveAgentFromCollaborationAsync(Guid collaborationId, Guid agentId, string? userId = null);
+
+        /// <summary>
+        /// 获取协作项目的智能体列表
+        /// </summary>
+        /// <param name="collaborationId">协作ID</param>
+        /// <returns>智能体列表</returns>
+        Task<List<CollaborationAgent>?> GetCollaborationAgentsAsync(Guid collaborationId);
     }
 }
