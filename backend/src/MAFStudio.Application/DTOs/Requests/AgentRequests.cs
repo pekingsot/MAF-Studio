@@ -1,5 +1,3 @@
-using MAFStudio.Core.Entities;
-
 namespace MAFStudio.Application.DTOs.Requests;
 
 public class CreateAgentRequest
@@ -9,8 +7,8 @@ public class CreateAgentRequest
     public string Type { get; set; } = "Assistant";
     public string Configuration { get; set; } = "{}";
     public string? Avatar { get; set; }
-    public Guid? LlmConfigId { get; set; }
-    public Guid? LlmModelConfigId { get; set; }
+    public long? LlmConfigId { get; set; }
+    public long? LlmModelConfigId { get; set; }
 }
 
 public class UpdateAgentRequest
@@ -19,8 +17,8 @@ public class UpdateAgentRequest
     public string? Description { get; set; }
     public string? Configuration { get; set; }
     public string? Avatar { get; set; }
-    public Guid? LlmConfigId { get; set; }
-    public Guid? LlmModelConfigId { get; set; }
+    public long? LlmConfigId { get; set; }
+    public long? LlmModelConfigId { get; set; }
 }
 
 public class UpdateAgentStatusRequest

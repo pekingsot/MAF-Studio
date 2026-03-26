@@ -1,7 +1,7 @@
 namespace MAFStudio.Core.Entities;
 
 [Dapper.Contrib.Extensions.Table("users")]
-public class User
+public class User : BaseEntityWithUpdate
 {
     [Dapper.Contrib.Extensions.Key]
     public string Id { get; set; } = Guid.NewGuid().ToString();
@@ -17,6 +17,4 @@ public class User
     public string? Avatar { get; set; }
 
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
-
-    public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
 }

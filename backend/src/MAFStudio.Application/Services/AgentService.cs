@@ -28,16 +28,15 @@ public class AgentService : IAgentService
         return await _agentRepository.GetByUserIdAsync(userId);
     }
 
-    public async Task<Agent?> GetByIdAsync(Guid id)
+    public async Task<Agent?> GetByIdAsync(long id)
     {
         return await _agentRepository.GetByIdAsync(id);
     }
 
-    public async Task<Agent> CreateAsync(string name, string? description, string type, string configuration, string? avatar, string userId, Guid? llmConfigId = null, Guid? llmModelConfigId = null)
+    public async Task<Agent> CreateAsync(string name, string? description, string type, string configuration, string? avatar, string userId, long? llmConfigId = null, long? llmModelConfigId = null)
     {
         var agent = new Agent
         {
-            Id = Guid.NewGuid(),
             Name = name,
             Description = description,
             Type = type,
@@ -47,13 +46,12 @@ public class AgentService : IAgentService
             LlmConfigId = llmConfigId,
             LlmModelConfigId = llmModelConfigId,
             Status = AgentStatus.Inactive,
-            CreatedAt = DateTime.UtcNow
         };
 
         return await _agentRepository.CreateAsync(agent);
     }
 
-    public async Task<Agent> UpdateAsync(Guid id, string name, string? description, string? configuration, string? avatar, Guid? llmConfigId = null, Guid? llmModelConfigId = null)
+    public async Task<Agent> UpdateAsync(long id, string name, string? description, string? configuration, string? avatar, long? llmConfigId = null, long? llmModelConfigId = null)
     {
         var agent = await _agentRepository.GetByIdAsync(id);
         if (agent == null)
@@ -72,12 +70,12 @@ public class AgentService : IAgentService
         return await _agentRepository.UpdateAsync(agent);
     }
 
-    public async Task<bool> DeleteAsync(Guid id)
+    public async Task<bool> DeleteAsync(long id)
     {
         return await _agentRepository.DeleteAsync(id);
     }
 
-    public async Task<Agent> UpdateStatusAsync(Guid id, AgentStatus status)
+    public async Task<Agent> UpdateStatusAsync(long id, AgentStatus status)
     {
         var agent = await _agentRepository.GetByIdAsync(id);
         if (agent == null)

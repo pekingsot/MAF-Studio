@@ -22,5 +22,5 @@ public class UpdateLlmConfigRequest
 public class TestLlmRequest
 {
     public string Prompt { get; set; } = string.Empty;
-    public Guid? ModelConfigId { get; set; }
+    public long? ModelConfigId { get; set; }
 }

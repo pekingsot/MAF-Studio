@@ -21,7 +21,7 @@ public class UpdateCollaborationRequest
 
 public class AddAgentRequest
 {
-    public Guid AgentId { get; set; }
+    public long AgentId { get; set; }
     public string? Role { get; set; }
 }
 
@@ -39,5 +39,5 @@ public class UpdateTaskStatusRequest
 public class SendMessageRequest
 {
     public string Content { get; set; } = string.Empty;
-    public Guid? ToAgentId { get; set; }
+    public long? ToAgentId { get; set; }
 }

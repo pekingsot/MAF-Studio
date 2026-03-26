@@ -23,7 +23,7 @@ public class LlmConfigService : ILlmConfigService
         return await _llmConfigRepository.GetAllAsync();
     }
 
-    public async Task<LlmConfig?> GetByIdAsync(Guid id)
+    public async Task<LlmConfig?> GetByIdAsync(long id)
     {
         return await _llmConfigRepository.GetByIdAsync(id);
     }
@@ -32,7 +32,6 @@ public class LlmConfigService : ILlmConfigService
     {
         var config = new LlmConfig
         {
-            Id = Guid.NewGuid(),
             Name = name,
             Provider = provider,
             ApiKey = apiKey,
@@ -40,13 +39,12 @@ public class LlmConfigService : ILlmConfigService
             DefaultModel = defaultModel,
             ExtraConfig = extraConfig,
             UserId = userId,
-            CreatedAt = DateTime.UtcNow
         };
 
         return await _llmConfigRepository.CreateAsync(config);
     }
 
-    public async Task<LlmConfig> UpdateAsync(Guid id, string name, string? apiKey, string? endpoint, string? defaultModel, string? extraConfig)
+    public async Task<LlmConfig> UpdateAsync(long id, string name, string? apiKey, string? endpoint, string? defaultModel, string? extraConfig)
     {
         var config = await _llmConfigRepository.GetByIdAsync(id);
         if (config == null)
@@ -64,7 +62,7 @@ public class LlmConfigService : ILlmConfigService
         return await _llmConfigRepository.UpdateAsync(config);
     }
 
-    public async Task<bool> DeleteAsync(Guid id)
+    public async Task<bool> DeleteAsync(long id)
     {
         return await _llmConfigRepository.DeleteAsync(id);
     }

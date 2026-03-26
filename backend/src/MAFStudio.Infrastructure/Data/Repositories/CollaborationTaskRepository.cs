@@ -14,14 +14,14 @@ public class CollaborationTaskRepository : ICollaborationTaskRepository
         _context = context;
     }
 
-    public async Task<CollaborationTask?> GetByIdAsync(Guid id)
+    public async Task<CollaborationTask?> GetByIdAsync(long id)
     {
         using var connection = _context.CreateConnection();
         const string sql = "SELECT * FROM collaboration_tasks WHERE id = @Id";
         return await connection.QueryFirstOrDefaultAsync<CollaborationTask>(sql, new { Id = id });
     }
 
-    public async Task<List<CollaborationTask>> GetByCollaborationIdAsync(Guid collaborationId)
+    public async Task<List<CollaborationTask>> GetByCollaborationIdAsync(long collaborationId)
     {
         using var connection = _context.CreateConnection();
         const string sql = "SELECT * FROM collaboration_tasks WHERE collaboration_id = @CollaborationId ORDER BY created_at DESC";
@@ -32,6 +32,8 @@ public class CollaborationTaskRepository : ICollaborationTaskRepository
     public async Task<CollaborationTask> CreateAsync(CollaborationTask task)
     {
         using var connection = _context.CreateConnection();
+        task.GenerateId();
+        task.CreatedAt = DateTime.UtcNow;
         const string sql = @"
             INSERT INTO collaboration_tasks (id, collaboration_id, title, description, status, assigned_to, created_at, completed_at)
             VALUES (@Id, @CollaborationId, @Title, @Description, @Status, @AssignedTo, @CreatedAt, @CompletedAt)
@@ -54,7 +56,7 @@ public class CollaborationTaskRepository : ICollaborationTaskRepository
         return await connection.QueryFirstAsync<CollaborationTask>(sql, task);
     }
 
-    public async Task<bool> DeleteAsync(Guid id)
+    public async Task<bool> DeleteAsync(long id)
     {
         using var connection = _context.CreateConnection();
         const string sql = "DELETE FROM collaboration_tasks WHERE id = @Id";
@@ -62,7 +64,7 @@ public class CollaborationTaskRepository : ICollaborationTaskRepository
         return rows > 0;
     }
 
-    public async Task<bool> UpdateStatusAsync(Guid id, CollaborationTaskStatus status)
+    public async Task<bool> UpdateStatusAsync(long id, CollaborationTaskStatus status)
     {
         using var connection = _context.CreateConnection();
         const string sql = "UPDATE collaboration_tasks SET status = @Status WHERE id = @Id";

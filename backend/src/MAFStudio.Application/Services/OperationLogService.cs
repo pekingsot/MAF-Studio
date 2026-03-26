@@ -17,13 +17,11 @@ public class OperationLogService : IOperationLogService
     {
         var log = new OperationLog
         {
-            Id = Guid.NewGuid(),
             UserId = userId,
             Action = action,
             ResourceType = resourceType,
             Description = description,
             Details = details,
-            CreatedAt = DateTime.UtcNow
         };
 
         await _logRepository.CreateAsync(log);

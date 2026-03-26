@@ -4,10 +4,10 @@ namespace MAFStudio.Core.Interfaces.Repositories;
 
 public interface IAgentTypeRepository
 {
-    Task<AgentType?> GetByIdAsync(Guid id);
+    Task<AgentType?> GetByIdAsync(long id);
     Task<AgentType?> GetByCodeAsync(string code);
     Task<List<AgentType>> GetAllAsync();
     Task<AgentType> CreateAsync(AgentType agentType);
     Task<AgentType> UpdateAsync(AgentType agentType);
-    Task<bool> DeleteAsync(Guid id);
+    Task<bool> DeleteAsync(long id);
 }

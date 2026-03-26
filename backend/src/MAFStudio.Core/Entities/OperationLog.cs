@@ -1,10 +1,12 @@
+using MAFStudio.Core.Utils;
+
 namespace MAFStudio.Core.Entities;
 
 [Dapper.Contrib.Extensions.Table("operation_logs")]
 public class OperationLog
 {
     [Dapper.Contrib.Extensions.Key]
-    public Guid Id { get; set; }
+    public long Id { get; set; }
 
     public string UserId { get; set; } = string.Empty;
 
@@ -19,4 +21,12 @@ public class OperationLog
     public string? Details { get; set; }
 
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+
+    /// <summary>
+    /// 生成新的雪花ID
+    /// </summary>
+    public void GenerateId()
+    {
+        Id = SnowflakeIdGenerator.Instance.NextId();
+    }
 }

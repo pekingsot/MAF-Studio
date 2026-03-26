@@ -1,4 +1,5 @@
 using MAFStudio.Core.Enums;
+using MAFStudio.Core.Utils;
 
 namespace MAFStudio.Core.Entities;
 
@@ -6,7 +7,7 @@ namespace MAFStudio.Core.Entities;
 public class RagDocument
 {
     [Dapper.Contrib.Extensions.Key]
-    public Guid Id { get; set; }
+    public long Id { get; set; }
 
     public string FileName { get; set; } = string.Empty;
 
@@ -25,4 +26,12 @@ public class RagDocument
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
     public DateTime? ProcessedAt { get; set; }
+
+    /// <summary>
+    /// 生成新的雪花ID
+    /// </summary>
+    public void GenerateId()
+    {
+        Id = SnowflakeIdGenerator.Instance.NextId();
+    }
 }

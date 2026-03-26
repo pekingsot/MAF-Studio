@@ -1,12 +1,14 @@
+using MAFStudio.Core.Utils;
+
 namespace MAFStudio.Core.Entities;
 
 [Dapper.Contrib.Extensions.Table("rag_document_chunks")]
 public class RagDocumentChunk
 {
     [Dapper.Contrib.Extensions.Key]
-    public Guid Id { get; set; }
+    public long Id { get; set; }
 
-    public Guid DocumentId { get; set; }
+    public long DocumentId { get; set; }
 
     public int ChunkIndex { get; set; }
 
@@ -15,4 +17,12 @@ public class RagDocumentChunk
     public string? Metadata { get; set; }
 
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+
+    /// <summary>
+    /// 生成新的雪花ID
+    /// </summary>
+    public void GenerateId()
+    {
+        Id = SnowflakeIdGenerator.Instance.NextId();
+    }
 }

@@ -1,10 +1,12 @@
+using MAFStudio.Core.Utils;
+
 namespace MAFStudio.Core.Entities;
 
 [Dapper.Contrib.Extensions.Table("system_logs")]
 public class SystemLog
 {
     [Dapper.Contrib.Extensions.Key]
-    public Guid Id { get; set; }
+    public long Id { get; set; }
 
     public string Level { get; set; } = "Info";
 
@@ -23,4 +25,12 @@ public class SystemLog
     public string? AdditionalData { get; set; }
 
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+
+    /// <summary>
+    /// 生成新的雪花ID
+    /// </summary>
+    public void GenerateId()
+    {
+        Id = SnowflakeIdGenerator.Instance.NextId();
+    }
 }

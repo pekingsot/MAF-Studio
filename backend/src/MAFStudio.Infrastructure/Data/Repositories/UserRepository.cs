@@ -37,6 +37,7 @@ public class UserRepository : IUserRepository
     public async Task<User> CreateAsync(User user)
     {
         using var connection = _context.CreateConnection();
+        user.CreatedAt = DateTime.UtcNow;
         const string sql = @"
             INSERT INTO users (id, username, email, password_hash, role, avatar, created_at, updated_at)
             VALUES (@Id, @Username, @Email, @PasswordHash, @Role, @Avatar, @CreatedAt, @UpdatedAt)
@@ -47,6 +48,7 @@ public class UserRepository : IUserRepository
     public async Task<User> UpdateAsync(User user)
     {
         using var connection = _context.CreateConnection();
+        user.MarkAsUpdated();
         const string sql = @"
             UPDATE users SET 
                 username = @Username,

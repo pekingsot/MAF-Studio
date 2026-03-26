@@ -39,7 +39,7 @@ public class LlmConfigsController : ControllerBase
     }
 
     [HttpGet("{id}")]
-    public async Task<ActionResult<LlmConfigVo>> GetLlmConfig(Guid id)
+    public async Task<ActionResult<LlmConfigVo>> GetLlmConfig(long id)
     {
         var config = await _llmConfigService.GetByIdAsync(id);
         if (config == null)
@@ -71,7 +71,7 @@ public class LlmConfigsController : ControllerBase
     }
 
     [HttpPut("{id}")]
-    public async Task<ActionResult<Core.Entities.LlmConfig>> UpdateLlmConfig(Guid id, [FromBody] UpdateLlmConfigRequest request)
+    public async Task<ActionResult<Core.Entities.LlmConfig>> UpdateLlmConfig(long id, [FromBody] UpdateLlmConfigRequest request)
     {
         var config = await _llmConfigService.UpdateAsync(
             id,
@@ -89,7 +89,7 @@ public class LlmConfigsController : ControllerBase
     }
 
     [HttpDelete("{id}")]
-    public async Task<ActionResult> DeleteLlmConfig(Guid id)
+    public async Task<ActionResult> DeleteLlmConfig(long id)
     {
         var result = await _llmConfigService.DeleteAsync(id);
         if (!result)

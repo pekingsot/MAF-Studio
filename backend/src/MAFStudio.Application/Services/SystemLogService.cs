@@ -17,7 +17,6 @@ public class SystemLogService : ISystemLogService
     {
         var log = new SystemLog
         {
-            Id = Guid.NewGuid(),
             Level = level,
             Category = category,
             Message = message,
@@ -26,7 +25,6 @@ public class SystemLogService : ISystemLogService
             UserId = userId,
             RequestPath = requestPath,
             AdditionalData = additionalData,
-            CreatedAt = DateTime.UtcNow
         };
 
         await _logRepository.CreateAsync(log);

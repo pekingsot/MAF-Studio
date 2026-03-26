@@ -1,12 +1,13 @@
 using MAFStudio.Core.Enums;
+using MAFStudio.Core.Utils;
 
 namespace MAFStudio.Core.Entities;
 
 [Dapper.Contrib.Extensions.Table("agents")]
-public class Agent
+public class Agent : BaseEntityWithUpdate
 {
     [Dapper.Contrib.Extensions.Key]
-    public Guid Id { get; set; }
+    public long Id { get; set; }
 
     public string Name { get; set; } = string.Empty;
 
@@ -22,14 +23,20 @@ public class Agent
 
     public AgentStatus Status { get; set; } = AgentStatus.Inactive;
 
-    public Guid? LlmConfigId { get; set; }
+    public long? LlmConfigId { get; set; }
 
-    public Guid? LlmModelConfigId { get; set; }
+    public long? LlmModelConfigId { get; set; }
 
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
-    public DateTime? UpdatedAt { get; set; }
-
     [Dapper.Contrib.Extensions.Write(false)]
     public LlmConfig? LlmConfig { get; set; }
+
+    /// <summary>
+    /// 生成新的雪花ID
+    /// </summary>
+    public void GenerateId()
+    {
+        Id = SnowflakeIdGenerator.Instance.NextId();
+    }
 }

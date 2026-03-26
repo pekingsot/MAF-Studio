@@ -35,7 +35,7 @@ public class CollaborationsController : ControllerBase
     }
 
     [HttpGet("{id}")]
-    public async Task<ActionResult<CollaborationVo>> GetCollaboration(Guid id)
+    public async Task<ActionResult<CollaborationVo>> GetCollaboration(long id)
     {
         var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
         var collaboration = await _collaborationService.GetByIdAsync(id, userId!);
@@ -79,7 +79,7 @@ public class CollaborationsController : ControllerBase
     }
 
     [HttpDelete("{id}")]
-    public async Task<ActionResult> DeleteCollaboration(Guid id)
+    public async Task<ActionResult> DeleteCollaboration(long id)
     {
         var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
         
@@ -95,7 +95,7 @@ public class CollaborationsController : ControllerBase
     }
 
     [HttpPost("{id}/agents")]
-    public async Task<ActionResult> AddAgentToCollaboration(Guid id, [FromBody] AddAgentRequest request)
+    public async Task<ActionResult> AddAgentToCollaboration(long id, [FromBody] AddAgentRequest request)
     {
         var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
         
@@ -109,7 +109,7 @@ public class CollaborationsController : ControllerBase
     }
 
     [HttpDelete("{id}/agents/{agentId}")]
-    public async Task<ActionResult> RemoveAgentFromCollaboration(Guid id, Guid agentId)
+    public async Task<ActionResult> RemoveAgentFromCollaboration(long id, long agentId)
     {
         var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
         
@@ -123,7 +123,7 @@ public class CollaborationsController : ControllerBase
     }
 
     [HttpPost("{id}/tasks")]
-    public async Task<ActionResult<Core.Entities.CollaborationTask>> CreateTask(Guid id, [FromBody] CreateTaskRequest request)
+    public async Task<ActionResult<Core.Entities.CollaborationTask>> CreateTask(long id, [FromBody] CreateTaskRequest request)
     {
         var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
         
@@ -133,7 +133,7 @@ public class CollaborationsController : ControllerBase
     }
 
     [HttpPatch("tasks/{taskId}/status")]
-    public async Task<ActionResult<Core.Entities.CollaborationTask>> UpdateTaskStatus(Guid taskId, [FromBody] UpdateTaskStatusRequest request)
+    public async Task<ActionResult<Core.Entities.CollaborationTask>> UpdateTaskStatus(long taskId, [FromBody] UpdateTaskStatusRequest request)
     {
         var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
         
@@ -148,7 +148,7 @@ public class CollaborationsController : ControllerBase
     }
 
     [HttpDelete("tasks/{taskId}")]
-    public async Task<ActionResult> DeleteTask(Guid taskId)
+    public async Task<ActionResult> DeleteTask(long taskId)
     {
         var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
         

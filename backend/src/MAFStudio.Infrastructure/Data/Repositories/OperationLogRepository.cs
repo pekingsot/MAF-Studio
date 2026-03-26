@@ -13,7 +13,7 @@ public class OperationLogRepository : IOperationLogRepository
         _context = context;
     }
 
-    public async Task<OperationLog?> GetByIdAsync(Guid id)
+    public async Task<OperationLog?> GetByIdAsync(long id)
     {
         using var connection = _context.CreateConnection();
         const string sql = "SELECT * FROM operation_logs WHERE id = @Id";
@@ -43,6 +43,8 @@ public class OperationLogRepository : IOperationLogRepository
     public async Task<OperationLog> CreateAsync(OperationLog log)
     {
         using var connection = _context.CreateConnection();
+        log.GenerateId();
+        log.CreatedAt = DateTime.UtcNow;
         const string sql = @"
             INSERT INTO operation_logs (id, user_id, action, resource_type, resource_id, description, details, created_at)
             VALUES (@Id, @UserId, @Action, @ResourceType, @ResourceId, @Description, @Details, @CreatedAt)

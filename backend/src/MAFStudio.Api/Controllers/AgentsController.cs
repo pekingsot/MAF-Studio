@@ -36,7 +36,7 @@ public class AgentsController : ControllerBase
     }
 
     [HttpGet("{id}")]
-    public async Task<ActionResult<AgentVo>> GetAgent(Guid id)
+    public async Task<ActionResult<AgentVo>> GetAgent(long id)
     {
         var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
         var isAdmin = await _authService.IsAdminAsync(userId!);
@@ -78,7 +78,7 @@ public class AgentsController : ControllerBase
     }
 
     [HttpPut("{id}")]
-    public async Task<ActionResult<Core.Entities.Agent>> UpdateAgent(Guid id, [FromBody] UpdateAgentRequest request)
+    public async Task<ActionResult<Core.Entities.Agent>> UpdateAgent(long id, [FromBody] UpdateAgentRequest request)
     {
         var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
         var isAdmin = await _authService.IsAdminAsync(userId!);
@@ -103,7 +103,7 @@ public class AgentsController : ControllerBase
     }
 
     [HttpDelete("{id}")]
-    public async Task<ActionResult> DeleteAgent(Guid id)
+    public async Task<ActionResult> DeleteAgent(long id)
     {
         var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
         var isAdmin = await _authService.IsAdminAsync(userId!);
@@ -127,7 +127,7 @@ public class AgentsController : ControllerBase
     }
 
     [HttpPatch("{id}/status")]
-    public async Task<ActionResult<Core.Entities.Agent>> UpdateAgentStatus(Guid id, [FromBody] UpdateAgentStatusRequest request)
+    public async Task<ActionResult<Core.Entities.Agent>> UpdateAgentStatus(long id, [FromBody] UpdateAgentStatusRequest request)
     {
         var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
         var isAdmin = await _authService.IsAdminAsync(userId!);

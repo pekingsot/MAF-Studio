@@ -14,41 +14,37 @@ public class MessageService : IMessageService
         _messageRepository = messageRepository;
     }
 
-    public async Task<AgentMessage> CreateUserMessageAsync(Guid collaborationId, string content, string? userId, string? senderName)
+    public async Task<AgentMessage> CreateUserMessageAsync(long collaborationId, string content, string? userId, string? senderName)
     {
         var message = new AgentMessage
         {
-            Id = Guid.NewGuid(),
             CollaborationId = collaborationId,
             Content = content,
             SenderType = SenderType.User,
             SenderName = senderName ?? "User",
             UserId = userId,
-            CreatedAt = DateTime.UtcNow,
             IsStreaming = false
         };
 
         return await _messageRepository.CreateAsync(message);
     }
 
-    public async Task<AgentMessage> CreateAgentMessageAsync(Guid collaborationId, Guid agentId, string content, string senderName)
+    public async Task<AgentMessage> CreateAgentMessageAsync(long collaborationId, long agentId, string content, string senderName)
     {
         var message = new AgentMessage
         {
-            Id = Guid.NewGuid(),
             FromAgentId = agentId,
             CollaborationId = collaborationId,
             Content = content,
             SenderType = SenderType.Agent,
             SenderName = senderName,
-            CreatedAt = DateTime.UtcNow,
             IsStreaming = false
         };
 
         return await _messageRepository.CreateAsync(message);
     }
 
-    public async Task<List<AgentMessage>> GetByCollaborationIdAsync(Guid collaborationId, int limit = 100)
+    public async Task<List<AgentMessage>> GetByCollaborationIdAsync(long collaborationId, int limit = 100)
     {
         return await _messageRepository.GetByCollaborationIdAsync(collaborationId, limit);
     }

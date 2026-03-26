@@ -1,4 +1,5 @@
 using MAFStudio.Core.Enums;
+using MAFStudio.Core.Utils;
 
 namespace MAFStudio.Core.Entities;
 
@@ -6,13 +7,13 @@ namespace MAFStudio.Core.Entities;
 public class AgentMessage
 {
     [Dapper.Contrib.Extensions.Key]
-    public Guid Id { get; set; }
+    public long Id { get; set; }
 
-    public Guid? FromAgentId { get; set; }
+    public long? FromAgentId { get; set; }
 
-    public Guid? ToAgentId { get; set; }
+    public long? ToAgentId { get; set; }
 
-    public Guid CollaborationId { get; set; }
+    public long CollaborationId { get; set; }
 
     public string Content { get; set; } = string.Empty;
 
@@ -25,4 +26,12 @@ public class AgentMessage
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
     public bool IsStreaming { get; set; } = false;
+
+    /// <summary>
+    /// 生成新的雪花ID
+    /// </summary>
+    public void GenerateId()
+    {
+        Id = SnowflakeIdGenerator.Instance.NextId();
+    }
 }

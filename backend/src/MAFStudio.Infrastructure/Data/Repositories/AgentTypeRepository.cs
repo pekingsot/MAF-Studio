@@ -13,7 +13,7 @@ public class AgentTypeRepository : IAgentTypeRepository
         _context = context;
     }
 
-    public async Task<AgentType?> GetByIdAsync(Guid id)
+    public async Task<AgentType?> GetByIdAsync(long id)
     {
         using var connection = _context.CreateConnection();
         const string sql = "SELECT * FROM agent_types WHERE id = @Id";
@@ -38,6 +38,8 @@ public class AgentTypeRepository : IAgentTypeRepository
     public async Task<AgentType> CreateAsync(AgentType agentType)
     {
         using var connection = _context.CreateConnection();
+        agentType.GenerateId();
+        agentType.CreatedAt = DateTime.UtcNow;
         const string sql = @"
             INSERT INTO agent_types (id, name, code, description, icon, default_configuration, llm_config_id, created_at)
             VALUES (@Id, @Name, @Code, @Description, @Icon, @DefaultConfiguration, @LlmConfigId, @CreatedAt)
@@ -61,7 +63,7 @@ public class AgentTypeRepository : IAgentTypeRepository
         return await connection.QueryFirstAsync<AgentType>(sql, agentType);
     }
 
-    public async Task<bool> DeleteAsync(Guid id)
+    public async Task<bool> DeleteAsync(long id)
     {
         using var connection = _context.CreateConnection();
         const string sql = "DELETE FROM agent_types WHERE id = @Id";

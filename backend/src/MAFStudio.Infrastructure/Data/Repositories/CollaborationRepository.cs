@@ -2,6 +2,7 @@ using Dapper;
 using MAFStudio.Core.Entities;
 using MAFStudio.Core.Enums;
 using MAFStudio.Core.Interfaces.Repositories;
+using MAFStudio.Core.Utils;
 
 namespace MAFStudio.Infrastructure.Data.Repositories;
 
@@ -14,7 +15,7 @@ public class CollaborationRepository : ICollaborationRepository
         _context = context;
     }
 
-    public async Task<Collaboration?> GetByIdAsync(Guid id)
+    public async Task<Collaboration?> GetByIdAsync(long id)
     {
         using var connection = _context.CreateConnection();
         const string sql = "SELECT * FROM collaborations WHERE id = @Id";
@@ -32,6 +33,8 @@ public class CollaborationRepository : ICollaborationRepository
     public async Task<Collaboration> CreateAsync(Collaboration collaboration)
     {
         using var connection = _context.CreateConnection();
+        collaboration.GenerateId();
+        collaboration.CreatedAt = DateTime.UtcNow;
         const string sql = @"
             INSERT INTO collaborations (id, name, description, path, status, user_id, git_repository_url, git_branch, git_username, git_email, git_access_token, created_at, updated_at)
             VALUES (@Id, @Name, @Description, @Path, @Status, @UserId, @GitRepositoryUrl, @GitBranch, @GitUsername, @GitEmail, @GitAccessToken, @CreatedAt, @UpdatedAt)
@@ -42,6 +45,7 @@ public class CollaborationRepository : ICollaborationRepository
     public async Task<Collaboration> UpdateAsync(Collaboration collaboration)
     {
         using var connection = _context.CreateConnection();
+        collaboration.MarkAsUpdated();
         const string sql = @"
             UPDATE collaborations SET 
                 name = @Name,
@@ -59,7 +63,7 @@ public class CollaborationRepository : ICollaborationRepository
         return await connection.QueryFirstAsync<Collaboration>(sql, collaboration);
     }
 
-    public async Task<bool> DeleteAsync(Guid id)
+    public async Task<bool> DeleteAsync(long id)
     {
         using var connection = _context.CreateConnection();
         const string sql = "DELETE FROM collaborations WHERE id = @Id";
@@ -67,15 +71,16 @@ public class CollaborationRepository : ICollaborationRepository
         return rows > 0;
     }
 
-    public async Task<bool> AddAgentAsync(Guid collaborationId, Guid agentId, string? role)
+    public async Task<bool> AddAgentAsync(long collaborationId, long agentId, string? role)
     {
         using var connection = _context.CreateConnection();
+        var id = SnowflakeIdGenerator.Instance.NextId();
         const string sql = @"
             INSERT INTO collaboration_agents (id, collaboration_id, agent_id, role, joined_at)
             VALUES (@Id, @CollaborationId, @AgentId, @Role, @JoinedAt)";
         var rows = await connection.ExecuteAsync(sql, new 
         { 
-            Id = Guid.NewGuid(), 
+            Id = id, 
             CollaborationId = collaborationId, 
             AgentId = agentId, 
             Role = role, 
@@ -84,7 +89,7 @@ public class CollaborationRepository : ICollaborationRepository
         return rows > 0;
     }
 
-    public async Task<bool> RemoveAgentAsync(Guid collaborationId, Guid agentId)
+    public async Task<bool> RemoveAgentAsync(long collaborationId, long agentId)
     {
         using var connection = _context.CreateConnection();
         const string sql = "DELETE FROM collaboration_agents WHERE collaboration_id = @CollaborationId AND agent_id = @AgentId";
@@ -92,7 +97,7 @@ public class CollaborationRepository : ICollaborationRepository
         return rows > 0;
     }
 
-    public async Task<List<CollaborationAgent>> GetAgentsAsync(Guid collaborationId)
+    public async Task<List<CollaborationAgent>> GetAgentsAsync(long collaborationId)
     {
         using var connection = _context.CreateConnection();
         const string sql = "SELECT * FROM collaboration_agents WHERE collaboration_id = @CollaborationId";

@@ -12,7 +12,7 @@ public class LlmConfigVo : BaseVo
 
 public class LlmModelConfigVo
 {
-    public Guid Id { get; set; }
+    public long Id { get; set; }
     public string ModelName { get; set; } = string.Empty;
     public string? DisplayName { get; set; }
     public string? Description { get; set; }

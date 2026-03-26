@@ -5,12 +5,12 @@ namespace MAFStudio.Core.Interfaces.Repositories;
 
 public interface ICollaborationRepository
 {
-    Task<Collaboration?> GetByIdAsync(Guid id);
+    Task<Collaboration?> GetByIdAsync(long id);
     Task<List<Collaboration>> GetByUserIdAsync(string userId);
     Task<Collaboration> CreateAsync(Collaboration collaboration);
     Task<Collaboration> UpdateAsync(Collaboration collaboration);
-    Task<bool> DeleteAsync(Guid id);
-    Task<bool> AddAgentAsync(Guid collaborationId, Guid agentId, string? role);
-    Task<bool> RemoveAgentAsync(Guid collaborationId, Guid agentId);
-    Task<List<CollaborationAgent>> GetAgentsAsync(Guid collaborationId);
+    Task<bool> DeleteAsync(long id);
+    Task<bool> AddAgentAsync(long collaborationId, long agentId, string? role);
+    Task<bool> RemoveAgentAsync(long collaborationId, long agentId);
+    Task<List<CollaborationAgent>> GetAgentsAsync(long collaborationId);
 }

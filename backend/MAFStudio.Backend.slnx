@@ -1,4 +1,0 @@
-<Solution>
-  <Project Path="MAFStudio.Backend.csproj" />
-  <Project Path="MAFStudio.Backend.Tests/MAFStudio.Backend.Tests.csproj" />
-</Solution>

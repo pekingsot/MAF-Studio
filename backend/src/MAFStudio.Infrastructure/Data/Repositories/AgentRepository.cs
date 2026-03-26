@@ -2,6 +2,7 @@ using Dapper;
 using MAFStudio.Core.Entities;
 using MAFStudio.Core.Enums;
 using MAFStudio.Core.Interfaces.Repositories;
+using MAFStudio.Core.Utils;
 
 namespace MAFStudio.Infrastructure.Data.Repositories;
 
@@ -14,7 +15,7 @@ public class AgentRepository : IAgentRepository
         _context = context;
     }
 
-    public async Task<Agent?> GetByIdAsync(Guid id)
+    public async Task<Agent?> GetByIdAsync(long id)
     {
         using var connection = _context.CreateConnection();
         const string sql = @"
@@ -56,6 +57,8 @@ public class AgentRepository : IAgentRepository
     public async Task<Agent> CreateAsync(Agent agent)
     {
         using var connection = _context.CreateConnection();
+        agent.GenerateId();
+        agent.CreatedAt = DateTime.UtcNow;
         const string sql = @"
             INSERT INTO agents (id, name, description, type, configuration, avatar, user_id, status, llm_config_id, llm_model_config_id, created_at, updated_at)
             VALUES (@Id, @Name, @Description, @Type, @Configuration, @Avatar, @UserId, @Status, @LlmConfigId, @LlmModelConfigId, @CreatedAt, @UpdatedAt)
@@ -66,6 +69,7 @@ public class AgentRepository : IAgentRepository
     public async Task<Agent> UpdateAsync(Agent agent)
     {
         using var connection = _context.CreateConnection();
+        agent.MarkAsUpdated();
         const string sql = @"
             UPDATE agents SET 
                 name = @Name,
@@ -81,7 +85,7 @@ public class AgentRepository : IAgentRepository
         return await connection.QueryFirstAsync<Agent>(sql, agent);
     }
 
-    public async Task<bool> DeleteAsync(Guid id)
+    public async Task<bool> DeleteAsync(long id)
     {
         using var connection = _context.CreateConnection();
         const string sql = "DELETE FROM agents WHERE id = @Id";
@@ -89,11 +93,11 @@ public class AgentRepository : IAgentRepository
         return rows > 0;
     }
 
-    public async Task<bool> UpdateStatusAsync(Guid id, AgentStatus status)
+    public async Task<bool> UpdateStatusAsync(long id, AgentStatus status)
     {
         using var connection = _context.CreateConnection();
-        const string sql = "UPDATE agents SET status = @Status WHERE id = @Id";
-        var rows = await connection.ExecuteAsync(sql, new { Id = id, Status = status });
+        const string sql = "UPDATE agents SET status = @Status, updated_at = @UpdatedAt WHERE id = @Id";
+        var rows = await connection.ExecuteAsync(sql, new { Id = id, Status = status, UpdatedAt = DateTime.UtcNow });
         return rows > 0;
     }
 }

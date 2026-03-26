@@ -17,7 +17,7 @@ public class CollaborationVo : BaseVo
 
 public class CollaborationAgentVo
 {
-    public Guid AgentId { get; set; }
+    public long AgentId { get; set; }
     public string AgentName { get; set; } = string.Empty;
     public string? AgentAvatar { get; set; }
     public string? Role { get; set; }
@@ -26,7 +26,7 @@ public class CollaborationAgentVo
 
 public class CollaborationTaskVo : BaseVo
 {
-    public Guid CollaborationId { get; set; }
+    public long CollaborationId { get; set; }
     public string Title { get; set; } = string.Empty;
     public string? Description { get; set; }
     public CollaborationTaskStatus Status { get; set; }

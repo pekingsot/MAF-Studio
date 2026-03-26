@@ -13,7 +13,7 @@ public class SystemLogRepository : ISystemLogRepository
         _context = context;
     }
 
-    public async Task<SystemLog?> GetByIdAsync(Guid id)
+    public async Task<SystemLog?> GetByIdAsync(long id)
     {
         using var connection = _context.CreateConnection();
         const string sql = "SELECT * FROM system_logs WHERE id = @Id";
@@ -54,6 +54,8 @@ public class SystemLogRepository : ISystemLogRepository
     public async Task<SystemLog> CreateAsync(SystemLog log)
     {
         using var connection = _context.CreateConnection();
+        log.GenerateId();
+        log.CreatedAt = DateTime.UtcNow;
         const string sql = @"
             INSERT INTO system_logs (id, level, category, message, exception, stack_trace, user_id, request_path, additional_data, created_at)
             VALUES (@Id, @Level, @Category, @Message, @Exception, @StackTrace, @UserId, @RequestPath, @AdditionalData, @CreatedAt)
@@ -61,7 +63,7 @@ public class SystemLogRepository : ISystemLogRepository
         return await connection.QueryFirstAsync<SystemLog>(sql, log);
     }
 
-    public async Task<bool> DeleteAsync(Guid id)
+    public async Task<bool> DeleteAsync(long id)
     {
         using var connection = _context.CreateConnection();
         const string sql = "DELETE FROM system_logs WHERE id = @Id";

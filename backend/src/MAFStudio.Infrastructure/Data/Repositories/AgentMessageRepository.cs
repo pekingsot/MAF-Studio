@@ -13,14 +13,14 @@ public class AgentMessageRepository : IAgentMessageRepository
         _context = context;
     }
 
-    public async Task<AgentMessage?> GetByIdAsync(Guid id)
+    public async Task<AgentMessage?> GetByIdAsync(long id)
     {
         using var connection = _context.CreateConnection();
         const string sql = "SELECT * FROM agent_messages WHERE id = @Id";
         return await connection.QueryFirstOrDefaultAsync<AgentMessage>(sql, new { Id = id });
     }
 
-    public async Task<List<AgentMessage>> GetByCollaborationIdAsync(Guid collaborationId, int limit = 100)
+    public async Task<List<AgentMessage>> GetByCollaborationIdAsync(long collaborationId, int limit = 100)
     {
         using var connection = _context.CreateConnection();
         const string sql = @"
@@ -35,6 +35,8 @@ public class AgentMessageRepository : IAgentMessageRepository
     public async Task<AgentMessage> CreateAsync(AgentMessage message)
     {
         using var connection = _context.CreateConnection();
+        message.GenerateId();
+        message.CreatedAt = DateTime.UtcNow;
         const string sql = @"
             INSERT INTO agent_messages (id, from_agent_id, to_agent_id, collaboration_id, content, sender_type, sender_name, user_id, created_at, is_streaming)
             VALUES (@Id, @FromAgentId, @ToAgentId, @CollaborationId, @Content, @SenderType, @SenderName, @UserId, @CreatedAt, @IsStreaming)
@@ -42,7 +44,7 @@ public class AgentMessageRepository : IAgentMessageRepository
         return await connection.QueryFirstAsync<AgentMessage>(sql, message);
     }
 
-    public async Task<bool> DeleteAsync(Guid id)
+    public async Task<bool> DeleteAsync(long id)
     {
         using var connection = _context.CreateConnection();
         const string sql = "DELETE FROM agent_messages WHERE id = @Id";

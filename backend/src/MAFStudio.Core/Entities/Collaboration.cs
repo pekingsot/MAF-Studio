@@ -1,12 +1,13 @@
 using MAFStudio.Core.Enums;
+using MAFStudio.Core.Utils;
 
 namespace MAFStudio.Core.Entities;
 
 [Dapper.Contrib.Extensions.Table("collaborations")]
-public class Collaboration
+public class Collaboration : BaseEntityWithUpdate
 {
     [Dapper.Contrib.Extensions.Key]
-    public Guid Id { get; set; }
+    public long Id { get; set; }
 
     public string Name { get; set; } = string.Empty;
 
@@ -30,5 +31,11 @@ public class Collaboration
 
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
-    public DateTime? UpdatedAt { get; set; }
+    /// <summary>
+    /// 生成新的雪花ID
+    /// </summary>
+    public void GenerateId()
+    {
+        Id = SnowflakeIdGenerator.Instance.NextId();
+    }
 }

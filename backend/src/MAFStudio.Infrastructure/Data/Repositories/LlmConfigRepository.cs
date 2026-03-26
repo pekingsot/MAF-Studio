@@ -13,7 +13,7 @@ public class LlmConfigRepository : ILlmConfigRepository
         _context = context;
     }
 
-    public async Task<LlmConfig?> GetByIdAsync(Guid id)
+    public async Task<LlmConfig?> GetByIdAsync(long id)
     {
         using var connection = _context.CreateConnection();
         const string sql = "SELECT * FROM llm_configs WHERE id = @Id";
@@ -39,6 +39,8 @@ public class LlmConfigRepository : ILlmConfigRepository
     public async Task<LlmConfig> CreateAsync(LlmConfig config)
     {
         using var connection = _context.CreateConnection();
+        config.GenerateId();
+        config.CreatedAt = DateTime.UtcNow;
         const string sql = @"
             INSERT INTO llm_configs (id, name, provider, api_key, endpoint, default_model, extra_config, user_id, created_at, updated_at)
             VALUES (@Id, @Name, @Provider, @ApiKey, @Endpoint, @DefaultModel, @ExtraConfig, @UserId, @CreatedAt, @UpdatedAt)
@@ -49,6 +51,7 @@ public class LlmConfigRepository : ILlmConfigRepository
     public async Task<LlmConfig> UpdateAsync(LlmConfig config)
     {
         using var connection = _context.CreateConnection();
+        config.MarkAsUpdated();
         const string sql = @"
             UPDATE llm_configs SET 
                 name = @Name,
@@ -63,7 +66,7 @@ public class LlmConfigRepository : ILlmConfigRepository
         return await connection.QueryFirstAsync<LlmConfig>(sql, config);
     }
 
-    public async Task<bool> DeleteAsync(Guid id)
+    public async Task<bool> DeleteAsync(long id)
     {
         using var connection = _context.CreateConnection();
         const string sql = "DELETE FROM llm_configs WHERE id = @Id";
