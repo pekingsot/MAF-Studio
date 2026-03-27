@@ -7,7 +7,6 @@ public class CreateLlmConfigRequest
     public string? ApiKey { get; set; }
     public string? Endpoint { get; set; }
     public string? DefaultModel { get; set; }
-    public string? ExtraConfig { get; set; }
 }
 
 public class UpdateLlmConfigRequest
@@ -16,7 +15,6 @@ public class UpdateLlmConfigRequest
     public string? ApiKey { get; set; }
     public string? Endpoint { get; set; }
     public string? DefaultModel { get; set; }
-    public string? ExtraConfig { get; set; }
 }
 
 public class TestLlmRequest

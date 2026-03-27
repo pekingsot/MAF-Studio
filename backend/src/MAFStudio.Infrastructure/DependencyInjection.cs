@@ -1,4 +1,7 @@
 using Microsoft.Extensions.DependencyInjection;
+using MAFStudio.Core.Interfaces.Repositories;
+using MAFStudio.Infrastructure.Data;
+using MAFStudio.Infrastructure.Data.Repositories;
 
 namespace MAFStudio.Infrastructure;
 
@@ -6,17 +9,19 @@ public static class DependencyInjection
 {
     public static IServiceCollection AddInfrastructure(this IServiceCollection services)
     {
-        services.AddScoped<Data.IDapperContext, Data.DapperContext>();
+        services.AddScoped<IDapperContext, DapperContext>();
         
-        services.AddScoped<Core.Interfaces.Repositories.IUserRepository, Data.Repositories.UserRepository>();
-        services.AddScoped<Core.Interfaces.Repositories.IAgentRepository, Data.Repositories.AgentRepository>();
-        services.AddScoped<Core.Interfaces.Repositories.IAgentTypeRepository, Data.Repositories.AgentTypeRepository>();
-        services.AddScoped<Core.Interfaces.Repositories.IAgentMessageRepository, Data.Repositories.AgentMessageRepository>();
-        services.AddScoped<Core.Interfaces.Repositories.ICollaborationRepository, Data.Repositories.CollaborationRepository>();
-        services.AddScoped<Core.Interfaces.Repositories.ICollaborationTaskRepository, Data.Repositories.CollaborationTaskRepository>();
-        services.AddScoped<Core.Interfaces.Repositories.ILlmConfigRepository, Data.Repositories.LlmConfigRepository>();
-        services.AddScoped<Core.Interfaces.Repositories.IOperationLogRepository, Data.Repositories.OperationLogRepository>();
-        services.AddScoped<Core.Interfaces.Repositories.ISystemLogRepository, Data.Repositories.SystemLogRepository>();
+        services.AddScoped<IUserRepository, UserRepository>();
+        services.AddScoped<IAgentRepository, AgentRepository>();
+        services.AddScoped<IAgentModelRepository, AgentModelRepository>();
+        services.AddScoped<IAgentTypeRepository, AgentTypeRepository>();
+        services.AddScoped<IAgentMessageRepository, AgentMessageRepository>();
+        services.AddScoped<ICollaborationRepository, CollaborationRepository>();
+        services.AddScoped<ICollaborationTaskRepository, CollaborationTaskRepository>();
+        services.AddScoped<ILlmConfigRepository, LlmConfigRepository>();
+        services.AddScoped<ILlmModelConfigRepository, LlmModelConfigRepository>();
+        services.AddScoped<IOperationLogRepository, OperationLogRepository>();
+        services.AddScoped<ISystemLogRepository, SystemLogRepository>();
         
         return services;
     }

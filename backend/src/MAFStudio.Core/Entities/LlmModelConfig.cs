@@ -18,13 +18,26 @@ public class LlmModelConfig
 
     public bool IsDefault { get; set; } = false;
 
-    public string? ExtraConfig { get; set; }
+    public bool IsEnabled { get; set; } = true;
+
+    public int SortOrder { get; set; } = 0;
+
+    public decimal Temperature { get; set; } = 0.7m;
+
+    public int MaxTokens { get; set; } = 4096;
+
+    public int ContextWindow { get; set; } = 8192;
+
+    public decimal? TopP { get; set; }
+
+    public decimal? FrequencyPenalty { get; set; }
+
+    public decimal? PresencePenalty { get; set; }
+
+    public string? StopSequences { get; set; }
 
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
-    /// <summary>
-    /// 生成新的雪花ID
-    /// </summary>
     public void GenerateId()
     {
         Id = SnowflakeIdGenerator.Instance.NextId();

@@ -51,7 +51,7 @@ public abstract class TestBase : IDisposable
             Name = name,
             Description = $"Test agent {name}",
             Type = "Assistant",
-            Configuration = "{}",
+            SystemPrompt = "Test system prompt",
             UserId = userId,
             Status = AgentStatus.Inactive,
             LlmConfigId = llmConfigId

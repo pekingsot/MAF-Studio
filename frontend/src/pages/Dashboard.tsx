@@ -82,7 +82,7 @@ const Dashboard: React.FC = () => {
         api.get<LLMConfig[]>('/llmconfigs'),
         api.get<AgentType[]>('/agenttypes/enabled'),
       ]);
-      setAgents(agentsData);
+      setAgents(agentsData.agents || []);
       setCollaborations(collaborationsData);
       setLlmConfigs(llmConfigsData.data.filter(c => c.isEnabled));
       setAgentTypes(agentTypesData.data || []);

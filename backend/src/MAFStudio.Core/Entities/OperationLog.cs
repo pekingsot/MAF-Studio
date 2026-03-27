@@ -20,11 +20,22 @@ public class OperationLog
 
     public string? Details { get; set; }
 
+    public string? IpAddress { get; set; }
+
+    public string? UserAgent { get; set; }
+
+    public string? RequestPath { get; set; }
+
+    public string? RequestMethod { get; set; }
+
+    public int? StatusCode { get; set; }
+
+    public long? DurationMs { get; set; }
+
+    public string? ErrorMessage { get; set; }
+
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
-    /// <summary>
-    /// 生成新的雪花ID
-    /// </summary>
     public void GenerateId()
     {
         Id = SnowflakeIdGenerator.Instance.NextId();

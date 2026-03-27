@@ -27,12 +27,12 @@ const Collaborations: React.FC = () => {
   const loadData = async () => {
     try {
       setLoading(true);
-      const [collaborationsData, agentsData] = await Promise.all([
+      const [collaborationsData, agentsResponse] = await Promise.all([
         collaborationService.getAllCollaborations(),
         agentService.getAllAgents(),
       ]);
       setCollaborations(collaborationsData);
-      setAgents(agentsData);
+      setAgents(agentsResponse.agents || []);
     } catch (error) {
       message.error('加载数据失败');
     } finally {

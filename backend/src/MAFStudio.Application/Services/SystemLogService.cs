@@ -34,4 +34,9 @@ public class SystemLogService : ISystemLogService
     {
         return await _logRepository.GetAsync(level, category, userId, limit);
     }
+
+    public async Task<bool> DeleteAsync(long id)
+    {
+        return await _logRepository.DeleteAsync(id);
+    }
 }

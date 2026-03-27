@@ -75,9 +75,9 @@ const AgentDetail: React.FC = () => {
           <Descriptions.Item label="描述" span={2}>
             {agent.description || '无描述'}
           </Descriptions.Item>
-          <Descriptions.Item label="配置" span={2}>
+          <Descriptions.Item label="系统提示词" span={2}>
             <pre style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
-              {agent.configuration}
+              {agent.systemPrompt || '未设置'}
             </pre>
           </Descriptions.Item>
         </Descriptions>
