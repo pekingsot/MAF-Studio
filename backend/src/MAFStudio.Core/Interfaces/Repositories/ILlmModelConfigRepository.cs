@@ -9,4 +9,5 @@ public interface ILlmModelConfigRepository
     Task<LlmModelConfig> CreateAsync(LlmModelConfig config);
     Task<LlmModelConfig> UpdateAsync(LlmModelConfig config);
     Task<bool> DeleteAsync(long id);
+    Task SetDefaultAsync(long llmConfigId, long modelId);
 }

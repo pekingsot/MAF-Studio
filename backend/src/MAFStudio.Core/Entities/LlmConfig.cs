@@ -18,15 +18,16 @@ public class LlmConfig : BaseEntityWithUpdate
 
     public string? DefaultModel { get; set; }
 
-    public string? ExtraConfig { get; set; }
-
     public string UserId { get; set; } = string.Empty;
+
+    public bool IsDefault { get; set; } = false;
+
+    public bool IsEnabled { get; set; } = true;
 
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
-    /// <summary>
-    /// 生成新的雪花ID
-    /// </summary>
+    public List<LlmModelConfig>? Models { get; set; }
+
     public void GenerateId()
     {
         Id = SnowflakeIdGenerator.Instance.NextId();

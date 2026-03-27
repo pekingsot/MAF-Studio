@@ -7,6 +7,7 @@ public interface IAgentTypeRepository
     Task<AgentType?> GetByIdAsync(long id);
     Task<AgentType?> GetByCodeAsync(string code);
     Task<List<AgentType>> GetAllAsync();
+    Task<List<AgentType>> GetEnabledAsync();
     Task<AgentType> CreateAsync(AgentType agentType);
     Task<AgentType> UpdateAsync(AgentType agentType);
     Task<bool> DeleteAsync(long id);

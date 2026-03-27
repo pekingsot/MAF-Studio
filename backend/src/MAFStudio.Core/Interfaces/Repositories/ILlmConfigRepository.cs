@@ -10,4 +10,5 @@ public interface ILlmConfigRepository
     Task<LlmConfig> CreateAsync(LlmConfig config);
     Task<LlmConfig> UpdateAsync(LlmConfig config);
     Task<bool> DeleteAsync(long id);
+    Task SetDefaultAsync(long id, string userId);
 }

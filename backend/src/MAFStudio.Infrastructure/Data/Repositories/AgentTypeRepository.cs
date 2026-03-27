@@ -30,7 +30,15 @@ public class AgentTypeRepository : IAgentTypeRepository
     public async Task<List<AgentType>> GetAllAsync()
     {
         using var connection = _context.CreateConnection();
-        const string sql = "SELECT * FROM agent_types ORDER BY name";
+        const string sql = "SELECT * FROM agent_types ORDER BY sort_order, name";
+        var result = await connection.QueryAsync<AgentType>(sql);
+        return result.ToList();
+    }
+
+    public async Task<List<AgentType>> GetEnabledAsync()
+    {
+        using var connection = _context.CreateConnection();
+        const string sql = "SELECT * FROM agent_types WHERE is_enabled = true ORDER BY sort_order, name";
         var result = await connection.QueryAsync<AgentType>(sql);
         return result.ToList();
     }
@@ -41,8 +49,8 @@ public class AgentTypeRepository : IAgentTypeRepository
         agentType.GenerateId();
         agentType.CreatedAt = DateTime.UtcNow;
         const string sql = @"
-            INSERT INTO agent_types (id, name, code, description, icon, default_configuration, llm_config_id, created_at)
-            VALUES (@Id, @Name, @Code, @Description, @Icon, @DefaultConfiguration, @LlmConfigId, @CreatedAt)
+            INSERT INTO agent_types (id, name, code, description, icon, default_configuration, llm_config_id, is_system, is_enabled, sort_order, created_at)
+            VALUES (@Id, @Name, @Code, @Description, @Icon, @DefaultConfiguration::jsonb, @LlmConfigId, @IsSystem, @IsEnabled, @SortOrder, @CreatedAt)
             RETURNING *";
         return await connection.QueryFirstAsync<AgentType>(sql, agentType);
     }
@@ -57,7 +65,10 @@ public class AgentTypeRepository : IAgentTypeRepository
                 description = @Description,
                 icon = @Icon,
                 default_configuration = @DefaultConfiguration,
-                llm_config_id = @LlmConfigId
+                llm_config_id = @LlmConfigId,
+                is_system = @IsSystem,
+                is_enabled = @IsEnabled,
+                sort_order = @SortOrder
             WHERE id = @Id
             RETURNING *";
         return await connection.QueryFirstAsync<AgentType>(sql, agentType);

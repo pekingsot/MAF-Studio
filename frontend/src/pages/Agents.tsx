@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { Table, Button, Modal, Form, Input, Select, Tag, Space, message, Divider, InputNumber, Row, Col, Tooltip, Avatar, Alert, Typography, Popconfirm, Badge } from 'antd';
-import { PlusOutlined, EditOutlined, DeleteOutlined, InfoCircleOutlined, PlayCircleOutlined, PauseCircleOutlined, StopOutlined, ThunderboltOutlined, ReloadOutlined } from '@ant-design/icons';
-import { agentService, Agent } from '../services/agentService';
+import { Table, Button, Modal, Form, Input, Select, Tag, Space, message, Divider, Row, Col, Tooltip, Alert, Typography, Popconfirm, Badge, Transfer, Cascader } from 'antd';
+import { PlusOutlined, EditOutlined, DeleteOutlined, InfoCircleOutlined, PlayCircleOutlined, PauseCircleOutlined, StopOutlined, ThunderboltOutlined, ArrowUpOutlined, ArrowDownOutlined } from '@ant-design/icons';
+import { agentService, Agent, FallbackModel, FallbackModelRequest, AgentType } from '../services/agentService';
 import { agentRuntimeService, AgentRuntimeStatus } from '../services/agentRuntimeService';
 import api from '../services/api';
 
@@ -14,33 +14,35 @@ const AVATAR_OPTIONS = [
   '🦾', '🤝', '🔮', '💡', '🎭', '🦸', '🌈', '🎪', '🎠', '🎡'
 ];
 
-interface AgentType {
-  id: string;
-  code: string;
-  name: string;
-  description?: string;
-  defaultSystemPrompt?: string;
-  defaultTemperature: number;
-  defaultMaxTokens: number;
-  icon?: string;
-  isSystem: boolean;
-  isEnabled: boolean;
-}
-
 interface LLMConfig {
   id: string;
   name: string;
   provider: string;
-  models?: { modelName: string; displayName?: string }[];
+  models?: LlmModel[];
   endpoint?: string;
   isEnabled: boolean;
   isDefault: boolean;
 }
 
-interface ModelConfig {
-  systemPrompt?: string;
-  temperature?: number;
-  maxTokens?: number;
+interface LlmModel {
+  id: string;
+  modelName: string;
+  displayName?: string;
+  description?: string;
+  temperature: number;
+  maxTokens: number;
+  contextWindow: number;
+  isDefault: boolean;
+  isEnabled: boolean;
+  sortOrder: number;
+}
+
+interface SelectedModel {
+  llmConfigId: string;
+  llmConfigName: string;
+  llmModelConfigId: string;
+  modelName: string;
+  provider: string;
 }
 
 const Agents: React.FC = () => {
@@ -56,22 +58,30 @@ const Agents: React.FC = () => {
   const [activatingAgent, setActivatingAgent] = useState<string | null>(null);
   const [form] = Form.useForm();
   const initializedRef = useRef(false);
+  
+  const [selectedFallbackModels, setSelectedFallbackModels] = useState<SelectedModel[]>([]);
+  const [selectedPrimaryModel, setSelectedPrimaryModel] = useState<SelectedModel | null>(null);
 
   useEffect(() => {
     if (!initializedRef.current) {
       initializedRef.current = true;
       loadAgents();
-      loadAgentTypes();
-      loadLLMConfigs();
     }
   }, []);
 
   const loadAgents = async () => {
     try {
       setLoading(true);
-      const data = await agentService.getAllAgents();
-      setAgents(data);
-      loadRuntimeStatuses(data.map(a => a.id));
+      const response = await agentService.getAllAgents();
+      console.log('[DEBUG] loadAgents - response:', response);
+      
+      setAgents(response.agents || []);
+      setAgentTypes(response.agentTypes || []);
+      
+      if (response.agents && response.agents.length > 0) {
+        console.log('[DEBUG] loadAgents - first agent fallbackModels:', response.agents[0]?.fallbackModels);
+        loadRuntimeStatuses(response.agents.map((a: Agent) => a.id));
+      }
     } catch (error) {
       message.error('加载智能体列表失败');
     } finally {
@@ -79,19 +89,11 @@ const Agents: React.FC = () => {
     }
   };
 
-  const loadAgentTypes = async () => {
-    try {
-      const response = await api.get('/agenttypes/enabled');
-      setAgentTypes(response.data || []);
-    } catch (error) {
-      console.error('加载智能体类型失败', error);
-    }
-  };
-
   const loadLLMConfigs = async () => {
     try {
       const response = await api.get('/llmconfigs');
-      setLLMConfigs((response.data || []).filter((c: LLMConfig) => c.isEnabled));
+      const configs = (response.data || []).filter((c: LLMConfig) => c.isEnabled);
+      setLLMConfigs(configs);
     } catch (error) {
       console.error('加载大模型配置失败', error);
     }
@@ -193,39 +195,106 @@ const Agents: React.FC = () => {
     }
   };
 
-  const parseConfiguration = (configuration?: string): ModelConfig => {
-    try {
-      return configuration ? JSON.parse(configuration) : {};
-    } catch (e) {
-      return {};
-    }
-  };
-
-  const handleCreate = () => {
+  const handleCreate = async () => {
     setEditingAgent(null);
     form.resetFields();
     form.setFieldsValue({
       avatar: '🤖',
-      temperature: 0.7,
-      maxTokens: 4096,
     });
+    setSelectedFallbackModels([]);
+    setSelectedPrimaryModel(null);
+    
+    if (llmConfigs.length === 0) {
+      await loadLLMConfigs();
+    }
+    
     setModalVisible(true);
   };
 
-  const handleEdit = (agent: Agent) => {
-    setEditingAgent(agent);
-    const config = parseConfiguration(agent.configuration);
+  const handleEdit = async (agent: Agent) => {
+    console.log('[DEBUG] handleEdit - agent:', agent);
+    console.log('[DEBUG] handleEdit - llmConfigs:', llmConfigs);
     
+    setEditingAgent(agent);
     form.setFieldsValue({
       name: agent.name,
       description: agent.description,
       type: agent.type,
       avatar: agent.avatar || '🤖',
-      llmConfigId: agent.llmConfigId,
-      systemPrompt: config.systemPrompt,
-      temperature: config.temperature || 0.7,
-      maxTokens: config.maxTokens || 4096,
+      systemPrompt: agent.systemPrompt,
     });
+    
+    let currentLlmConfigs = llmConfigs;
+    if (llmConfigs.length === 0) {
+      const response = await api.get('/llmconfigs');
+      currentLlmConfigs = (response.data || []).filter((c: LLMConfig) => c.isEnabled);
+      setLLMConfigs(currentLlmConfigs);
+    }
+    
+    if (agent.llmConfigId && agent.llmModelConfigId) {
+      console.log('[DEBUG] handleEdit - llmConfigId:', agent.llmConfigId, 'llmModelConfigId:', agent.llmModelConfigId);
+      
+      const config = currentLlmConfigs.find(c => c.id === agent.llmConfigId);
+      const model = config?.models?.find(m => m.id === agent.llmModelConfigId);
+      
+      console.log('[DEBUG] handleEdit - config:', config, 'model:', model);
+      
+      if (config && model) {
+        setSelectedPrimaryModel({
+          llmConfigId: config.id,
+          llmConfigName: config.name,
+          llmModelConfigId: model.id,
+          modelName: model.displayName || model.modelName,
+          provider: config.provider,
+        });
+      } else {
+        setSelectedPrimaryModel({
+          llmConfigId: agent.llmConfigId,
+          llmConfigName: agent.llmConfigName || '',
+          llmModelConfigId: agent.llmModelConfigId,
+          modelName: agent.primaryModelName || '',
+          provider: '',
+        });
+      }
+    } else {
+      setSelectedPrimaryModel(null);
+    }
+    
+    if (agent.fallbackModels && agent.fallbackModels.length > 0) {
+      console.log('[DEBUG] handleEdit - fallbackModels:', agent.fallbackModels);
+      
+      const fallbackConfigs: SelectedModel[] = agent.fallbackModels.map(fm => {
+        const config = currentLlmConfigs.find(c => c.id === fm.llmConfigId);
+        const model = config?.models?.find(m => m.id === fm.llmModelConfigId);
+        
+        console.log('[DEBUG] handleEdit - fallback config:', config, 'model:', model);
+        
+        if (config && model) {
+          return {
+            llmConfigId: config.id,
+            llmConfigName: config.name,
+            llmModelConfigId: model.id,
+            modelName: model.displayName || model.modelName,
+            provider: config.provider,
+          };
+        } else {
+          return {
+            llmConfigId: fm.llmConfigId,
+            llmConfigName: fm.llmConfigName || '',
+            llmModelConfigId: fm.llmModelConfigId || '',
+            modelName: fm.modelName || '',
+            provider: '',
+          };
+        }
+      }).filter(m => m.llmConfigId && m.llmModelConfigId) as SelectedModel[];
+      
+      console.log('[DEBUG] handleEdit - fallbackConfigs:', fallbackConfigs);
+      
+      setSelectedFallbackModels(fallbackConfigs);
+    } else {
+      setSelectedFallbackModels([]);
+    }
+    
     setModalVisible(true);
   };
 
@@ -250,35 +319,55 @@ const Agents: React.FC = () => {
     if (selectedType) {
       form.setFieldsValue({
         systemPrompt: selectedType.defaultSystemPrompt,
-        temperature: selectedType.defaultTemperature,
-        maxTokens: selectedType.defaultMaxTokens,
         avatar: selectedType.icon || '🤖',
       });
     }
+  };
+
+  const handleMoveUp = (index: number) => {
+    if (index > 0) {
+      const newModels = [...selectedFallbackModels];
+      [newModels[index - 1], newModels[index]] = [newModels[index], newModels[index - 1]];
+      setSelectedFallbackModels(newModels);
+    }
+  };
+
+  const handleMoveDown = (index: number) => {
+    if (index < selectedFallbackModels.length - 1) {
+      const newModels = [...selectedFallbackModels];
+      [newModels[index], newModels[index + 1]] = [newModels[index + 1], newModels[index]];
+      setSelectedFallbackModels(newModels);
+    }
+  };
+
+  const handleRemoveFallbackModel = (modelId: string) => {
+    setSelectedFallbackModels(selectedFallbackModels.filter(m => `${m.llmConfigId}_${m.llmModelConfigId}` !== modelId));
   };
 
   const handleSubmit = async () => {
     try {
       const values = await form.validateFields();
       
-      if (!values.llmConfigId) {
-        message.warning('请先选择大模型配置，如未配置请前往"大模型配置"页面添加');
+      if (!selectedPrimaryModel) {
+        message.warning('请选择主模型');
         return;
       }
       
-      const modelConfig: ModelConfig = {
-        systemPrompt: values.systemPrompt,
-        temperature: values.temperature || 0.7,
-        maxTokens: values.maxTokens || 4096,
-      };
+      const fallbackModels: FallbackModelRequest[] = selectedFallbackModels.map((model, index) => ({
+        llmConfigId: parseInt(model.llmConfigId),
+        llmModelConfigId: parseInt(model.llmModelConfigId),
+        priority: index + 1,
+      }));
       
       const agentData = {
         name: values.name,
         description: values.description,
         type: values.type,
         avatar: values.avatar || '🤖',
-        configuration: JSON.stringify(modelConfig),
-        llmConfigId: values.llmConfigId,
+        systemPrompt: values.systemPrompt,
+        llmConfigId: parseInt(selectedPrimaryModel.llmConfigId),
+        llmModelConfigId: parseInt(selectedPrimaryModel.llmModelConfigId),
+        fallbackModels: fallbackModels.length > 0 ? fallbackModels : undefined,
       };
       
       if (editingAgent) {
@@ -295,15 +384,24 @@ const Agents: React.FC = () => {
     }
   };
 
-  const getLLMInfo = (llmConfigId?: string) => {
+  const getLLMInfo = (llmConfigId?: string, llmModelConfigId?: string) => {
     if (!llmConfigId) return null;
     const llm = llmConfigs.find(l => l.id === llmConfigId);
     if (!llm) return null;
-    const defaultModel = llm.models?.[0];
+    
+    let modelName = '-';
+    if (llmModelConfigId) {
+      const model = llm.models?.find(m => m.id === llmModelConfigId);
+      modelName = model?.displayName || model?.modelName || '-';
+    } else {
+      const defaultModel = llm.models?.[0];
+      modelName = defaultModel?.displayName || defaultModel?.modelName || '-';
+    }
+    
     return {
       name: llm.name,
       provider: llm.provider,
-      modelName: defaultModel?.displayName || defaultModel?.modelName || '-'
+      modelName
     };
   };
 
@@ -336,17 +434,46 @@ const Agents: React.FC = () => {
       },
     },
     {
-      title: '大模型',
+      title: '主模型',
       key: 'llmConfig',
-      width: 100,
+      width: 120,
       render: (_: any, record: Agent) => {
-        const llmInfo = getLLMInfo(record.llmConfigId);
-        return llmInfo ? (
-          <Tooltip title={`${llmInfo.provider} - ${llmInfo.modelName}`}>
-            <Tag color="green">{llmInfo.name}</Tag>
-          </Tooltip>
-        ) : (
-          <Tag color="red">未配置</Tag>
+        if (record.primaryModelName && record.llmConfigName) {
+          return (
+            <Tooltip title={`${record.llmConfigName} - ${record.primaryModelName}`}>
+              <Tag color="green">{record.llmConfigName}</Tag>
+              <div style={{ fontSize: 11, color: '#666', marginTop: 2 }}>
+                {record.primaryModelName}
+              </div>
+            </Tooltip>
+          );
+        }
+        return <Tag color="red">未配置</Tag>;
+      },
+    },
+    {
+      title: '副模型',
+      key: 'fallbackModels',
+      width: 150,
+      render: (_: any, record: Agent) => {
+        if (!record.fallbackModels || record.fallbackModels.length === 0) {
+          return <Text type="secondary" style={{ fontSize: 12 }}>无</Text>;
+        }
+        return (
+          <Space direction="vertical" size={2}>
+            {record.fallbackModels.map((fm, index) => (
+              <div key={index} style={{ marginBottom: 4 }}>
+                <Tag color="blue" style={{ fontSize: 11 }}>
+                  {fm.llmConfigName || `配置:${fm.llmConfigId}`}
+                </Tag>
+                {fm.modelName && (
+                  <div style={{ fontSize: 11, color: '#666', marginTop: 2 }}>
+                    {fm.modelName}
+                  </div>
+                )}
+              </div>
+            ))}
+          </Space>
         );
       },
     },
@@ -389,8 +516,7 @@ const Agents: React.FC = () => {
       key: 'systemPrompt',
       width: 350,
       render: (_: any, record: Agent) => {
-        const config = parseConfiguration(record.configuration);
-        const prompt = config.systemPrompt;
+        const prompt = record.systemPrompt;
         if (!prompt) return <Text type="secondary" style={{ fontSize: 12 }}>-</Text>;
         
         return (
@@ -540,6 +666,7 @@ const Agents: React.FC = () => {
           onShowSizeChange: (_current, size) => setPageSize(size)
         }}
         size="small"
+        scroll={{ x: 1500 }}
       />
 
       <Modal
@@ -547,7 +674,7 @@ const Agents: React.FC = () => {
         open={modalVisible}
         onOk={handleSubmit}
         onCancel={() => setModalVisible(false)}
-        width={700}
+        width={900}
         okText="保存"
         cancelText="取消"
       >
@@ -611,29 +738,191 @@ const Agents: React.FC = () => {
             <Input.TextArea rows={2} placeholder="请输入智能体描述" />
           </Form.Item>
 
+          <Divider orientation="left">主模型配置</Divider>
+          
           <Row gutter={16}>
-            <Col span={12}>
+            <Col span={24}>
               <Form.Item
-                name="llmConfigId"
-                label="大模型配置"
-                rules={[{ required: true, message: '请选择大模型配置' }]}
+                label="主模型"
+                required
+                tooltip="选择大模型配置和具体模型"
               >
-                <Select placeholder="选择已配置的大模型" showSearch optionFilterProp="children">
-                  {llmConfigs.map(config => {
-                    const defaultModel = config.models?.[0];
-                    return (
-                      <Option key={config.id} value={config.id}>
+                <Cascader
+                  value={selectedPrimaryModel ? [selectedPrimaryModel.llmConfigId, selectedPrimaryModel.llmModelConfigId] : undefined}
+                  onChange={(value, selectedOptions) => {
+                    console.log('[DEBUG] Cascader onChange - value:', value);
+                    if (value && value.length === 2) {
+                      const config = llmConfigs.find(c => c.id === value[0]);
+                      const model = config?.models?.find(m => m.id === value[1]);
+                      console.log('[DEBUG] Cascader onChange - config:', config, 'model:', model);
+                      if (config && model) {
+                        setSelectedPrimaryModel({
+                          llmConfigId: config.id,
+                          llmConfigName: config.name,
+                          llmModelConfigId: model.id,
+                          modelName: model.displayName || model.modelName,
+                          provider: config.provider,
+                        });
+                      }
+                    } else {
+                      setSelectedPrimaryModel(null);
+                    }
+                  }}
+                  options={llmConfigs.map(config => ({
+                    value: config.id,
+                    label: (
+                      <Space>
+                        <span>{config.name}</span>
+                        <Tag color="blue">{config.provider}</Tag>
+                        {config.isDefault && <Tag color="gold">默认</Tag>}
+                      </Space>
+                    ),
+                    children: config.models?.filter(m => m.isEnabled).map(model => ({
+                      value: model.id,
+                      label: (
                         <Space>
-                          <span>{config.name}</span>
-                          <Tag color="blue">{config.provider}</Tag>
-                          {defaultModel && <Tag>{defaultModel.displayName || defaultModel.modelName}</Tag>}
-                          {config.isDefault && <Tag color="gold">默认</Tag>}
+                          <span>{model.displayName || model.modelName}</span>
+                          {model.isDefault && <Tag color="green">默认</Tag>}
                         </Space>
-                      </Option>
-                    );
-                  })}
-                </Select>
+                      ),
+                    })) || [],
+                  }))}
+                  placeholder="请选择大模型配置和具体模型"
+                  showSearch
+                  style={{ width: '100%' }}
+                />
               </Form.Item>
+            </Col>
+          </Row>
+
+          <Divider orientation="left">副模型配置（故障转移）</Divider>
+
+          <Row gutter={16}>
+            <Col span={24}>
+              <Form.Item
+                label="添加副模型"
+                tooltip="选择大模型配置和具体模型作为副模型，用于主模型故障时自动切换"
+              >
+                <Cascader
+                  onChange={(value, selectedOptions) => {
+                    if (value && value.length === 2) {
+                      const config = llmConfigs.find(c => c.id === value[0]);
+                      const model = config?.models?.find(m => m.id === value[1]);
+                      if (config && model) {
+                        const newModel: SelectedModel = {
+                          llmConfigId: config.id,
+                          llmConfigName: config.name,
+                          llmModelConfigId: model.id,
+                          modelName: model.displayName || model.modelName,
+                          provider: config.provider,
+                        };
+                        
+                        const isDuplicate = selectedFallbackModels.some(
+                          m => m.llmConfigId === newModel.llmConfigId && 
+                               m.llmModelConfigId === newModel.llmModelConfigId
+                        );
+                        
+                        if (isDuplicate) {
+                          message.warning('该模型已在副模型列表中');
+                          return;
+                        }
+                        
+                        setSelectedFallbackModels([...selectedFallbackModels, newModel]);
+                      }
+                    }
+                  }}
+                  options={llmConfigs.map(config => ({
+                    value: config.id,
+                    label: (
+                      <Space>
+                        <span>{config.name}</span>
+                        <Tag color="blue">{config.provider}</Tag>
+                        {config.isDefault && <Tag color="gold">默认</Tag>}
+                      </Space>
+                    ),
+                    children: config.models?.filter(m => m.isEnabled).map(model => ({
+                      value: model.id,
+                      label: (
+                        <Space>
+                          <span>{model.displayName || model.modelName}</span>
+                          {model.isDefault && <Tag color="green">默认</Tag>}
+                        </Space>
+                      ),
+                    })) || [],
+                  }))}
+                  placeholder="请选择大模型配置和具体模型"
+                  showSearch
+                  style={{ width: '100%' }}
+                  value={undefined}
+                />
+              </Form.Item>
+            </Col>
+          </Row>
+
+          <Row gutter={16}>
+            <Col span={24}>
+              <div style={{ marginBottom: 8 }}>
+                <Text strong>已选副模型（按优先级排序）</Text>
+              </div>
+              <div style={{ 
+                border: '1px solid #d9d9d9', 
+                borderRadius: 4, 
+                padding: 8, 
+                minHeight: 200,
+                maxHeight: 300,
+                overflowY: 'auto'
+              }}>
+                {selectedFallbackModels.length === 0 ? (
+                  <Text type="secondary">未选择副模型</Text>
+                ) : (
+                  selectedFallbackModels.map((model, index) => (
+                    <div 
+                      key={`${model.llmConfigId}_${model.llmModelConfigId}`}
+                      style={{ 
+                        padding: '8px 12px', 
+                        marginBottom: 4, 
+                        background: '#e6f7ff',
+                        borderRadius: 4,
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center'
+                      }}
+                    >
+                      <Space direction="vertical" size={0}>
+                        <Space>
+                          <Tag color="orange">{index + 1}</Tag>
+                          <span>{model.llmConfigName}</span>
+                          <Tag color="blue">{model.provider}</Tag>
+                        </Space>
+                        <Space>
+                          <span style={{ color: '#666' }}>{model.modelName}</span>
+                        </Space>
+                      </Space>
+                      <Space>
+                        <Button 
+                          size="small" 
+                          icon={<ArrowUpOutlined />} 
+                          onClick={() => handleMoveUp(index)}
+                          disabled={index === 0}
+                        />
+                        <Button 
+                          size="small" 
+                          icon={<ArrowDownOutlined />} 
+                          onClick={() => handleMoveDown(index)}
+                          disabled={index === selectedFallbackModels.length - 1}
+                        />
+                        <Button 
+                          size="small" 
+                          danger
+                          onClick={() => handleRemoveFallbackModel(`${model.llmConfigId}_${model.llmModelConfigId}`)}
+                        >
+                          移除
+                        </Button>
+                      </Space>
+                    </div>
+                  ))
+                )}
+              </div>
             </Col>
           </Row>
 
@@ -649,27 +938,6 @@ const Agents: React.FC = () => {
               placeholder="请输入系统提示词，定义智能体的角色和行为..."
             />
           </Form.Item>
-
-          <Row gutter={16}>
-            <Col span={12}>
-              <Form.Item 
-                name="temperature" 
-                label="温度参数"
-                tooltip="控制回复的随机性，0-1之间，值越小越确定"
-              >
-                <InputNumber min={0} max={1} step={0.1} style={{ width: '100%' }} />
-              </Form.Item>
-            </Col>
-            <Col span={12}>
-              <Form.Item 
-                name="maxTokens" 
-                label="最大Token数"
-                tooltip="控制回复的最大长度"
-              >
-                <InputNumber min={100} max={128000} step={100} style={{ width: '100%' }} />
-              </Form.Item>
-            </Col>
-          </Row>
         </Form>
       </Modal>
     </div>

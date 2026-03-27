@@ -20,6 +20,7 @@ namespace MAFStudio.Tests.Controllers;
 public class AgentsControllerTests : TestBase
 {
     private readonly Mock<IAgentService> _mockAgentService;
+    private readonly Mock<IAgentTypeRepository> _mockAgentTypeRepository;
     private readonly Mock<IAuthService> _mockAuthService;
     private readonly Mock<IOperationLogService> _mockLogService;
     private readonly AgentsController _controller;
@@ -28,11 +29,13 @@ public class AgentsControllerTests : TestBase
     public AgentsControllerTests() : base()
     {
         _mockAgentService = new Mock<IAgentService>();
+        _mockAgentTypeRepository = new Mock<IAgentTypeRepository>();
         _mockAuthService = new Mock<IAuthService>();
         _mockLogService = new Mock<IOperationLogService>();
 
         _controller = new AgentsController(
             _mockAgentService.Object,
+            _mockAgentTypeRepository.Object,
             _mockAuthService.Object,
             _mockLogService.Object
         );
@@ -62,11 +65,15 @@ public class AgentsControllerTests : TestBase
             .Setup(s => s.GetByUserIdAsync(_testUserId, false))
             .ReturnsAsync(new List<Agent> { agent1, agent2 });
 
+        _mockAgentTypeRepository
+            .Setup(r => r.GetEnabledAsync())
+            .ReturnsAsync(new List<AgentType>());
+
         var result = await _controller.GetAllAgents();
 
         var okResult = Assert.IsType<OkObjectResult>(result.Result);
-        var agents = Assert.IsType<List<AgentListItemVo>>(okResult.Value);
-        Assert.Equal(2, agents.Count);
+        var response = Assert.IsType<AgentListVo>(okResult.Value);
+        Assert.Equal(2, response.Agents.Count);
     }
 
     [Fact]
@@ -112,7 +119,7 @@ public class AgentsControllerTests : TestBase
             Name = "New Agent",
             Description = "Test Description",
             Type = "Assistant",
-            Configuration = "{}"
+            SystemPrompt = "Test system prompt"
         };
 
         var createdAgent = CreateTestAgent(request.Name, _testUserId);
@@ -120,7 +127,7 @@ public class AgentsControllerTests : TestBase
         _mockAgentService
             .Setup(s => s.CreateAsync(
                 request.Name, request.Description, request.Type,
-                request.Configuration, request.Avatar, _testUserId, request.LlmConfigId, request.LlmModelConfigId))
+                request.SystemPrompt, request.Avatar, _testUserId, request.LlmConfigId, request.LlmModelConfigId, null))
             .ReturnsAsync(createdAgent);
 
         var result = await _controller.CreateAgent(request);
@@ -140,7 +147,7 @@ public class AgentsControllerTests : TestBase
         {
             Name = "Updated Agent",
             Description = "Updated Description",
-            Configuration = "{}"
+            SystemPrompt = "Updated system prompt"
         };
 
         var updatedAgent = new Agent
@@ -148,7 +155,7 @@ public class AgentsControllerTests : TestBase
             Id = agent.Id,
             Name = request.Name,
             Description = request.Description,
-            Configuration = request.Configuration,
+            SystemPrompt = request.SystemPrompt,
             UserId = agent.UserId,
             Status = agent.Status,
             CreatedAt = agent.CreatedAt
@@ -163,7 +170,7 @@ public class AgentsControllerTests : TestBase
             .ReturnsAsync(agent);
 
         _mockAgentService
-            .Setup(s => s.UpdateAsync(agent.Id, request.Name, request.Description, request.Configuration, request.Avatar, request.LlmConfigId, request.LlmModelConfigId))
+            .Setup(s => s.UpdateAsync(agent.Id, request.Name, request.Description, request.SystemPrompt, request.Avatar, request.LlmConfigId, request.LlmModelConfigId, null))
             .ReturnsAsync(updatedAgent);
 
         var result = await _controller.UpdateAgent(agent.Id, request);

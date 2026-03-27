@@ -2,6 +2,6 @@ namespace MAFStudio.Application.VOs;
 
 public abstract class BaseVo
 {
-    public long Id { get; set; }
+    public string Id { get; set; } = string.Empty;
     public DateTime CreatedAt { get; set; }
 }

@@ -72,8 +72,8 @@ const CollaborationChat: React.FC = () => {
 
   const loadAgents = async () => {
     try {
-      const data = await agentService.getAllAgents();
-      setAgents(data);
+      const response = await agentService.getAllAgents();
+      setAgents(response.agents || []);
     } catch (error) {
       message.error('加载智能体列表失败');
     }

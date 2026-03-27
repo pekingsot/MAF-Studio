@@ -5,6 +5,7 @@ using System.Text;
 using MAFStudio.Infrastructure;
 using MAFStudio.Application;
 using MAFStudio.Api.Services;
+using MAFStudio.Api.Middleware;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -94,6 +95,7 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseCors();
+app.UseMiddleware<ApiCallLoggingMiddleware>();
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();

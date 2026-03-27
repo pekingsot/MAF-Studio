@@ -16,6 +16,9 @@ public static class DependencyInjection
         services.AddScoped<IOperationLogService, OperationLogService>();
         services.AddScoped<ISystemLogService, SystemLogService>();
         
+        services.AddScoped<IChatClientFactory, ChatClientFactory>();
+        services.AddScoped<IChatService, ChatService>();
+        
         return services;
     }
 }

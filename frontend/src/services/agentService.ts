@@ -5,10 +5,13 @@ export interface Agent {
   name: string;
   description?: string;
   type: string;
-  configuration: string;
+  systemPrompt?: string;
   avatar?: string;
   userId?: string;
   llmConfigId?: string;
+  llmModelConfigId?: string;
+  llmConfigName?: string;
+  primaryModelName?: string;
   llmConfig?: {
     id: string;
     name: string;
@@ -19,28 +22,63 @@ export interface Agent {
   createdAt: string;
   updatedAt?: string;
   lastActiveAt?: string;
+  fallbackModels?: FallbackModel[];
+}
+
+export interface FallbackModel {
+  llmConfigId: string;
+  llmConfigName?: string;
+  llmModelConfigId?: string;
+  modelName?: string;
+  priority: number;
+}
+
+export interface FallbackModelRequest {
+  llmConfigId: number;
+  llmModelConfigId?: number;
+  priority: number;
 }
 
 export interface CreateAgentRequest {
   name: string;
   description?: string;
   type: string;
-  configuration?: string;
+  systemPrompt?: string;
   avatar?: string;
-  llmConfigId?: string;
+  llmConfigId?: number;
+  llmModelConfigId?: number;
+  fallbackModels?: FallbackModelRequest[];
 }
 
 export interface UpdateAgentRequest {
   name?: string;
   description?: string;
-  configuration?: string;
+  systemPrompt?: string;
   avatar?: string;
-  llmConfigId?: string;
+  llmConfigId?: number;
+  llmModelConfigId?: number;
+  fallbackModels?: FallbackModelRequest[];
+}
+
+export interface AgentListResponse {
+  agents: Agent[];
+  agentTypes: AgentType[];
+}
+
+export interface AgentType {
+  id: string;
+  name: string;
+  code: string;
+  description?: string;
+  icon?: string;
+  defaultSystemPrompt?: string;
+  isEnabled: boolean;
+  sortOrder: number;
 }
 
 export const agentService = {
-  getAllAgents: async (): Promise<Agent[]> => {
-    const response = await api.get<Agent[]>('/agents');
+  getAllAgents: async (): Promise<AgentListResponse> => {
+    const response = await api.get<AgentListResponse>('/agents');
     return response.data;
   },
 
