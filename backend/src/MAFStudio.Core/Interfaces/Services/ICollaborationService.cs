@@ -1,5 +1,6 @@
 using MAFStudio.Core.Entities;
 using MAFStudio.Core.Enums;
+using MAFStudio.Core.Interfaces.Repositories;
 
 namespace MAFStudio.Core.Interfaces.Services;
 
@@ -13,6 +14,7 @@ public interface ICollaborationService
     Task<bool> AddAgentAsync(long collaborationId, long agentId, string? role, long userId);
     Task<bool> RemoveAgentAsync(long collaborationId, long agentId, long userId);
     Task<List<CollaborationAgent>> GetAgentsAsync(long collaborationId);
+    Task<List<CollaborationAgentWithDetails>> GetAgentsWithDetailsAsync(long collaborationId);
     Task<CollaborationTask> CreateTaskAsync(long collaborationId, string title, string? description, long userId);
     Task<CollaborationTask> UpdateTaskStatusAsync(long taskId, CollaborationTaskStatus status, long userId);
     Task<bool> DeleteTaskAsync(long taskId, long userId);

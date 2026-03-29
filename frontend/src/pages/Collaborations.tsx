@@ -302,17 +302,17 @@ const Collaborations: React.FC = () => {
                   columns={[
                     {
                       title: '智能体名称',
-                      dataIndex: ['agent', 'name'],
+                      dataIndex: 'agentName',
                       key: 'agentName',
                     },
                     {
                       title: '类型',
-                      dataIndex: ['agent', 'type'],
+                      dataIndex: 'agentType',
                       key: 'agentType',
                     },
                     {
                       title: '状态',
-                      dataIndex: ['agent', 'status'],
+                      dataIndex: 'agentStatus',
                       key: 'agentStatus',
                       render: (status: string) => {
                         const colorMap: Record<string, string> = {
@@ -321,8 +321,13 @@ const Collaborations: React.FC = () => {
                           Busy: 'orange',
                           Error: 'red',
                         };
-                        return <Tag color={colorMap[status]}>{status}</Tag>;
+                        return <Tag color={colorMap[status] || 'default'}>{status || 'Inactive'}</Tag>;
                       },
+                    },
+                    {
+                      title: '角色',
+                      dataIndex: 'role',
+                      key: 'role',
                     },
                     {
                       title: '加入时间',
@@ -347,7 +352,7 @@ const Collaborations: React.FC = () => {
                       ),
                     },
                   ]}
-                  rowKey="id"
+                  rowKey="agentId"
                   pagination={false}
                 />
               </div>
