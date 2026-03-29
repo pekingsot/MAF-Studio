@@ -100,13 +100,26 @@ public class CollaborationsController : ControllerBase
     {
         var userId = User.GetUserId();
         
-        var result = await _collaborationService.AddAgentAsync(id, request.AgentId, request.Role, userId);
-        if (!result)
+        try
         {
-            return BadRequest();
+            var result = await _collaborationService.AddAgentAsync(id, request.AgentId, request.Role, userId);
+            if (!result)
+            {
+                return BadRequest(new { success = false, message = "添加Agent失败，请检查协作和Agent是否存在" });
+            }
+            
+            await _logService.LogAsync(userId, "添加", "协作Agent", $"向协作 {id} 添加Agent {request.AgentId}", null);
+            
+            return Ok(new { success = true, message = "Agent添加成功" });
         }
-        
-        return Ok();
+        catch (Npgsql.PostgresException ex) when (ex.SqlState == "23505")
+        {
+            return BadRequest(new { success = false, message = "该Agent已经存在于协作中，请勿重复添加" });
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(new { success = false, message = $"添加Agent失败: {ex.Message}" });
+        }
     }
 
     [HttpDelete("{id}/agents/{agentId}")]
