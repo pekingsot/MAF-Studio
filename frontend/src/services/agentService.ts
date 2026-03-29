@@ -1,19 +1,20 @@
 import api from './api';
 
 export interface Agent {
-  id: string;
+  id: number;
   name: string;
   description?: string;
   type: string;
+  typeName?: string;
   systemPrompt?: string;
   avatar?: string;
   userId?: string;
-  llmConfigId?: string;
-  llmModelConfigId?: string;
+  llmConfigId?: number;
+  llmModelConfigId?: number;
   llmConfigName?: string;
   primaryModelName?: string;
   llmConfig?: {
-    id: string;
+    id: number;
     name: string;
     provider: string;
     modelName: string;
@@ -26,9 +27,9 @@ export interface Agent {
 }
 
 export interface FallbackModel {
-  llmConfigId: string;
+  llmConfigId: number;
   llmConfigName?: string;
-  llmModelConfigId?: string;
+  llmModelConfigId?: number;
   modelName?: string;
   priority: number;
 }
@@ -60,13 +61,8 @@ export interface UpdateAgentRequest {
   fallbackModels?: FallbackModelRequest[];
 }
 
-export interface AgentListResponse {
-  agents: Agent[];
-  agentTypes: AgentType[];
-}
-
 export interface AgentType {
-  id: string;
+  id: number;
   name: string;
   code: string;
   description?: string;
@@ -77,12 +73,17 @@ export interface AgentType {
 }
 
 export const agentService = {
-  getAllAgents: async (): Promise<AgentListResponse> => {
-    const response = await api.get<AgentListResponse>('/agents');
+  getAllAgents: async (): Promise<Agent[]> => {
+    const response = await api.get<Agent[]>('/agents');
     return response.data;
   },
 
-  getAgentById: async (id: string): Promise<Agent> => {
+  getAgentTypes: async (): Promise<AgentType[]> => {
+    const response = await api.get<AgentType[]>('/agents/types');
+    return response.data;
+  },
+
+  getAgentById: async (id: number): Promise<Agent> => {
     const response = await api.get<Agent>(`/agents/${id}`);
     return response.data;
   },
@@ -92,16 +93,16 @@ export const agentService = {
     return response.data;
   },
 
-  updateAgent: async (id: string, request: UpdateAgentRequest): Promise<Agent> => {
+  updateAgent: async (id: number, request: UpdateAgentRequest): Promise<Agent> => {
     const response = await api.put<Agent>(`/agents/${id}`, request);
     return response.data;
   },
 
-  deleteAgent: async (id: string): Promise<void> => {
+  deleteAgent: async (id: number): Promise<void> => {
     await api.delete(`/agents/${id}`);
   },
 
-  updateAgentStatus: async (id: string, status: string): Promise<Agent> => {
+  updateAgentStatus: async (id: number, status: string): Promise<Agent> => {
     const response = await api.patch<Agent>(`/agents/${id}/status`, { status });
     return response.data;
   },

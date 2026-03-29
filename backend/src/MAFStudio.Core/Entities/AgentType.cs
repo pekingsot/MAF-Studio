@@ -1,4 +1,3 @@
-using MAFStudio.Core.Utils;
 using System.Text.Json;
 
 namespace MAFStudio.Core.Entities;
@@ -92,17 +91,6 @@ public class AgentType
         }
     }
 
-    /// <summary>
-    /// 生成新的雪花ID
-    /// </summary>
-    public void GenerateId()
-    {
-        Id = SnowflakeIdGenerator.Instance.NextId();
-    }
-
-    /// <summary>
-    /// 设置默认配置
-    /// </summary>
     public void SetDefaultConfiguration(string? systemPrompt, double temperature, int maxTokens)
     {
         var config = new Dictionary<string, object>

@@ -39,31 +39,31 @@ class SocketService {
     return this.socket;
   }
 
-  joinAgentGroup(agentId: string): void {
+  joinAgentGroup(agentId: number): void {
     if (this.socket) {
       this.socket.emit('JoinAgentGroup', agentId);
     }
   }
 
-  leaveAgentGroup(agentId: string): void {
+  leaveAgentGroup(agentId: number): void {
     if (this.socket) {
       this.socket.emit('LeaveAgentGroup', agentId);
     }
   }
 
-  sendMessage(fromAgentId: string, toAgentId: string, content: string, type: string): void {
+  sendMessage(fromAgentId: number, toAgentId: number, content: string, type: string): void {
     if (this.socket) {
       this.socket.emit('SendMessage', fromAgentId, toAgentId, content, type);
     }
   }
 
-  broadcastMessage(fromAgentId: string, content: string): void {
+  broadcastMessage(fromAgentId: number, content: string): void {
     if (this.socket) {
       this.socket.emit('BroadcastMessage', fromAgentId, content);
     }
   }
 
-  updateAgentStatus(agentId: string, status: string): void {
+  updateAgentStatus(agentId: number, status: string): void {
     if (this.socket) {
       this.socket.emit('UpdateAgentStatus', agentId, status);
     }
@@ -75,13 +75,13 @@ class SocketService {
     }
   }
 
-  onAgentJoined(callback: (agentId: string) => void): void {
+  onAgentJoined(callback: (agentId: number) => void): void {
     if (this.socket) {
       this.socket.on('AgentJoined', callback);
     }
   }
 
-  onAgentLeft(callback: (agentId: string) => void): void {
+  onAgentLeft(callback: (agentId: number) => void): void {
     if (this.socket) {
       this.socket.on('AgentLeft', callback);
     }
@@ -93,7 +93,7 @@ class SocketService {
     }
   }
 
-  onBroadcastReceived(callback: (fromAgentId: string, content: string) => void): void {
+  onBroadcastReceived(callback: (fromAgentId: number, content: string) => void): void {
     if (this.socket) {
       this.socket.on('BroadcastReceived', callback);
     }

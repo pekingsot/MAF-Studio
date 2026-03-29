@@ -46,11 +46,10 @@ public class AgentTypeRepository : IAgentTypeRepository
     public async Task<AgentType> CreateAsync(AgentType agentType)
     {
         using var connection = _context.CreateConnection();
-        agentType.GenerateId();
         agentType.CreatedAt = DateTime.UtcNow;
         const string sql = @"
-            INSERT INTO agent_types (id, name, code, description, icon, default_configuration, llm_config_id, is_system, is_enabled, sort_order, created_at)
-            VALUES (@Id, @Name, @Code, @Description, @Icon, @DefaultConfiguration::jsonb, @LlmConfigId, @IsSystem, @IsEnabled, @SortOrder, @CreatedAt)
+            INSERT INTO agent_types (name, code, description, icon, default_configuration, llm_config_id, is_system, is_enabled, sort_order, created_at)
+            VALUES (@Name, @Code, @Description, @Icon, @DefaultConfiguration::jsonb, @LlmConfigId, @IsSystem, @IsEnabled, @SortOrder, @CreatedAt)
             RETURNING *";
         return await connection.QueryFirstAsync<AgentType>(sql, agentType);
     }

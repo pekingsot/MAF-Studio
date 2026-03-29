@@ -5,15 +5,15 @@ namespace MAFStudio.Core.Interfaces.Services;
 
 public interface ICollaborationService
 {
-    Task<List<Collaboration>> GetByUserIdAsync(string userId);
-    Task<Collaboration?> GetByIdAsync(long id, string userId);
-    Task<Collaboration> CreateAsync(string name, string? description, string? path, string? gitRepositoryUrl, string? gitBranch, string? gitUsername, string? gitEmail, string? gitAccessToken, string userId);
+    Task<List<Collaboration>> GetByUserIdAsync(long userId);
+    Task<Collaboration?> GetByIdAsync(long id, long userId);
+    Task<Collaboration> CreateAsync(string name, string? description, string? path, string? gitRepositoryUrl, string? gitBranch, string? gitUsername, string? gitEmail, string? gitAccessToken, long userId);
     Task<Collaboration> UpdateAsync(Collaboration collaboration);
-    Task<bool> DeleteAsync(long id, string userId);
-    Task<bool> AddAgentAsync(long collaborationId, long agentId, string? role, string userId);
-    Task<bool> RemoveAgentAsync(long collaborationId, long agentId, string userId);
+    Task<bool> DeleteAsync(long id, long userId);
+    Task<bool> AddAgentAsync(long collaborationId, long agentId, string? role, long userId);
+    Task<bool> RemoveAgentAsync(long collaborationId, long agentId, long userId);
     Task<List<CollaborationAgent>> GetAgentsAsync(long collaborationId);
-    Task<CollaborationTask> CreateTaskAsync(long collaborationId, string title, string? description, string userId);
-    Task<CollaborationTask> UpdateTaskStatusAsync(long taskId, CollaborationTaskStatus status, string userId);
-    Task<bool> DeleteTaskAsync(long taskId, string userId);
+    Task<CollaborationTask> CreateTaskAsync(long collaborationId, string title, string? description, long userId);
+    Task<CollaborationTask> UpdateTaskStatusAsync(long taskId, CollaborationTaskStatus status, long userId);
+    Task<bool> DeleteTaskAsync(long taskId, long userId);
 }

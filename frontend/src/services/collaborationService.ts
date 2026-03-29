@@ -19,11 +19,11 @@ export interface Collaboration {
 export interface CollaborationAgent {
   id: string;
   collaborationId: string;
-  agentId: string;
+  agentId: number;
   role?: string;
   joinedAt: string;
   agent: {
-    id: string;
+    id: number;
     name: string;
     type: string;
     status: string;
@@ -52,7 +52,7 @@ export interface CreateCollaborationRequest {
 }
 
 export interface AddAgentRequest {
-  agentId: string;
+  agentId: number;
   role?: string;
 }
 
@@ -91,7 +91,7 @@ export const collaborationService = {
     return response.data;
   },
 
-  removeAgentFromCollaboration: async (id: string, agentId: string): Promise<void> => {
+  removeAgentFromCollaboration: async (id: string, agentId: number): Promise<void> => {
     await api.delete(`/collaborations/${id}/agents/${agentId}`);
   },
 

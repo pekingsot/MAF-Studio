@@ -1,0 +1,5 @@
+Host github.com
+    HostName github.com
+    User git
+    IdentityFile C:\Users\北京醉鬼\.ssh\id_rsa
+    UserKnownHostsFile C:\Users\北京醉鬼\.ssh\known_hosts

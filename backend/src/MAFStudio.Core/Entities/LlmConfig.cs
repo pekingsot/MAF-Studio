@@ -1,5 +1,3 @@
-using MAFStudio.Core.Utils;
-
 namespace MAFStudio.Core.Entities;
 
 [Dapper.Contrib.Extensions.Table("llm_configs")]
@@ -18,7 +16,7 @@ public class LlmConfig : BaseEntityWithUpdate
 
     public string? DefaultModel { get; set; }
 
-    public string UserId { get; set; } = string.Empty;
+    public long UserId { get; set; }
 
     public bool IsDefault { get; set; } = false;
 
@@ -27,9 +25,4 @@ public class LlmConfig : BaseEntityWithUpdate
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
     public List<LlmModelConfig>? Models { get; set; }
-
-    public void GenerateId()
-    {
-        Id = SnowflakeIdGenerator.Instance.NextId();
-    }
 }

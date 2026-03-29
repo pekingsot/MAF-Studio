@@ -2,10 +2,12 @@ using MAFStudio.Core.Entities;
 using MAFStudio.Core.Enums;
 using MAFStudio.Core.Interfaces.Repositories;
 using MAFStudio.Core.Interfaces.Services;
-using System.Text.Json;
 
 namespace MAFStudio.Application.Services;
 
+/// <summary>
+/// 智能体服务实现
+/// </summary>
 public class AgentService : IAgentService
 {
     private readonly IAgentRepository _agentRepository;
@@ -20,7 +22,7 @@ public class AgentService : IAgentService
         return await _agentRepository.GetAllAsync();
     }
 
-    public async Task<List<Agent>> GetByUserIdAsync(string userId, bool isAdmin)
+    public async Task<List<Agent>> GetByUserIdAsync(long userId, bool isAdmin)
     {
         if (isAdmin)
         {
@@ -35,26 +37,32 @@ public class AgentService : IAgentService
     }
 
     public async Task<Agent> CreateAsync(
-        string name, 
-        string? description, 
-        string type, 
-        string? systemPrompt, 
-        string? avatar, 
-        string userId, 
-        long? llmConfigId = null, 
+        string name,
+        string? description,
+        string type,
+        string? systemPrompt,
+        string? avatar,
+        long userId,
+        long? llmConfigId = null,
         long? llmModelConfigId = null,
-        string? fallbackModelsJson = null)
+        string? fallbackModelsJson = null,
+        string? typeName = null,
+        string? llmConfigName = null,
+        string? llmModelName = null)
     {
         var agent = new Agent
         {
             Name = name,
             Description = description,
             Type = type,
+            TypeName = typeName,
             SystemPrompt = systemPrompt,
             Avatar = avatar ?? "🤖",
             UserId = userId,
             LlmConfigId = llmConfigId,
+            LlmConfigName = llmConfigName,
             LlmModelConfigId = llmModelConfigId,
+            LlmModelName = llmModelName,
             FallbackModels = fallbackModelsJson,
             Status = AgentStatus.Inactive,
         };
@@ -63,14 +71,17 @@ public class AgentService : IAgentService
     }
 
     public async Task<Agent> UpdateAsync(
-        long id, 
-        string name, 
-        string? description, 
-        string? systemPrompt, 
-        string? avatar, 
-        long? llmConfigId = null, 
+        long id,
+        string name,
+        string? description,
+        string? systemPrompt,
+        string? avatar,
+        long? llmConfigId = null,
         long? llmModelConfigId = null,
-        string? fallbackModelsJson = null)
+        string? fallbackModelsJson = null,
+        string? typeName = null,
+        string? llmConfigName = null,
+        string? llmModelName = null)
     {
         var agent = await _agentRepository.GetByIdAsync(id);
         if (agent == null)
@@ -82,8 +93,11 @@ public class AgentService : IAgentService
         agent.Description = description;
         agent.SystemPrompt = systemPrompt;
         agent.Avatar = avatar ?? agent.Avatar;
+        agent.TypeName = typeName;
         agent.LlmConfigId = llmConfigId;
+        agent.LlmConfigName = llmConfigName;
         agent.LlmModelConfigId = llmModelConfigId;
+        agent.LlmModelName = llmModelName;
         agent.FallbackModels = fallbackModelsJson;
         agent.UpdatedAt = DateTime.UtcNow;
 
@@ -95,7 +109,7 @@ public class AgentService : IAgentService
         return await _agentRepository.DeleteAsync(id);
     }
 
-    public async Task<Agent> UpdateStatusAsync(long id, AgentStatus status)
+    public async Task<bool> UpdateStatusAsync(long id, AgentStatus status)
     {
         var agent = await _agentRepository.GetByIdAsync(id);
         if (agent == null)
@@ -103,8 +117,6 @@ public class AgentService : IAgentService
             throw new InvalidOperationException($"Agent with id {id} not found");
         }
 
-        await _agentRepository.UpdateStatusAsync(id, status);
-        agent.Status = status;
-        return agent;
+        return await _agentRepository.UpdateStatusAsync(id, status);
     }
 }

@@ -4,7 +4,7 @@ namespace MAFStudio.Core.Entities;
 public class User : BaseEntityWithUpdate
 {
     [Dapper.Contrib.Extensions.Key]
-    public string Id { get; set; } = Guid.NewGuid().ToString();
+    public long Id { get; set; }
 
     public string Username { get; set; } = string.Empty;
 

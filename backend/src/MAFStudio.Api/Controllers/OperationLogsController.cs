@@ -20,7 +20,7 @@ public class OperationLogsController : ControllerBase
     }
 
     [HttpGet]
-    public async Task<IActionResult> GetLogs([FromQuery] string? userId = null, [FromQuery] int limit = 100)
+    public async Task<IActionResult> GetLogs([FromQuery] long? userId = null, [FromQuery] int limit = 100)
     {
         var logs = await _operationLogService.GetByUserIdAsync(userId, limit);
         
@@ -43,9 +43,9 @@ public class OperationLogsController : ControllerBase
         return Ok(result);
     }
 
-    private async Task<string> GetUsername(string userId)
+    private async Task<string> GetUsername(long userId)
     {
-        if (string.IsNullOrEmpty(userId))
+        if (userId <= 0)
             return "系统";
         
         var user = await _userRepository.GetByIdAsync(userId);
@@ -103,9 +103,9 @@ public class LogsController : ControllerBase
         return Ok(result);
     }
 
-    private async Task<string> GetUsername(string userId)
+    private async Task<string> GetUsername(long userId)
     {
-        if (string.IsNullOrEmpty(userId))
+        if (userId <= 0)
             return "系统";
         
         var user = await _userRepository.GetByIdAsync(userId);

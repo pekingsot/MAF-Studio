@@ -11,16 +11,17 @@ import {
   LogoutOutlined,
   HistoryOutlined,
   ApiOutlined,
-  DatabaseOutlined,
   ExperimentOutlined,
   SettingOutlined,
-  AppstoreOutlined,
   AppstoreAddOutlined,
   BugOutlined,
+  SafetyOutlined,
+  UserAddOutlined,
+  LockOutlined,
 } from '@ant-design/icons';
-import authService from '../../services/authService';
+import { useAuth } from '../../contexts/AuthContext';
 
-const { Header, Sider, Content } = Layout;
+const { Header, Sider } = Layout;
 const { SubMenu } = Menu;
 
 interface MainLayoutProps {
@@ -34,7 +35,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
   } = theme.useToken();
   const location = useLocation();
   const navigate = useNavigate();
-  const user = authService.getUser();
+  const { user, logout, isAdmin } = useAuth();
 
   const getSelectedKeys = () => {
     return [location.pathname];
@@ -51,11 +52,14 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
     if (['/llm-configs', '/logs'].includes(path)) {
       return ['system'];
     }
+    if (['/users', '/roles', '/permissions'].includes(path)) {
+      return ['permission-management'];
+    }
     return [];
   };
 
   const handleLogout = () => {
-    authService.logout();
+    logout();
     navigate('/login');
   };
 
@@ -134,6 +138,19 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
               <Link to="/system-logs">系统日志</Link>
             </Menu.Item>
           </SubMenu>
+          {isAdmin && (
+            <SubMenu key="permission-management" icon={<SafetyOutlined />} title="权限管理">
+              <Menu.Item key="/users" icon={<UserAddOutlined />}>
+                <Link to="/users">用户管理</Link>
+              </Menu.Item>
+              <Menu.Item key="/roles" icon={<TeamOutlined />}>
+                <Link to="/roles">角色管理</Link>
+              </Menu.Item>
+              <Menu.Item key="/permissions" icon={<LockOutlined />}>
+                <Link to="/permissions">权限管理</Link>
+              </Menu.Item>
+            </SubMenu>
+          )}
         </Menu>
       </Sider>
       <Layout>

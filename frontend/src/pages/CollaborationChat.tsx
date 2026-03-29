@@ -12,10 +12,10 @@ const { Option } = Mentions;
 
 interface ChatMessage {
   id: string;
-  fromAgentId?: string;
+  fromAgentId?: number;
   fromAgentName: string;
   fromAgentAvatar?: string;
-  toAgentId?: string;
+  toAgentId?: number;
   toAgentName?: string;
   toAgentAvatar?: string;
   content: string;
@@ -73,7 +73,7 @@ const CollaborationChat: React.FC = () => {
   const loadAgents = async () => {
     try {
       const response = await agentService.getAllAgents();
-      setAgents(response.agents || []);
+      setAgents(response || []);
     } catch (error) {
       message.error('加载智能体列表失败');
     }
@@ -176,12 +176,12 @@ const CollaborationChat: React.FC = () => {
     setConnected(false);
   };
 
-  const getAgentName = (agentId: string) => {
+  const getAgentName = (agentId: number) => {
     const agent = agents.find(a => a.id === agentId);
     return agent?.name || '未知智能体';
   };
 
-  const getAgentAvatar = (agentId: string) => {
+  const getAgentAvatar = (agentId: number) => {
     const agent = agents.find(a => a.id === agentId);
     return agent?.avatar || '🤖';
   };
@@ -429,7 +429,7 @@ const CollaborationChat: React.FC = () => {
     return colors[type] || 'default';
   };
 
-  const getAgentColor = (agentId: string) => {
+  const getAgentColor = (agentId: number) => {
     const colors = ['#1890ff', '#52c41a', '#faad14', '#f5222d', '#722ed1', '#13c2c2'];
     const index = agents.findIndex(a => a.id === agentId);
     return colors[index % colors.length];
@@ -588,15 +588,15 @@ const CollaborationChat: React.FC = () => {
                           <Avatar 
                             size={40}
                             style={{ 
-                              background: `linear-gradient(135deg, ${getAgentColor(msg.fromAgentId || '')} 0%, ${getAgentColor(msg.fromAgentId || '')}dd 100%)`,
-                              boxShadow: `0 2px 8px ${getAgentColor(msg.fromAgentId || '')}40`
+                              background: `linear-gradient(135deg, ${getAgentColor(msg.fromAgentId || 0)} 0%, ${getAgentColor(msg.fromAgentId || 0)}dd 100%)`,
+                              boxShadow: `0 2px 8px ${getAgentColor(msg.fromAgentId || 0)}40`
                             }}
                           >
-                            {msg.fromAgentAvatar || getAgentAvatar(msg.fromAgentId || '') || '🤖'}
+                            {msg.fromAgentAvatar || getAgentAvatar(msg.fromAgentId || 0) || '🤖'}
                           </Avatar>
                           <div style={{ maxWidth: '70%' }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
-                              <Text strong style={{ color: getAgentColor(msg.fromAgentId || '') }}>{msg.fromAgentName}</Text>
+                              <Text strong style={{ color: getAgentColor(msg.fromAgentId || 0) }}>{msg.fromAgentName}</Text>
                               {msg.toAgentName && (
                                 <>
                                   <Text type="secondary">→</Text>
@@ -652,7 +652,7 @@ const CollaborationChat: React.FC = () => {
             }}
           >
             {collaborationAgents.map(ca => (
-              <Option key={ca.agentId} value={ca.agent?.name || '未知'}>
+              <Option key={ca.agentId.toString()} value={ca.agent?.name || '未知'}>
                 <Space>
                   <RobotOutlined />
                   <span>{ca.agent?.name || '未知智能体'}</span>

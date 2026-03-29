@@ -6,6 +6,7 @@ using MAFStudio.Application.VOs;
 using MAFStudio.Application.Mappers;
 using MAFStudio.Application.DTOs.Requests;
 using System.Security.Claims;
+using MAFStudio.Api.Extensions;
 
 namespace MAFStudio.Api.Controllers;
 
@@ -37,12 +38,12 @@ public class LlmConfigsController : ControllerBase
     [HttpGet]
     public async Task<ActionResult<List<LlmConfigVo>>> GetAllLlmConfigs()
     {
-        var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-        var isAdmin = await _authService.IsAdminAsync(userId!);
+        var userId = User.GetUserId();
+        var isAdmin = await _authService.IsAdminAsync(userId);
         
         var configs = isAdmin 
             ? await _llmConfigService.GetAllAsync()
-            : await _llmConfigService.GetByUserIdAsync(userId!);
+            : await _llmConfigService.GetByUserIdAsync(userId);
         
         var vos = configs.Select(c => c.ToVo()).ToList();
         return Ok(vos);
@@ -79,7 +80,7 @@ public class LlmConfigsController : ControllerBase
     [HttpPost]
     public async Task<ActionResult<Core.Entities.LlmConfig>> CreateLlmConfig([FromBody] CreateLlmConfigRequest request)
     {
-        var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        var userId = User.GetUserId();
         
         var config = await _llmConfigService.CreateAsync(
             request.Name,
@@ -87,10 +88,10 @@ public class LlmConfigsController : ControllerBase
             request.ApiKey,
             request.Endpoint,
             request.DefaultModel,
-            userId!
+            userId
         );
         
-        await _logService.LogAsync(userId!, "创建", "LLM配置", $"创建LLM配置: {request.Name}", null);
+        await _logService.LogAsync(userId, "创建", "LLM配置", $"创建LLM配置: {request.Name}", null);
         
         return CreatedAtAction(nameof(GetLlmConfig), new { id = config.Id }, config);
     }
@@ -106,8 +107,8 @@ public class LlmConfigsController : ControllerBase
             request.DefaultModel
         );
         
-        var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-        await _logService.LogAsync(userId!, "修改", "LLM配置", $"修改LLM配置: {request.Name}", null);
+        var userId = User.GetUserId();
+        await _logService.LogAsync(userId, "修改", "LLM配置", $"修改LLM配置: {request.Name}", null);
         
         return Ok(config);
     }
@@ -121,8 +122,8 @@ public class LlmConfigsController : ControllerBase
             return NotFound();
         }
         
-        var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-        await _logService.LogAsync(userId!, "删除", "LLM配置", $"删除LLM配置: {id}", null);
+        var userId = User.GetUserId();
+        await _logService.LogAsync(userId, "删除", "LLM配置", $"删除LLM配置: {id}", null);
         
         return NoContent();
     }
@@ -130,9 +131,56 @@ public class LlmConfigsController : ControllerBase
     [HttpPost("{id}/set-default")]
     public async Task<ActionResult> SetDefault(long id)
     {
-        var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-        await _llmConfigService.SetDefaultAsync(id, userId!);
+        var userId = User.GetUserId();
+        await _llmConfigService.SetDefaultAsync(id, userId);
         return Ok(new { message = "设置成功" });
+    }
+
+    [HttpPost("{id}/duplicate")]
+    public async Task<ActionResult<Core.Entities.LlmConfig>> DuplicateLlmConfig(long id)
+    {
+        var userId = User.GetUserId();
+        
+        var originalConfig = await _llmConfigService.GetByIdAsync(id);
+        if (originalConfig == null)
+        {
+            return NotFound("原配置不存在");
+        }
+
+        var newConfig = await _llmConfigService.CreateAsync(
+            $"{originalConfig.Name}（副本）",
+            originalConfig.Provider,
+            originalConfig.ApiKey,
+            originalConfig.Endpoint,
+            originalConfig.DefaultModel,
+            userId
+        );
+
+        var originalModels = await _modelConfigRepository.GetByLlmConfigIdAsync(id);
+        foreach (var model in originalModels)
+        {
+            var newModel = new Core.Entities.LlmModelConfig
+            {
+                LlmConfigId = newConfig.Id,
+                ModelName = model.ModelName,
+                DisplayName = model.DisplayName,
+                Temperature = model.Temperature,
+                MaxTokens = model.MaxTokens,
+                ContextWindow = model.ContextWindow,
+                TopP = model.TopP,
+                FrequencyPenalty = model.FrequencyPenalty,
+                PresencePenalty = model.PresencePenalty,
+                StopSequences = model.StopSequences,
+                IsDefault = false,
+                IsEnabled = model.IsEnabled,
+                SortOrder = model.SortOrder
+            };
+            await _modelConfigRepository.CreateAsync(newModel);
+        }
+
+        await _logService.LogAsync(userId, "复制", "LLM配置", $"复制LLM配置: {originalConfig.Name} -> {newConfig.Name}", null);
+
+        return Ok(newConfig);
     }
 
     [HttpPost("{id}/test")]
@@ -178,6 +226,20 @@ public class LlmConfigsController : ControllerBase
         };
         
         var created = await _modelConfigRepository.CreateAsync(model);
+        
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                await _llmConfigService.TestModelConnectionAsync(id, created.Id);
+                _logger.LogInformation("异步测试模型连接完成: {ConfigId}, {ModelId}", id, created.Id);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "异步测试模型连接失败: {ConfigId}, {ModelId}", id, created.Id);
+            }
+        });
+        
         return CreatedAtAction(nameof(GetModels), new { id }, created);
     }
 
@@ -230,12 +292,131 @@ public class LlmConfigsController : ControllerBase
         try
         {
             var result = await _llmConfigService.TestModelConnectionAsync(id, modelId);
-            return Ok(result);
+            
+            var updatedModel = await _modelConfigRepository.GetByIdAsync(modelId);
+            
+            return Ok(new
+            {
+                success = result.Success,
+                message = result.Message,
+                latencyMs = result.LatencyMs,
+                model = updatedModel?.ToVo()
+            });
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "测试模型连接失败: {ConfigId}, {ModelId}", id, modelId);
-            return Ok(new { success = false, message = ex.Message, latencyMs = 0 });
+            return Ok(new { success = false, message = ex.Message, latencyMs = 0, model = (object?)null });
+        }
+    }
+
+    [HttpPost("{id}/models/batch")]
+    public async Task<ActionResult> BatchCreateModels(long id, [FromBody] BatchCreateModelsRequest request)
+    {
+        var modelNames = request.ModelNames
+            .Split('\n')
+            .Select(s => s.Trim())
+            .Where(s => !string.IsNullOrWhiteSpace(s))
+            .ToList();
+
+        if (modelNames.Count == 0)
+        {
+            return BadRequest(new { message = "请输入至少一个模型名称" });
+        }
+
+        var createdModels = new List<Core.Entities.LlmModelConfig>();
+        foreach (var modelName in modelNames)
+        {
+            var model = new Core.Entities.LlmModelConfig
+            {
+                LlmConfigId = id,
+                ModelName = modelName,
+                DisplayName = modelName,
+                Temperature = request.Temperature,
+                MaxTokens = request.MaxTokens,
+                ContextWindow = request.ContextWindow,
+                TopP = request.TopP,
+                FrequencyPenalty = request.FrequencyPenalty,
+                PresencePenalty = request.PresencePenalty,
+                StopSequences = request.StopSequences,
+                IsDefault = false,
+                IsEnabled = request.IsEnabled,
+                SortOrder = createdModels.Count
+            };
+            
+            var created = await _modelConfigRepository.CreateAsync(model);
+            createdModels.Add(created);
+        }
+
+        var userId = User.GetUserId();
+        await _logService.LogAsync(userId, "批量创建", "模型配置", $"批量创建 {createdModels.Count} 个模型", null);
+
+        _ = Task.Run(async () =>
+        {
+            foreach (var createdModel in createdModels)
+            {
+                try
+                {
+                    await _llmConfigService.TestModelConnectionAsync(id, createdModel.Id);
+                    _logger.LogInformation("异步测试模型连接完成: {ConfigId}, {ModelId}", id, createdModel.Id);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "异步测试模型连接失败: {ConfigId}, {ModelId}", id, createdModel.Id);
+                }
+            }
+        });
+
+        return Ok(new { message = $"成功添加 {createdModels.Count} 个模型", count = createdModels.Count });
+    }
+
+    [HttpPost("{id}/test-all")]
+    public async Task<ActionResult> TestAllModels(long id)
+    {
+        try
+        {
+            var models = await _modelConfigRepository.GetByLlmConfigIdAsync(id);
+            
+            var testTasks = models.Select(async model =>
+            {
+                try
+                {
+                    var result = await _llmConfigService.TestModelConnectionAsync(id, model.Id);
+                    var updatedModel = await _modelConfigRepository.GetByIdAsync(model.Id);
+                    
+                    return (object)new
+                    {
+                        modelId = model.Id,
+                        modelName = model.ModelName,
+                        success = result.Success,
+                        message = result.Message,
+                        latencyMs = result.LatencyMs,
+                        model = updatedModel?.ToVo()
+                    };
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "测试模型失败: {ModelId}", model.Id);
+                    return (object)new
+                    {
+                        modelId = model.Id,
+                        modelName = model.ModelName,
+                        success = false,
+                        message = ex.Message,
+                        latencyMs = 0,
+                        model = (object?)null
+                    };
+                }
+            }).ToArray();
+
+            var results = await Task.WhenAll(testTasks);
+
+            return Ok(new { results });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "批量测试失败: {ConfigId}", id);
+            return Ok(new { success = false, message = ex.Message });
         }
     }
 }
@@ -277,4 +458,17 @@ public class UpdateModelConfigRequest
     public string? StopSequences { get; set; }
     public bool IsEnabled { get; set; } = true;
     public int SortOrder { get; set; } = 0;
+}
+
+public class BatchCreateModelsRequest
+{
+    public string ModelNames { get; set; } = string.Empty;
+    public decimal Temperature { get; set; } = 0.7m;
+    public int MaxTokens { get; set; } = 4096;
+    public int ContextWindow { get; set; } = 64000;
+    public decimal? TopP { get; set; }
+    public decimal? FrequencyPenalty { get; set; }
+    public decimal? PresencePenalty { get; set; }
+    public string? StopSequences { get; set; }
+    public bool IsEnabled { get; set; } = true;
 }

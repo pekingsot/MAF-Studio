@@ -23,6 +23,7 @@ public class AgentVo : BaseVo
     public string Name { get; set; } = string.Empty;
     public string? Description { get; set; }
     public string Type { get; set; } = string.Empty;
+    public string? TypeName { get; set; }
     public string? SystemPrompt { get; set; }
     public string? Avatar { get; set; }
     public string UserId { get; set; } = string.Empty;
@@ -45,6 +46,7 @@ public class AgentListItemVo
     public string Name { get; set; } = string.Empty;
     public string? Description { get; set; }
     public string Type { get; set; } = string.Empty;
+    public string? TypeName { get; set; }
     public string? Avatar { get; set; }
     public AgentStatus Status { get; set; }
     public string? LlmConfigId { get; set; }

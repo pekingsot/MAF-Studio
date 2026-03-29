@@ -32,11 +32,10 @@ public class CollaborationTaskRepository : ICollaborationTaskRepository
     public async Task<CollaborationTask> CreateAsync(CollaborationTask task)
     {
         using var connection = _context.CreateConnection();
-        task.GenerateId();
         task.CreatedAt = DateTime.UtcNow;
         const string sql = @"
-            INSERT INTO collaboration_tasks (id, collaboration_id, title, description, status, assigned_to, created_at, completed_at)
-            VALUES (@Id, @CollaborationId, @Title, @Description, @Status, @AssignedTo, @CreatedAt, @CompletedAt)
+            INSERT INTO collaboration_tasks (collaboration_id, title, description, status, assigned_to, created_at, completed_at)
+            VALUES (@CollaborationId, @Title, @Description, @Status, @AssignedTo, @CreatedAt, @CompletedAt)
             RETURNING *";
         return await connection.QueryFirstAsync<CollaborationTask>(sql, task);
     }

@@ -16,7 +16,7 @@ public class OperationLogService : IOperationLogService
         _logger = logger;
     }
 
-    public async Task LogAsync(string userId, string action, string resourceType, string? description, string? details)
+    public async Task LogAsync(long userId, string action, string resourceType, string? description, string? details)
     {
         try
         {
@@ -38,7 +38,7 @@ public class OperationLogService : IOperationLogService
     }
 
     public async Task LogApiCallAsync(
-        string userId,
+        long userId,
         string action,
         string resourceType,
         string? description,
@@ -78,13 +78,13 @@ public class OperationLogService : IOperationLogService
         }
     }
 
-    public async Task<List<OperationLog>> GetByUserIdAsync(string? userId = null, int limit = 100)
+    public async Task<List<OperationLog>> GetByUserIdAsync(long? userId = null, int limit = 100)
     {
-        if (string.IsNullOrEmpty(userId))
+        if (!userId.HasValue)
         {
             return await _logRepository.GetAllAsync(limit);
         }
-        return await _logRepository.GetByUserIdAsync(userId, limit);
+        return await _logRepository.GetByUserIdAsync(userId.Value, limit);
     }
 
     public async Task<List<OperationLog>> GetAllAsync(int limit = 100)

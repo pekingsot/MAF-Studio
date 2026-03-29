@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Mvc.Filters;
 using MAFStudio.Core.Interfaces.Services;
 using MAFStudio.Api.Middleware;
+using MAFStudio.Api.Extensions;
 
 namespace MAFStudio.Api.Filters;
 
@@ -20,7 +21,16 @@ public class GlobalExceptionFilter : IExceptionFilter
 
     public void OnException(ExceptionContext context)
     {
-        var userId = context.HttpContext.User?.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+        long? userId = null;
+        try
+        {
+            userId = context.HttpContext.User?.GetUserId();
+        }
+        catch
+        {
+            // 用户未登录
+        }
+        
         var requestPath = context.HttpContext.Request.Path.Value ?? "";
         var requestMethod = context.HttpContext.Request.Method;
         var controllerName = context.RouteData.Values["controller"]?.ToString() ?? "Unknown";
@@ -36,7 +46,7 @@ public class GlobalExceptionFilter : IExceptionFilter
             "Controller异常捕获 - Controller: {Controller}, Action: {Action}, 用户: {User}, 路径: {Path}, 消息: {Message}",
             controllerName,
             actionName,
-            userId ?? "anonymous",
+            userId?.ToString() ?? "anonymous",
             requestPath,
             context.Exception.Message);
 

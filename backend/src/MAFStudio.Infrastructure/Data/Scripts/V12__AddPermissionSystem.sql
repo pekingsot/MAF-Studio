@@ -1,0 +1,126 @@
+-- 创建角色表
+CREATE TABLE IF NOT EXISTS roles (
+    id BIGINT PRIMARY KEY,
+    name VARCHAR(50) NOT NULL UNIQUE,
+    code VARCHAR(50) NOT NULL UNIQUE,
+    description TEXT,
+    is_system BOOLEAN DEFAULT FALSE,
+    is_enabled BOOLEAN DEFAULT TRUE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- 创建权限表
+CREATE TABLE IF NOT EXISTS permissions (
+    id BIGINT PRIMARY KEY,
+    name VARCHAR(100) NOT NULL,
+    code VARCHAR(100) NOT NULL UNIQUE,
+    description TEXT,
+    resource VARCHAR(100) NOT NULL,
+    action VARCHAR(50) NOT NULL,
+    is_enabled BOOLEAN DEFAULT TRUE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- 创建用户角色关联表
+CREATE TABLE IF NOT EXISTS user_roles (
+    id BIGINT PRIMARY KEY,
+    user_id VARCHAR(36) NOT NULL,
+    role_id BIGINT NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(user_id, role_id)
+);
+
+-- 创建角色权限关联表
+CREATE TABLE IF NOT EXISTS role_permissions (
+    id BIGINT PRIMARY KEY,
+    role_id BIGINT NOT NULL,
+    permission_id BIGINT NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(role_id, permission_id)
+);
+
+-- 创建索引
+CREATE INDEX IF NOT EXISTS idx_user_roles_user_id ON user_roles(user_id);
+CREATE INDEX IF NOT EXISTS idx_user_roles_role_id ON user_roles(role_id);
+CREATE INDEX IF NOT EXISTS idx_role_permissions_role_id ON role_permissions(role_id);
+CREATE INDEX IF NOT EXISTS idx_role_permissions_permission_id ON role_permissions(permission_id);
+CREATE INDEX IF NOT EXISTS idx_permissions_resource ON permissions(resource);
+CREATE INDEX IF NOT EXISTS idx_permissions_code ON permissions(code);
+
+-- 插入初始角色数据
+INSERT INTO roles (id, name, code, description, is_system, is_enabled) VALUES
+(1000000000000001, '超级管理员', 'SUPER_ADMIN', '系统超级管理员，拥有所有权限', TRUE, TRUE),
+(1000000000000002, '管理员', 'ADMIN', '系统管理员', TRUE, TRUE),
+(1000000000000003, '普通用户', 'USER', '普通用户', TRUE, TRUE)
+ON CONFLICT (id) DO NOTHING;
+
+-- 插入初始权限数据
+INSERT INTO permissions (id, name, code, description, resource, action, is_enabled) VALUES
+(1000000000000001, '查看智能体', 'agent:read', '查看智能体列表和详情', 'agent', 'read', TRUE),
+(1000000000000002, '创建智能体', 'agent:create', '创建新的智能体', 'agent', 'create', TRUE),
+(1000000000000003, '编辑智能体', 'agent:update', '编辑智能体信息', 'agent', 'update', TRUE),
+(1000000000000004, '删除智能体', 'agent:delete', '删除智能体', 'agent', 'delete', TRUE),
+(1000000000000005, '查看大模型配置', 'llmconfig:read', '查看大模型配置列表和详情', 'llmconfig', 'read', TRUE),
+(1000000000000006, '创建大模型配置', 'llmconfig:create', '创建新的大模型配置', 'llmconfig', 'create', TRUE),
+(1000000000000007, '编辑大模型配置', 'llmconfig:update', '编辑大模型配置信息', 'llmconfig', 'update', TRUE),
+(1000000000000008, '删除大模型配置', 'llmconfig:delete', '删除大模型配置', 'llmconfig', 'delete', TRUE),
+(1000000000000009, '查看系统日志', 'log:read', '查看系统日志', 'log', 'read', TRUE),
+(1000000000000010, '管理用户', 'user:manage', '管理用户信息和权限', 'user', 'manage', TRUE),
+(1000000000000011, '查看智能体类型', 'agenttype:read', '查看智能体类型列表和详情', 'agenttype', 'read', TRUE),
+(1000000000000012, '管理智能体类型', 'agenttype:manage', '管理智能体类型', 'agenttype', 'manage', TRUE),
+(1000000000000013, '查看协作', 'collaboration:read', '查看协作列表和详情', 'collaboration', 'read', TRUE),
+(1000000000000014, '管理协作', 'collaboration:manage', '管理协作', 'collaboration', 'manage', TRUE)
+ON CONFLICT (id) DO NOTHING;
+
+-- 为超级管理员分配所有权限（使用硬编码ID）
+INSERT INTO role_permissions (id, role_id, permission_id) VALUES
+(1100000000000001, 1000000000000001, 1000000000000001),
+(1100000000000002, 1000000000000001, 1000000000000002),
+(1100000000000003, 1000000000000001, 1000000000000003),
+(1100000000000004, 1000000000000001, 1000000000000004),
+(1100000000000005, 1000000000000001, 1000000000000005),
+(1100000000000006, 1000000000000001, 1000000000000006),
+(1100000000000007, 1000000000000001, 1000000000000007),
+(1100000000000008, 1000000000000001, 1000000000000008),
+(1100000000000009, 1000000000000001, 1000000000000009),
+(1100000000000010, 1000000000000001, 1000000000000010),
+(1100000000000011, 1000000000000001, 1000000000000011),
+(1100000000000012, 1000000000000001, 1000000000000012),
+(1100000000000013, 1000000000000001, 1000000000000013),
+(1100000000000014, 1000000000000001, 1000000000000014)
+ON CONFLICT DO NOTHING;
+
+-- 为管理员分配权限
+INSERT INTO role_permissions (id, role_id, permission_id) VALUES
+(2000000000000001, 1000000000000002, 1000000000000001),
+(2000000000000002, 1000000000000002, 1000000000000002),
+(2000000000000003, 1000000000000002, 1000000000000003),
+(2000000000000004, 1000000000000002, 1000000000000004),
+(2000000000000005, 1000000000000002, 1000000000000005),
+(2000000000000006, 1000000000000002, 1000000000000006),
+(2000000000000007, 1000000000000002, 1000000000000007),
+(2000000000000008, 1000000000000002, 1000000000000008),
+(2000000000000009, 1000000000000002, 1000000000000009),
+(2000000000000010, 1000000000000002, 1000000000000011),
+(2000000000000011, 1000000000000002, 1000000000000013),
+(2000000000000012, 1000000000000002, 1000000000000014)
+ON CONFLICT DO NOTHING;
+
+-- 为普通用户分配权限
+INSERT INTO role_permissions (id, role_id, permission_id) VALUES
+(3000000000000001, 1000000000000003, 1000000000000001),
+(3000000000000002, 1000000000000003, 1000000000000002),
+(3000000000000003, 1000000000000003, 1000000000000003),
+(3000000000000004, 1000000000000003, 1000000000000005),
+(3000000000000005, 1000000000000003, 1000000000000011),
+(3000000000000006, 1000000000000003, 1000000000000013)
+ON CONFLICT DO NOTHING;
+
+-- 为现有用户分配默认角色（普通用户）
+-- 注意：user_id 是 VARCHAR(36) 类型，需要使用字符串ID
+INSERT INTO user_roles (id, user_id, role_id)
+SELECT 4000000000000000 + row_number() OVER (ORDER BY id), id, 1000000000000003 
+FROM users 
+WHERE id NOT IN (SELECT user_id FROM user_roles)
+ON CONFLICT DO NOTHING;

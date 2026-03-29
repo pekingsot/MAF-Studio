@@ -1,5 +1,4 @@
 using MAFStudio.Core.Enums;
-using MAFStudio.Core.Utils;
 
 namespace MAFStudio.Core.Entities;
 
@@ -17,7 +16,7 @@ public class Collaboration : BaseEntityWithUpdate
 
     public CollaborationStatus Status { get; set; } = CollaborationStatus.Active;
 
-    public string UserId { get; set; } = string.Empty;
+    public long UserId { get; set; }
 
     public string? GitRepositoryUrl { get; set; }
 
@@ -30,12 +29,4 @@ public class Collaboration : BaseEntityWithUpdate
     public string? GitAccessToken { get; set; }
 
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
-
-    /// <summary>
-    /// 生成新的雪花ID
-    /// </summary>
-    public void GenerateId()
-    {
-        Id = SnowflakeIdGenerator.Instance.NextId();
-    }
 }

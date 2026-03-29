@@ -4,10 +4,10 @@ namespace MAFStudio.Core.Interfaces.Services;
 
 public interface IOperationLogService
 {
-    Task LogAsync(string userId, string action, string resourceType, string? description, string? details);
+    Task LogAsync(long userId, string action, string resourceType, string? description, string? details);
     
     Task LogApiCallAsync(
-        string userId,
+        long userId,
         string action,
         string resourceType,
         string? description,
@@ -20,6 +20,6 @@ public interface IOperationLogService
         long? durationMs,
         string? errorMessage);
 
-    Task<List<OperationLog>> GetByUserIdAsync(string? userId = null, int limit = 100);
+    Task<List<OperationLog>> GetByUserIdAsync(long? userId = null, int limit = 100);
     Task<List<OperationLog>> GetAllAsync(int limit = 100);
 }

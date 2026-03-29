@@ -14,7 +14,7 @@ public class MessageService : IMessageService
         _messageRepository = messageRepository;
     }
 
-    public async Task<AgentMessage> CreateUserMessageAsync(long collaborationId, string content, string? userId, string? senderName)
+    public async Task<AgentMessage> CreateUserMessageAsync(long collaborationId, string content, long? userId, string? senderName)
     {
         var message = new AgentMessage
         {

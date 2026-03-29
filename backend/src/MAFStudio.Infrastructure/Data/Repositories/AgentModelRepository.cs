@@ -52,11 +52,10 @@ public class AgentModelRepository : IAgentModelRepository
     public async Task<AgentModel> CreateAsync(AgentModel agentModel)
     {
         using var connection = _context.CreateConnection();
-        agentModel.GenerateId();
         agentModel.CreatedAt = DateTime.UtcNow;
         const string sql = @"
-            INSERT INTO agent_models (id, agent_id, llm_config_id, llm_model_config_id, priority, is_primary, is_enabled, created_at)
-            VALUES (@Id, @AgentId, @LlmConfigId, @LlmModelConfigId, @Priority, @IsPrimary, @IsEnabled, @CreatedAt)
+            INSERT INTO agent_models (agent_id, llm_config_id, llm_model_config_id, priority, is_primary, is_enabled, created_at)
+            VALUES (@AgentId, @LlmConfigId, @LlmModelConfigId, @Priority, @IsPrimary, @IsEnabled, @CreatedAt)
             RETURNING *";
         return await connection.QueryFirstAsync<AgentModel>(sql, agentModel);
     }
@@ -123,13 +122,12 @@ public class AgentModelRepository : IAgentModelRepository
         try
         {
             const string sql = @"
-                INSERT INTO agent_models (id, agent_id, llm_config_id, llm_model_config_id, priority, is_primary, is_enabled, created_at)
-                VALUES (@Id, @AgentId, @LlmConfigId, @LlmModelConfigId, @Priority, @IsPrimary, @IsEnabled, @CreatedAt)
+                INSERT INTO agent_models (agent_id, llm_config_id, llm_model_config_id, priority, is_primary, is_enabled, created_at)
+                VALUES (@AgentId, @LlmConfigId, @LlmModelConfigId, @Priority, @IsPrimary, @IsEnabled, @CreatedAt)
                 RETURNING *";
             
             foreach (var model in agentModels)
             {
-                model.GenerateId();
                 model.CreatedAt = DateTime.UtcNow;
                 var result = await connection.QueryFirstAsync<AgentModel>(sql, model, transaction);
                 results.Add(result);

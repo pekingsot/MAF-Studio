@@ -1,5 +1,4 @@
 using MAFStudio.Core.Enums;
-using MAFStudio.Core.Utils;
 
 namespace MAFStudio.Core.Entities;
 
@@ -21,17 +20,9 @@ public class RagDocument
 
     public string? ErrorMessage { get; set; }
 
-    public string UserId { get; set; } = string.Empty;
+    public long UserId { get; set; }
 
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
     public DateTime? ProcessedAt { get; set; }
-
-    /// <summary>
-    /// 生成新的雪花ID
-    /// </summary>
-    public void GenerateId()
-    {
-        Id = SnowflakeIdGenerator.Instance.NextId();
-    }
 }

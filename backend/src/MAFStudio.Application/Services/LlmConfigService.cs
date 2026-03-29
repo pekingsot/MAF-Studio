@@ -24,7 +24,7 @@ public class LlmConfigService : ILlmConfigService
         _logger = logger;
     }
 
-    public async Task<List<LlmConfig>> GetByUserIdAsync(string userId)
+    public async Task<List<LlmConfig>> GetByUserIdAsync(long userId)
     {
         var configs = await _llmConfigRepository.GetByUserIdAsync(userId);
         foreach (var config in configs)
@@ -54,7 +54,7 @@ public class LlmConfigService : ILlmConfigService
         return config;
     }
 
-    public async Task<LlmConfig> CreateAsync(string name, string provider, string? apiKey, string? endpoint, string? defaultModel, string userId)
+    public async Task<LlmConfig> CreateAsync(string name, string provider, string? apiKey, string? endpoint, string? defaultModel, long userId)
     {
         var config = new LlmConfig
         {
@@ -91,7 +91,7 @@ public class LlmConfigService : ILlmConfigService
         return await _llmConfigRepository.DeleteAsync(id);
     }
 
-    public async Task SetDefaultAsync(long id, string userId)
+    public async Task SetDefaultAsync(long id, long userId)
     {
         await _llmConfigRepository.SetDefaultAsync(id, userId);
     }
@@ -113,7 +113,13 @@ public class LlmConfigService : ILlmConfigService
         {
             var models = await _modelConfigRepository.GetByLlmConfigIdAsync(id);
             var defaultModel = models.FirstOrDefault(m => m.IsDefault) ?? models.FirstOrDefault();
-            var modelName = defaultModel?.ModelName ?? config.DefaultModel ?? "gpt-4o";
+            
+            if (defaultModel == null)
+            {
+                return new ConnectionTestResult { Success = false, Message = "没有可用的模型配置", LatencyMs = 0 };
+            }
+
+            var modelName = defaultModel.ModelName;
 
             using var client = _chatClientFactory.CreateClient(
                 config.Provider,
@@ -129,8 +135,20 @@ public class LlmConfigService : ILlmConfigService
             };
 
             var stopwatch = System.Diagnostics.Stopwatch.StartNew();
-            var response = await client.GetResponseAsync(new[] { testMessage }, options);
-            stopwatch.Stop();
+            
+            await foreach (var update in client.GetStreamingResponseAsync(new[] { testMessage }, options))
+            {
+                stopwatch.Stop();
+                break;
+            }
+            
+            if (!stopwatch.IsRunning)
+            {
+                stopwatch.Stop();
+            }
+
+            var testResult = $"{stopwatch.ElapsedMilliseconds}ms";
+            await _modelConfigRepository.UpdateTestStatusAsync(defaultModel.Id, true, testResult);
 
             return new ConnectionTestResult
             {
@@ -142,6 +160,14 @@ public class LlmConfigService : ILlmConfigService
         catch (Exception ex)
         {
             _logger.LogError(ex, "测试连接失败: {Id}", id);
+            
+            var models = await _modelConfigRepository.GetByLlmConfigIdAsync(id);
+            var defaultModel = models.FirstOrDefault(m => m.IsDefault) ?? models.FirstOrDefault();
+            if (defaultModel != null)
+            {
+                await _modelConfigRepository.UpdateTestStatusAsync(defaultModel.Id, false, ex.Message);
+            }
+            
             return new ConnectionTestResult { Success = false, Message = ex.Message, LatencyMs = 0 };
         }
     }
@@ -181,8 +207,20 @@ public class LlmConfigService : ILlmConfigService
             };
 
             var stopwatch = System.Diagnostics.Stopwatch.StartNew();
-            var response = await client.GetResponseAsync(new[] { testMessage }, options);
-            stopwatch.Stop();
+            
+            await foreach (var update in client.GetStreamingResponseAsync(new[] { testMessage }, options))
+            {
+                stopwatch.Stop();
+                break;
+            }
+            
+            if (!stopwatch.IsRunning)
+            {
+                stopwatch.Stop();
+            }
+
+            var testResult = $"{stopwatch.ElapsedMilliseconds}ms";
+            await _modelConfigRepository.UpdateTestStatusAsync(modelId, true, testResult);
 
             return new ConnectionTestResult
             {
@@ -194,6 +232,9 @@ public class LlmConfigService : ILlmConfigService
         catch (Exception ex)
         {
             _logger.LogError(ex, "测试模型连接失败: {ConfigId}, {ModelId}", configId, modelId);
+            
+            await _modelConfigRepository.UpdateTestStatusAsync(modelId, false, ex.Message);
+            
             return new ConnectionTestResult { Success = false, Message = ex.Message, LatencyMs = 0 };
         }
     }

@@ -31,19 +31,18 @@ public class LlmModelConfigRepository : ILlmModelConfigRepository
     public async Task<LlmModelConfig> CreateAsync(LlmModelConfig config)
     {
         using var connection = _context.CreateConnection();
-        config.GenerateId();
         config.CreatedAt = DateTime.UtcNow;
         const string sql = @"
             INSERT INTO llm_model_configs (
-                id, llm_config_id, model_name, display_name, description, 
+                llm_config_id, model_name, display_name, description, 
                 is_default, is_enabled, sort_order, temperature, max_tokens, 
                 context_window, top_p, frequency_penalty, presence_penalty, 
-                stop_sequences, created_at
+                stop_sequences, availability_status, created_at
             ) VALUES (
-                @Id, @LlmConfigId, @ModelName, @DisplayName, @Description,
+                @LlmConfigId, @ModelName, @DisplayName, @Description,
                 @IsDefault, @IsEnabled, @SortOrder, @Temperature, @MaxTokens,
                 @ContextWindow, @TopP, @FrequencyPenalty, @PresencePenalty,
-                @StopSequences, @CreatedAt
+                @StopSequences, @AvailabilityStatus, @CreatedAt
             )
             RETURNING *";
         return await connection.QueryFirstAsync<LlmModelConfig>(sql, config);
@@ -66,7 +65,10 @@ public class LlmModelConfigRepository : ILlmModelConfigRepository
                 top_p = @TopP,
                 frequency_penalty = @FrequencyPenalty,
                 presence_penalty = @PresencePenalty,
-                stop_sequences = @StopSequences
+                stop_sequences = @StopSequences,
+                last_test_time = @LastTestTime,
+                availability_status = @AvailabilityStatus,
+                test_result = @TestResult
             WHERE id = @Id
             RETURNING *";
         return await connection.QueryFirstAsync<LlmModelConfig>(sql, config);
@@ -83,6 +85,7 @@ public class LlmModelConfigRepository : ILlmModelConfigRepository
     public async Task SetDefaultAsync(long llmConfigId, long modelId)
     {
         using var connection = _context.CreateConnection();
+        connection.Open();
         using var transaction = connection.BeginTransaction();
         try
         {
@@ -103,5 +106,24 @@ public class LlmModelConfigRepository : ILlmModelConfigRepository
             transaction.Rollback();
             throw;
         }
+    }
+
+    public async Task UpdateTestStatusAsync(long modelId, bool isAvailable, string testResult)
+    {
+        using var connection = _context.CreateConnection();
+        const string sql = @"
+            UPDATE llm_model_configs 
+            SET last_test_time = @LastTestTime,
+                availability_status = @AvailabilityStatus,
+                test_result = @TestResult
+            WHERE id = @Id";
+        
+        await connection.ExecuteAsync(sql, new
+        {
+            Id = modelId,
+            LastTestTime = DateTime.UtcNow,
+            AvailabilityStatus = isAvailable ? 1 : 0,
+            TestResult = testResult
+        });
     }
 }

@@ -10,8 +10,9 @@ interface UserProfile {
   username: string;
   email: string;
   avatar?: string;
-  role: string;
-  createdAt: string;
+  roles: string[];
+  permissions: string[];
+  createdAt?: string;
 }
 
 const Profile: React.FC = () => {
@@ -91,11 +92,13 @@ const Profile: React.FC = () => {
               <Divider />
               <Space direction="vertical" style={{ width: '100%' }}>
                 <Text>
-                  角色: <Text strong>{user.role === 'admin' ? '管理员' : '普通用户'}</Text>
+                  角色: <Text strong>{user.roles?.map(r => r === 'SUPER_ADMIN' ? '超级管理员' : r === 'ADMIN' ? '管理员' : '普通用户').join(', ') || '普通用户'}</Text>
                 </Text>
-                <Text>
-                  注册时间: {new Date(user.createdAt).toLocaleDateString()}
-                </Text>
+                {user.createdAt && (
+                  <Text>
+                    注册时间: {new Date(user.createdAt).toLocaleDateString()}
+                  </Text>
+                )}
               </Space>
             </div>
           </Card>
