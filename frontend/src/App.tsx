@@ -24,6 +24,8 @@ const AgentDetail = lazy(() => import('./pages/AgentDetail'));
 const AgentTypes = lazy(() => import('./pages/AgentTypes'));
 const Collaborations = lazy(() => import('./pages/Collaborations'));
 const CollaborationDetail = lazy(() => import('./pages/CollaborationDetail'));
+const CollaborationWorkflow = lazy(() => import('./pages/collaboration-workflow'));
+const SkillManagement = lazy(() => import('./pages/skill-management'));
 const Messages = lazy(() => import('./pages/Messages'));
 const CollaborationChat = lazy(() => import('./pages/CollaborationChat'));
 const Login = lazy(() => import('./pages/Login'));
@@ -79,6 +81,8 @@ function App() {
           <Route path="/agent-types" element={lazyLoad(AgentTypes)} />
           <Route path="/collaborations" element={lazyLoad(Collaborations)} />
           <Route path="/collaborations/:id" element={lazyLoad(CollaborationDetail)} />
+          <Route path="/collaboration-workflow" element={lazyLoad(CollaborationWorkflow)} />
+          <Route path="/skill-management" element={lazyLoad(SkillManagement)} />
           <Route path="/messages" element={lazyLoad(Messages)} />
           <Route path="/chat" element={lazyLoad(CollaborationChat)} />
           <Route path="/profile" element={lazyLoad(Profile)} />

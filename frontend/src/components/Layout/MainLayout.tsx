@@ -116,6 +116,12 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
           <Menu.Item key="/collaborations" icon={<TeamOutlined />}>
             <Link to="/collaborations">协作管理</Link>
           </Menu.Item>
+          <Menu.Item key="/collaboration-workflow" icon={<TeamOutlined />}>
+            <Link to="/collaboration-workflow">协作工作流</Link>
+          </Menu.Item>
+          <Menu.Item key="/skill-management" icon={<AppstoreAddOutlined />}>
+            <Link to="/skill-management">Skill管理</Link>
+          </Menu.Item>
           <Menu.Item key="/chat" icon={<CommentOutlined />}>
             <Link to="/chat">协作聊天</Link>
           </Menu.Item>
