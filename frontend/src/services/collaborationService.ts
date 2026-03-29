@@ -17,17 +17,13 @@ export interface Collaboration {
 }
 
 export interface CollaborationAgent {
-  id: string;
-  collaborationId: string;
   agentId: number;
+  agentName: string;
+  agentType?: string;
+  agentStatus?: string;
+  agentAvatar?: string;
   role?: string;
   joinedAt: string;
-  agent: {
-    id: number;
-    name: string;
-    type: string;
-    status: string;
-  };
 }
 
 export interface CollaborationTask {

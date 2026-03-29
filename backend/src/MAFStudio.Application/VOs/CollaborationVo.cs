@@ -21,6 +21,8 @@ public class CollaborationAgentVo
 {
     public long AgentId { get; set; }
     public string AgentName { get; set; } = string.Empty;
+    public string? AgentType { get; set; }
+    public string? AgentStatus { get; set; }
     public string? AgentAvatar { get; set; }
     public string? Role { get; set; }
     public DateTime JoinedAt { get; set; }

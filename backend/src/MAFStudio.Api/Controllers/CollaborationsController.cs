@@ -31,7 +31,25 @@ public class CollaborationsController : ControllerBase
     {
         var userId = User.GetUserId();
         var collaborations = await _collaborationService.GetByUserIdAsync(userId);
-        var vos = collaborations.Select(c => c.ToVo()).ToList();
+        var vos = new List<CollaborationVo>();
+        
+        foreach (var collaboration in collaborations)
+        {
+            var vo = collaboration.ToVo();
+            var agents = await _collaborationService.GetAgentsWithDetailsAsync(collaboration.Id);
+            vo.Agents = agents.Select(a => new CollaborationAgentVo
+            {
+                AgentId = a.AgentId,
+                AgentName = a.AgentName,
+                AgentType = a.AgentType,
+                AgentStatus = a.AgentStatus,
+                AgentAvatar = a.AgentAvatar,
+                Role = a.Role,
+                JoinedAt = a.JoinedAt
+            }).ToList();
+            vos.Add(vo);
+        }
+        
         return Ok(vos);
     }
 
@@ -46,10 +64,14 @@ public class CollaborationsController : ControllerBase
         }
 
         var vo = collaboration.ToVo();
-        var agents = await _collaborationService.GetAgentsAsync(id);
+        var agents = await _collaborationService.GetAgentsWithDetailsAsync(id);
         vo.Agents = agents.Select(a => new CollaborationAgentVo
         {
             AgentId = a.AgentId,
+            AgentName = a.AgentName,
+            AgentType = a.AgentType,
+            AgentStatus = a.AgentStatus,
+            AgentAvatar = a.AgentAvatar,
             Role = a.Role,
             JoinedAt = a.JoinedAt
         }).ToList();
