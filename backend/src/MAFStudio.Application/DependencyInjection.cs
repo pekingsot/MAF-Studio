@@ -1,6 +1,8 @@
 using Microsoft.Extensions.DependencyInjection;
 using MAFStudio.Core.Interfaces.Services;
 using MAFStudio.Application.Services;
+using MAFStudio.Application.Interfaces;
+using MAFStudio.Application.Skills;
 
 namespace MAFStudio.Application;
 
@@ -19,6 +21,12 @@ public static class DependencyInjection
         
         services.AddScoped<IChatClientFactory, ChatClientFactory>();
         services.AddScoped<IChatService, ChatService>();
+        
+        services.AddScoped<IAgentFactoryService, AgentFactoryService>();
+        services.AddScoped<ICollaborationWorkflowService, CollaborationWorkflowService>();
+        
+        services.AddSingleton<SkillLoader>();
+        services.AddScoped<SkillExecutor>();
         
         return services;
     }
