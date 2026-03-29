@@ -30,14 +30,14 @@ public static class EntityMapper
         
         return new AgentVo
         {
-            Id = agent.Id.ToString(),
+            Id = agent.Id,
             Name = agent.Name,
             Description = agent.Description,
             Type = agent.Type,
             TypeName = agent.TypeName,
             SystemPrompt = agent.SystemPrompt,
             Avatar = agent.Avatar,
-            UserId = agent.UserId.ToString(),
+            UserId = agent.UserId,
             Status = agent.Status,
             LlmConfigId = agent.LlmConfigId,
             LlmModelConfigId = agent.LlmModelConfigId,
@@ -66,15 +66,15 @@ public static class EntityMapper
         
         return new AgentListItemVo
         {
-            Id = agent.Id.ToString(),
+            Id = agent.Id,
             Name = agent.Name,
             Description = agent.Description,
             Type = agent.Type,
             TypeName = agent.TypeName,
             Avatar = agent.Avatar,
             Status = agent.Status,
-            LlmConfigId = agent.LlmConfigId?.ToString(),
-            LlmModelConfigId = agent.LlmModelConfigId?.ToString(),
+            LlmConfigId = agent.LlmConfigId,
+            LlmModelConfigId = agent.LlmModelConfigId,
             LlmConfigName = agent.LlmConfigName,
             PrimaryModelName = agent.LlmModelName,
             FallbackModels = fallbackModels,
@@ -87,7 +87,7 @@ public static class EntityMapper
     {
         return new AgentTypeVo
         {
-            Id = agentType.Id.ToString(),
+            Id = agentType.Id,
             Name = agentType.Name,
             Code = agentType.Code,
             Description = agentType.Description,
@@ -102,12 +102,12 @@ public static class EntityMapper
     {
         return new CollaborationVo
         {
-            Id = collaboration.Id.ToString(),
+            Id = collaboration.Id,
             Name = collaboration.Name,
             Description = collaboration.Description,
             Path = collaboration.Path,
             Status = collaboration.Status,
-            UserId = collaboration.UserId.ToString(),
+            UserId = collaboration.UserId,
             GitRepositoryUrl = collaboration.GitRepositoryUrl,
             GitBranch = collaboration.GitBranch,
             CreatedAt = collaboration.CreatedAt
@@ -118,7 +118,7 @@ public static class EntityMapper
     {
         return new CollaborationTaskVo
         {
-            Id = task.Id.ToString(),
+            Id = task.Id,
             CollaborationId = task.CollaborationId,
             Title = task.Title,
             Description = task.Description,
@@ -133,13 +133,13 @@ public static class EntityMapper
     {
         return new LlmConfigVo
         {
-            Id = config.Id.ToString(),
+            Id = config.Id,
             Name = config.Name,
             Provider = config.Provider,
             ApiKey = config.ApiKey,
             Endpoint = config.Endpoint,
             DefaultModel = config.DefaultModel,
-            UserId = config.UserId.ToString(),
+            UserId = config.UserId,
             IsDefault = config.IsDefault,
             IsEnabled = config.IsEnabled,
             CreatedAt = config.CreatedAt,
@@ -152,7 +152,7 @@ public static class EntityMapper
     {
         return new LlmModelConfigVo
         {
-            Id = model.Id.ToString(),
+            Id = model.Id,
             ModelName = model.ModelName,
             DisplayName = model.DisplayName,
             Description = model.Description,

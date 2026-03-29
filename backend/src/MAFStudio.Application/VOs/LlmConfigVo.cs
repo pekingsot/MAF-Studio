@@ -1,22 +1,24 @@
 namespace MAFStudio.Application.VOs;
 
-public class LlmConfigVo : BaseVo
+public class LlmConfigVo
 {
+    public long Id { get; set; }
     public string Name { get; set; } = string.Empty;
     public string Provider { get; set; } = string.Empty;
     public string? ApiKey { get; set; }
     public string? Endpoint { get; set; }
     public string? DefaultModel { get; set; }
-    public string UserId { get; set; } = string.Empty;
+    public long UserId { get; set; }
     public bool IsDefault { get; set; }
     public bool IsEnabled { get; set; }
+    public DateTime CreatedAt { get; set; }
     public DateTime? UpdatedAt { get; set; }
     public List<LlmModelConfigVo> Models { get; set; } = new();
 }
 
 public class LlmModelConfigVo
 {
-    public string Id { get; set; } = string.Empty;
+    public long Id { get; set; }
     public string ModelName { get; set; } = string.Empty;
     public string? DisplayName { get; set; }
     public string? Description { get; set; }

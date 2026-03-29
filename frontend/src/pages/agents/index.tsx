@@ -44,15 +44,20 @@ const Agents: React.FC = () => {
   } = useAgentForm(llmConfigs, loadLLMConfigs);
 
   const handleCreate = useCallback(async () => {
+    console.log('创建智能体 - 当前llmConfigs:', llmConfigs);
+    console.log('创建智能体 - llmConfigs长度:', llmConfigs.length);
+    
     setEditingAgent(null);
     initFormForCreate();
     
     if (llmConfigs.length === 0) {
-      await loadLLMConfigs();
+      console.log('创建智能体 - 加载llmConfigs');
+      const configs = await loadLLMConfigs();
+      console.log('创建智能体 - 加载后的llmConfigs:', configs);
     }
     
     setModalVisible(true);
-  }, [llmConfigs.length, loadLLMConfigs, initFormForCreate]);
+  }, [llmConfigs, loadLLMConfigs, initFormForCreate]);
 
   const handleEdit = useCallback(async (agent: Agent) => {
     setEditingAgent(agent);
@@ -66,6 +71,10 @@ const Agents: React.FC = () => {
   }, [llmConfigs.length, loadLLMConfigs, initFormForEdit]);
 
   const handleSubmit = useCallback(async (data: AgentFormData) => {
+    console.log('提交数据:', data);
+    console.log('当前主模型:', selectedPrimaryModel);
+    console.log('当前副模型:', selectedFallbackModels);
+    
     try {
       if (editingAgent) {
         await agentService.updateAgent(editingAgent.id, data);
@@ -77,6 +86,7 @@ const Agents: React.FC = () => {
       setModalVisible(false);
       loadAgents();
     } catch (error) {
+      console.error('提交失败:', error);
       message.error('操作失败');
     }
   }, [editingAgent, loadAgents]);

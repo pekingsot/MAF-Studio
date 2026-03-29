@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { List, Button, Space, Tag, Popconfirm, Tooltip, Divider } from 'antd';
 import { PlusOutlined, ApiOutlined, CheckCircleOutlined, CloseCircleOutlined, LoadingOutlined, StarFilled } from '@ant-design/icons';
 import { LLMConfig, LLMModelConfig, ConnectionStatus } from './types';
@@ -14,7 +14,7 @@ interface ModelListProps {
   onAddModel: (configId: number) => void;
 }
 
-const ModelList: React.FC<ModelListProps> = ({
+const ModelList: React.FC<ModelListProps> = React.memo(({
   config,
   connectionStatus,
   testingIds,
@@ -24,7 +24,12 @@ const ModelList: React.FC<ModelListProps> = ({
   onDelete,
   onAddModel,
 }) => {
-  if (!config.models || config.models.length === 0) {
+  const models = useMemo(() => {
+    const modelList = config.models || [];
+    return [...modelList].sort((a, b) => a.id - b.id);
+  }, [config.models]);
+
+  if (models.length === 0) {
     return (
       <div style={{ padding: '12px 0', color: '#999' }}>
         暂无模型配置，请添加至少一个模型
@@ -38,10 +43,10 @@ const ModelList: React.FC<ModelListProps> = ({
   return (
     <>
       <Divider orientation="left" style={{ margin: '12px 0' }}>
-        模型配置 ({config.models?.length || 0})
+        模型配置 ({models.length})
       </Divider>
       <List
-        dataSource={config.models}
+        dataSource={models}
         renderItem={(model) => {
           const testId = config.id * 1000 + model.id;
           const isTesting = testingIds.has(testId);
@@ -67,7 +72,7 @@ const ModelList: React.FC<ModelListProps> = ({
                       设为默认
                     </Button>
                   )}
-                  {config.models.length > 1 && (
+                  {models.length > 1 && (
                     <Popconfirm
                       title="确定要删除这个模型吗？"
                       onConfirm={() => onDelete(config.id, model.id)}
@@ -145,7 +150,7 @@ const ModelList: React.FC<ModelListProps> = ({
           );
         }}
       />
-      {config.models && config.models.length > 0 && (
+      {models.length > 0 && (
         <Button
           type="dashed"
           icon={<PlusOutlined />}
@@ -157,6 +162,8 @@ const ModelList: React.FC<ModelListProps> = ({
       )}
     </>
   );
-};
+});
+
+ModelList.displayName = 'ModelList';
 
 export default ModelList;

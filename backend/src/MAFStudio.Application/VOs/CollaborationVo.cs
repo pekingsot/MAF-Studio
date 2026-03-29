@@ -2,17 +2,19 @@ using MAFStudio.Core.Enums;
 
 namespace MAFStudio.Application.VOs;
 
-public class CollaborationVo : BaseVo
+public class CollaborationVo
 {
+    public long Id { get; set; }
     public string Name { get; set; } = string.Empty;
     public string? Description { get; set; }
     public string? Path { get; set; }
     public CollaborationStatus Status { get; set; }
-    public string UserId { get; set; } = string.Empty;
+    public long UserId { get; set; }
     public string? GitRepositoryUrl { get; set; }
     public string? GitBranch { get; set; }
     public List<CollaborationAgentVo> Agents { get; set; } = new();
     public List<CollaborationTaskVo> Tasks { get; set; } = new();
+    public DateTime CreatedAt { get; set; }
 }
 
 public class CollaborationAgentVo
@@ -24,12 +26,14 @@ public class CollaborationAgentVo
     public DateTime JoinedAt { get; set; }
 }
 
-public class CollaborationTaskVo : BaseVo
+public class CollaborationTaskVo
 {
+    public long Id { get; set; }
     public long CollaborationId { get; set; }
     public string Title { get; set; } = string.Empty;
     public string? Description { get; set; }
     public CollaborationTaskStatus Status { get; set; }
     public string? AssignedTo { get; set; }
     public DateTime? CompletedAt { get; set; }
+    public DateTime CreatedAt { get; set; }
 }
