@@ -13,7 +13,7 @@ const AgentTable: React.FC<AgentTableProps> = ({ agents, onRemove }) => {
   const columns: ColumnsType<CollaborationAgent> = [
     {
       title: '智能体名称',
-      dataIndex: ['agent', 'name'],
+      dataIndex: 'agentName',
       key: 'agentName',
     },
     {
@@ -23,15 +23,15 @@ const AgentTable: React.FC<AgentTableProps> = ({ agents, onRemove }) => {
     },
     {
       title: '类型',
-      dataIndex: ['agent', 'type'],
+      dataIndex: 'agentType',
       key: 'agentType',
     },
     {
       title: '状态',
-      dataIndex: ['agent', 'status'],
+      dataIndex: 'agentStatus',
       key: 'agentStatus',
       render: (status: string) => (
-        <span style={{ color: AGENT_STATUS_COLOR_MAP[status] }}>{status}</span>
+        <span style={{ color: AGENT_STATUS_COLOR_MAP[status || 'Inactive'] }}>{status || 'Inactive'}</span>
       ),
     },
     {
@@ -63,7 +63,7 @@ const AgentTable: React.FC<AgentTableProps> = ({ agents, onRemove }) => {
     <Table
       dataSource={agents}
       columns={columns}
-      rowKey="id"
+      rowKey="agentId"
       pagination={false}
       style={{ marginTop: 16 }}
     />

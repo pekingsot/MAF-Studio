@@ -226,16 +226,16 @@ const CollaborationChat: React.FC = () => {
     
     const mentionedAgentIds = collaborationAgents
       .filter(ca => {
-        const agentName = (ca.agent?.name || '').toLowerCase();
+        const agentName = (ca.agentName || '').toLowerCase();
         return mentionedNames.includes(agentName);
       })
       .map(ca => ca.agentId);
 
     const displayContent = inputMessage.replace(/@([^\s@]+)/g, (match, name) => {
       const agent = collaborationAgents.find(ca => 
-        (ca.agent?.name || '').toLowerCase() === name.toLowerCase()
+        (ca.agentName || '').toLowerCase() === name.toLowerCase()
       );
-      return agent ? `@${agent.agent?.name}` : match;
+      return agent ? `@${agent.agentName}` : match;
     });
 
     const userMessage: ChatMessage = {
@@ -378,7 +378,7 @@ const CollaborationChat: React.FC = () => {
       
       const mentionedName = match[1];
       const agent = collaborationAgents.find(
-        ca => (ca.agent?.name || '').toLowerCase() === mentionedName.toLowerCase()
+        ca => (ca.agentName || '').toLowerCase() === mentionedName.toLowerCase()
       );
       
       if (agent) {
@@ -393,7 +393,7 @@ const CollaborationChat: React.FC = () => {
               fontWeight: 500,
             }}
           >
-            @{agent.agent?.name}
+            @{agent.agentName}
           </span>
         );
       } else {
@@ -494,14 +494,14 @@ const CollaborationChat: React.FC = () => {
                   icon={<RobotOutlined />}
                   style={{ cursor: 'pointer' }}
                   onClick={() => {
-                    const agentName = ca.agent?.name || '未知';
+                    const agentName = ca.agentName || '未知';
                     setInputMessage(prev => {
                       if (prev.includes(`@${agentName}`)) return prev;
                       return prev + `@${agentName} `;
                     });
                   }}
                 >
-                  @{ca.agent?.name || '未知智能体'}
+                  @{ca.agentName || '未知智能体'}
                   {ca.role && ` (${ca.role})`}
                 </Tag>
               ))}
@@ -652,10 +652,10 @@ const CollaborationChat: React.FC = () => {
             }}
           >
             {collaborationAgents.map(ca => (
-              <Option key={ca.agentId.toString()} value={ca.agent?.name || '未知'}>
+              <Option key={ca.agentId.toString()} value={ca.agentName || '未知'}>
                 <Space>
                   <RobotOutlined />
-                  <span>{ca.agent?.name || '未知智能体'}</span>
+                  <span>{ca.agentName || '未知智能体'}</span>
                   {ca.role && <Tag color="blue" style={{ marginLeft: 4 }}>{ca.role}</Tag>}
                 </Space>
               </Option>

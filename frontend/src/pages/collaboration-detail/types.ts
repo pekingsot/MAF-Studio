@@ -1,15 +1,12 @@
 import { Collaboration } from '../../services/collaborationService';
 
 export interface CollaborationAgent {
-  id: string;
   agentId: number;
-  agent: {
-    id: number;
-    name: string;
-    type: string;
-    status: string;
-  };
-  role: string;
+  agentName: string;
+  agentType?: string;
+  agentStatus?: string;
+  agentAvatar?: string;
+  role?: string;
   joinedAt: string;
 }
 
