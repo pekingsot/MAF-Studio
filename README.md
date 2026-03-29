@@ -2,7 +2,18 @@
 
 基于 Microsoft Agent Framework (MAF) 的多智能体协作平台，提供智能体之间的协作、通信和配置管理功能。
 
-## 项目结构
+## 🎯 项目简介
+
+MAF Studio 是一个功能强大的多智能体协作平台，支持：
+
+- ✅ **智能体管理** - 创建、配置和管理多个AI智能体
+- ✅ **协作工作流** - 支持顺序、并发、任务移交、群聊协作、审阅迭代等多种工作流模式
+- ✅ **可视化设计** - 计划支持拖拽式工作流设计器
+- ✅ **实时通信** - 基于SignalR的实时消息传递
+- ✅ **RAG知识库** - 文档上传、分割、向量入库和检索
+- ✅ **多LLM支持** - 支持OpenAI、阿里千问、智谱AI等多种大模型
+
+## 📁 项目结构
 
 ```
 maf-studio/
@@ -10,6 +21,12 @@ maf-studio/
 │   ├── src/
 │   │   ├── MAFStudio.Core/           # 核心层
 │   │   │   ├── Entities/             # 实体定义
+│   │   │   │   ├── Agent.cs          # 智能体实体
+│   │   │   │   ├── AgentType.cs      # 智能体类型
+│   │   │   │   ├── LlmConfig.cs      # LLM配置
+│   │   │   │   ├── Collaboration.cs  # 协作项目
+│   │   │   │   ├── CollaborationAgent.cs  # 协作智能体
+│   │   │   │   └── CollaborationTask.cs   # 协作任务
 │   │   │   ├── Enums/                # 枚举定义
 │   │   │   └── Interfaces/           # 接口定义
 │   │   │       ├── Repositories/     # 仓储接口
@@ -18,20 +35,36 @@ maf-studio/
 │   │   ├── MAFStudio.Infrastructure/ # 基础设施层
 │   │   │   ├── Data/                 # 数据访问
 │   │   │   │   ├── Repositories/     # 仓储实现
-│   │   │   │   ├── Scripts/          # SQL脚本
-│   │   │   │   │   ├── V1__Initial.sql    # 数据库初始化
-│   │   │   │   │   └── V2__SeedData.sql   # 基础数据
+│   │   │   │   ├── Scripts/          # SQL迁移脚本
+│   │   │   │   │   ├── V1__Initial.sql
+│   │   │   │   │   ├── V29__FixCollaborationAgentsColumnTypes.sql
+│   │   │   │   │   ├── V30__FixCollaborationTasksColumnType.sql
+│   │   │   │   │   ├── V31__FixCollaborationTasksAssignedToType.sql
+│   │   │   │   │   └── ...
 │   │   │   │   └── DapperContext.cs  # Dapper上下文
 │   │   │   └── Services/             # 基础服务实现
 │   │   │
 │   │   ├── MAFStudio.Application/    # 应用层
 │   │   │   ├── Services/             # 业务服务实现
+│   │   │   │   ├── CollaborationService.cs
+│   │   │   │   ├── CollaborationWorkflowService.cs
+│   │   │   │   ├── CollaborationWorkflowService.ReviewIterative.cs
+│   │   │   │   └── ...
+│   │   │   ├── Clients/              # LLM客户端
+│   │   │   │   └── CustomOpenAICompatibleChatClient.cs
+│   │   │   ├── Capabilities/         # 智能体能力
+│   │   │   │   └── GitCapability.cs
 │   │   │   ├── DTOs/                 # 数据传输对象
 │   │   │   ├── VOs/                  # 视图对象
 │   │   │   └── Mappers/              # 对象映射
 │   │   │
 │   │   └── MAFStudio.Api/            # API层
 │   │       ├── Controllers/          # API控制器
+│   │       │   ├── AgentsController.cs
+│   │       │   ├── CollaborationsController.cs
+│   │       │   ├── CollaborationWorkflowController.cs
+│   │       │   ├── LlmConfigsController.cs
+│   │       │   └── ...
 │   │       ├── Filters/              # 过滤器
 │   │       ├── Middleware/           # 中间件
 │   │       ├── Services/             # API服务
@@ -42,8 +75,18 @@ maf-studio/
 ├── frontend/                         # React 前端
 │   ├── src/
 │   │   ├── components/               # 组件
+│   │   │   ├── WorkflowConfigModal.tsx  # 工作流配置组件
+│   │   │   └── ...
 │   │   ├── pages/                    # 页面
+│   │   │   ├── Agents.tsx            # 智能体管理
+│   │   │   ├── Collaborations.tsx    # 协作管理
+│   │   │   ├── CollaborationChat.tsx # 协作聊天
+│   │   │   ├── collaboration-detail/ # 协作详情
+│   │   │   └── ...
 │   │   ├── services/                 # API服务
+│   │   │   ├── agentService.ts
+│   │   │   ├── collaborationService.ts
+│   │   │   └── ...
 │   │   ├── hooks/                    # 自定义Hooks
 │   │   └── utils/                    # 工具函数
 │   └── package.json
@@ -52,10 +95,15 @@ maf-studio/
 │   └── MAFStudio.Tests/
 │
 ├── docs/                             # 文档
+│   ├── 协作工作流设计.md
+│   ├── 协作工作流问题解答.md
+│   ├── 审阅迭代工作流详解.md
+│   └── 可视化工作流设计器方案.md
+│
 └── docker-compose.yml                # Docker Compose 配置
 ```
 
-## 架构设计
+## 🏗️ 架构设计
 
 ### 分层架构
 
@@ -91,17 +139,6 @@ maf-studio/
 | 基础设施层 | Dapper + Npgsql | 轻量级ORM |
 | 数据库 | PostgreSQL | 遵循PG最佳实践 |
 
-### PostgreSQL 最佳实践
-
-项目严格遵循 PostgreSQL 数据库最佳实践：
-
-1. **命名规范**: 小写 + 下划线（如 `user_info`, `created_at`）
-2. **主键**: 使用 `BIGSERIAL` 或 `IDENTITY`（UUID）
-3. **字符串**: 优先使用 `TEXT` 类型
-4. **金额**: 使用 `NUMERIC` 或 `DECIMAL`（禁止 FLOAT/DOUBLE）
-5. **JSON**: 使用 `JSONB`（支持索引，查询更快）
-6. **约束**: `NOT NULL`, `UNIQUE`, `CHECK`, `REFERENCES`
-
 ### 设计模式应用
 
 1. **仓储模式 (Repository Pattern)**
@@ -109,7 +146,8 @@ maf-studio/
    - 便于单元测试和切换数据源
 
 2. **工厂模式 (Factory Pattern)**
-   - `LLMProviderFactory`: 根据供应商标识创建对应的LLM供应商实例
+   - `AgentFactoryService`: 创建智能体实例
+   - `LLMProviderFactory`: 创建LLM供应商实例
 
 3. **策略模式 (Strategy Pattern)**
    - `BaseLLMProvider`: 抽象基类定义统一接口
@@ -124,12 +162,38 @@ maf-studio/
    - VO: 视图对象，用于API响应
    - 分离内部实体和外部接口
 
-## 功能特性
+## ✨ 功能特性
 
-- **多智能体协作**: 支持多个智能体之间的消息传递和协作
+### 核心功能
+
+- **智能体管理**
+  - 创建、配置和管理多个AI智能体
+  - 支持多种智能体类型（Assistant、UIDesigner、Coder等）
+  - 智能体状态监控和管理
+
+- **协作工作流** 🆕
+  - **顺序执行**: Agent按顺序依次处理任务
+  - **并发执行**: 多个Agent同时处理同一任务
+  - **任务移交**: Agent之间灵活移交任务
+  - **群聊协作**: 多Agent群聊讨论
+  - **审阅迭代**: A写文档 → B审阅 → 打回修改 → 循环直到满意
+
+- **协作管理** 🆕
+  - 创建协作项目
+  - 添加/移除智能体
+  - 任务管理和状态跟踪
+  - 实时协作聊天
+
+- **可视化工作流设计器** 🔜
+  - 拖拽式工作流设计
+  - 自定义节点连接
+  - 支持复杂协作流程
+
+### 其他功能
+
 - **A2A协议**: 智能体之间的通信协议支持
 - **@提及功能**: 在协作聊天中@特定智能体
-- **LLM供应商抽象**: 支持多种大模型供应商（OpenAI、阿里千问、智谱AI等）
+- **LLM供应商抽象**: 支持多种大模型供应商
 - **RAG知识库**: 文档上传、分割、向量入库和检索
 - **实时通信**: 基于SignalR的智能体实时消息传递
 - **流式输出**: 大模型响应流式返回
@@ -137,27 +201,7 @@ maf-studio/
 - **系统日志**: 数据库日志记录，用户隔离
 - **操作日志**: 记录用户操作行为
 
-## 技术栈
-
-### 后端
-- .NET 10.0
-- ASP.NET Core Web API
-- Dapper (轻量级ORM)
-- Npgsql (PostgreSQL驱动)
-- SignalR (实时通信)
-- BCrypt.Net (密码哈希)
-- JWT (身份认证)
-
-### 前端
-- React 18
-- TypeScript
-- Ant Design
-- Axios
-
-### 数据库
-- PostgreSQL 15+
-
-## 快速开始
+## 🚀 快速开始
 
 ### 环境要求
 
@@ -195,122 +239,7 @@ npm start
 | admin | admin123 | 管理员 |
 | pekingsot | pekingsot123 | 普通用户 |
 
-## Docker 部署
-
-### 环境要求
-
-- Docker 20.10+
-- Docker Compose 2.0+
-
-### 部署步骤
-
-#### 1. 克隆项目
-
-```bash
-git clone https://github.com/pekingsot/MAF-Studio.git
-cd MAF-Studio
-```
-
-#### 2. 配置环境变量
-
-```bash
-# 复制环境变量示例文件
-cp .env.example .env
-
-# 编辑环境变量（生产环境必须修改）
-# 重要：请修改以下敏感配置
-# - POSTGRES_PASSWORD: 数据库密码
-# - JWT_SECRET: JWT密钥（建议使用强随机字符串）
-vim .env
-```
-
-#### 3. 启动服务
-
-```bash
-# 启动所有服务（后台运行）
-docker-compose up -d
-
-# 查看服务状态
-docker-compose ps
-
-# 查看服务日志
-docker-compose logs -f
-```
-
-#### 4. 访问应用
-
-- 前端: http://localhost:80
-- 后端 API: http://localhost:5000
-- Swagger 文档: http://localhost:5000/swagger
-
-### 常用命令
-
-```bash
-# 停止所有服务
-docker-compose down
-
-# 停止并删除数据卷（清除所有数据）
-docker-compose down -v
-
-# 重启特定服务
-docker-compose restart backend
-docker-compose restart frontend
-
-# 重新构建镜像
-docker-compose build --no-cache
-
-# 重新构建并启动
-docker-compose up -d --build
-```
-
-### 服务架构
-
-```
-┌─────────────────────────────────────────────────────────────┐
-│                         用户请求                             │
-└─────────────────────────────────────────────────────────────┘
-                              │
-                              ↓
-┌─────────────────────────────────────────────────────────────┐
-│                    Frontend (Nginx)                          │
-│                    端口: 80                                   │
-│              静态资源 + 反向代理                              │
-└─────────────────────────────────────────────────────────────┘
-                              │
-                    /api/* → │
-                    /hubs/* →│
-                              ↓
-┌─────────────────────────────────────────────────────────────┐
-│                    Backend (.NET)                            │
-│                    端口: 5000                                 │
-│                 Web API + SignalR                            │
-└─────────────────────────────────────────────────────────────┘
-                              │
-                              ↓
-┌─────────────────────────────────────────────────────────────┐
-│                    PostgreSQL                                │
-│                    端口: 5432                                 │
-│                      数据存储                                 │
-└─────────────────────────────────────────────────────────────┘
-```
-
-### 数据备份与恢复
-
-#### 备份数据库
-
-```bash
-# 创建备份
-docker-compose exec postgres pg_dump -U mafuser mafstudio > backup_$(date +%Y%m%d).sql
-```
-
-#### 恢复数据库
-
-```bash
-# 恢复数据
-cat backup.sql | docker-compose exec -T postgres psql -U mafuser mafstudio
-```
-
-## API 概览
+## 📚 API 概览
 
 ### 认证
 - `POST /api/auth/login` - 用户登录
@@ -335,8 +264,8 @@ cat backup.sql | docker-compose exec -T postgres psql -U mafuser mafstudio
 - `POST /api/llmconfigs/{id}/test` - 测试LLM连接
 - `GET /api/llmconfigs/providers` - 获取供应商列表
 
-### 协作管理
-- `GET /api/collaborations` - 获取协作项目列表
+### 协作管理 🆕
+- `GET /api/collaborations` - 获取协作项目列表（包含智能体和任务）
 - `GET /api/collaborations/{id}` - 获取协作项目详情
 - `POST /api/collaborations` - 创建协作项目
 - `DELETE /api/collaborations/{id}` - 删除协作项目
@@ -344,6 +273,14 @@ cat backup.sql | docker-compose exec -T postgres psql -U mafuser mafstudio
 - `DELETE /api/collaborations/{id}/agents/{agentId}` - 移除智能体
 - `POST /api/collaborations/{id}/tasks` - 创建任务
 - `PATCH /api/collaborations/tasks/{taskId}/status` - 更新任务状态
+
+### 协作工作流 🆕
+- `POST /api/collaborations/{id}/workflow/execute` - 执行工作流
+- `POST /api/collaborations/{id}/workflow/sequential` - 顺序执行
+- `POST /api/collaborations/{id}/workflow/concurrent` - 并发执行
+- `POST /api/collaborations/{id}/workflow/handoffs` - 任务移交
+- `POST /api/collaborations/{id}/workflow/groupchat` - 群聊协作（流式）
+- `POST /api/collaborations/{id}/workflow/review-iterative` - 审阅迭代
 
 ### RAG服务
 - `POST /api/rag/upload` - 上传文档
@@ -355,10 +292,217 @@ cat backup.sql | docker-compose exec -T postgres psql -U mafuser mafstudio
 - `GET /api/operationlogs` - 获取操作日志
 - `GET /api/systemconfigs` - 获取系统配置
 
-## 许可证
+## 🎨 协作工作流详解
+
+### 1. 顺序执行
+
+**适用场景**：流水线式任务，如需求分析 → 设计 → 开发 → 测试
+
+```
+输入 → Agent1 → Agent2 → Agent3 → 输出
+```
+
+**API调用**：
+```json
+POST /api/collaborations/{id}/workflow/sequential
+{
+  "input": "设计一个登录页面"
+}
+```
+
+---
+
+### 2. 并发执行
+
+**适用场景**：需要多个方案或视角，如多个设计师同时设计
+
+```
+       ┌→ Agent1 → 结果1 ┐
+输入 → ├→ Agent2 → 结果2 ├→ 汇总 → 输出
+       └→ Agent3 → 结果3 ┘
+```
+
+**API调用**：
+```json
+POST /api/collaborations/{id}/workflow/concurrent
+{
+  "input": "设计一个登录页面"
+}
+```
+
+---
+
+### 3. 任务移交
+
+**适用场景**：Agent之间需要协作和交接
+
+```
+Agent1处理 → [HANDOFF:Agent2] → Agent2处理 → [HANDOFF:Agent3] → 完成
+```
+
+**API调用**：
+```json
+POST /api/collaborations/{id}/workflow/handoffs
+{
+  "input": "开发登录功能"
+}
+```
+
+---
+
+### 4. 群聊协作
+
+**适用场景**：复杂问题的多轮讨论，如头脑风暴
+
+```
+轮次1: Agent1 → Agent2 → Agent3
+轮次2: Agent1 → Agent2 → Agent3
+...
+直到有人输出 [END]
+```
+
+**API调用**：
+```json
+POST /api/collaborations/{id}/workflow/groupchat
+{
+  "input": "讨论技术方案"
+}
+```
+
+---
+
+### 5. 审阅迭代 🆕
+
+**适用场景**：A写文档 → B审阅 → 不满意 → 打回去 → A修改 → 循环直到满意
+
+```
+迭代1: A编写 → B审阅 → 不满意
+迭代2: A修改 → B审阅 → 满意 [APPROVED] → 结束
+```
+
+**API调用**：
+```json
+POST /api/collaborations/{id}/workflow/review-iterative
+{
+  "input": "编写一份系统架构设计文档",
+  "maxIterations": 10,
+  "reviewCriteria": "请从架构合理性、可扩展性、安全性等方面审阅"
+}
+```
+
+## 📖 文档
+
+- [协作工作流设计](docs/协作工作流设计.md)
+- [协作工作流问题解答](docs/协作工作流问题解答.md)
+- [审阅迭代工作流详解](docs/审阅迭代工作流详解.md)
+- [可视化工作流设计器方案](docs/可视化工作流设计器方案.md)
+
+## 🐳 Docker 部署
+
+### 环境要求
+
+- Docker 20.10+
+- Docker Compose 2.0+
+
+### 部署步骤
+
+#### 1. 克隆项目
+
+```bash
+git clone https://github.com/pekingsot/MAF-Studio.git
+cd MAF-Studio
+```
+
+#### 2. 配置环境变量
+
+```bash
+# 复制环境变量示例文件
+cp .env.example .env
+
+# 编辑环境变量（生产环境必须修改）
+vim .env
+```
+
+#### 3. 启动服务
+
+```bash
+# 启动所有服务（后台运行）
+docker-compose up -d
+
+# 查看服务状态
+docker-compose ps
+```
+
+#### 4. 访问应用
+
+- 前端: http://localhost:80
+- 后端 API: http://localhost:5000
+- Swagger 文档: http://localhost:5000/swagger
+
+### 常用命令
+
+```bash
+# 停止所有服务
+docker-compose down
+
+# 重启特定服务
+docker-compose restart backend
+
+# 重新构建镜像
+docker-compose build --no-cache
+```
+
+## 🛠️ 技术栈
+
+### 后端
+- .NET 10.0
+- ASP.NET Core Web API
+- Dapper (轻量级ORM)
+- Npgsql (PostgreSQL驱动)
+- SignalR (实时通信)
+- BCrypt.Net (密码哈希)
+- JWT (身份认证)
+- Microsoft.Extensions.AI (MAF框架)
+
+### 前端
+- React 18
+- TypeScript
+- Ant Design
+- Axios
+- React Router
+
+### 数据库
+- PostgreSQL 15+
+
+## 📝 开发规范
+
+### PostgreSQL 最佳实践
+
+项目严格遵循 PostgreSQL 数据库最佳实践：
+
+1. **命名规范**: 小写 + 下划线（如 `user_info`, `created_at`）
+2. **主键**: 使用 `BIGSERIAL`（自增ID）
+3. **字符串**: 优先使用 `TEXT` 类型
+4. **金额**: 使用 `NUMERIC` 或 `DECIMAL`（禁止 FLOAT/DOUBLE）
+5. **JSON**: 使用 `JSONB`（支持索引，查询更快）
+6. **约束**: `NOT NULL`, `UNIQUE`, `CHECK`, `REFERENCES`
+
+### 代码规范
+
+- 所有代码注释使用中文
+- 多用设计模式，避免临时实现
+- 禁止数据库JOIN连接
+- 根据查询创建相关索引
+- 使用抽象类和接口
+
+## 📄 许可证
 
 MIT License
 
-## 作者
+## 👨‍💻 作者
 
 pekingsot <北京醉鬼>
+
+## 🙏 致谢
+
+感谢 Microsoft Agent Framework (MAF) 团队提供的优秀框架！
