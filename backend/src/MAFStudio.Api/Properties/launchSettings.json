@@ -1,0 +1,14 @@
+{
+  "profiles": {
+    "MAFStudio.Api": {
+      "commandName": "Project",
+      "dotnetRunMessages": true,
+      "launchBrowser": false,
+      "applicationUrl": "http://localhost:5000",
+      "environmentVariables": {
+        "ASPNETCORE_ENVIRONMENT": "Development",
+        "ConnectionStrings__DefaultConnection": "Host=192.168.1.250;Port=5433;Database=mafstudio;Username=pekingsot;Password=sunset@123"
+      }
+    }
+  }
+}

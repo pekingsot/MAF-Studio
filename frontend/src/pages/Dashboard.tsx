@@ -8,7 +8,7 @@ import api from '../services/api';
 const { Text } = Typography;
 
 interface AgentType {
-  id: string;
+  id: number;
   code: string;
   name: string;
   description?: string;
@@ -21,7 +21,7 @@ interface AgentType {
 }
 
 interface LLMModelConfig {
-  id: string;
+  id: number;
   modelName: string;
   displayName?: string;
   isDefault: boolean;
@@ -29,9 +29,9 @@ interface LLMModelConfig {
 }
 
 interface LLMTestRecord {
-  id: string;
-  llmConfigId: string;
-  llmModelConfigId?: string;
+  id: number;
+  llmConfigId: number;
+  llmModelConfigId?: number;
   provider: string;
   modelName?: string;
   isSuccess: boolean;
@@ -41,7 +41,7 @@ interface LLMTestRecord {
 }
 
 interface LLMConfig {
-  id: string;
+  id: number;
   name: string;
   provider: string;
   isDefault: boolean;
@@ -82,7 +82,7 @@ const Dashboard: React.FC = () => {
         api.get<LLMConfig[]>('/llmconfigs'),
         api.get<AgentType[]>('/agenttypes/enabled'),
       ]);
-      setAgents(agentsData.agents || []);
+      setAgents(agentsData || []);
       setCollaborations(collaborationsData);
       setLlmConfigs(llmConfigsData.data.filter(c => c.isEnabled));
       setAgentTypes(agentTypesData.data || []);

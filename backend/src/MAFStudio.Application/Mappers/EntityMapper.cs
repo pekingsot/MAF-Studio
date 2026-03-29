@@ -7,6 +7,12 @@ namespace MAFStudio.Application.Mappers;
 
 public static class EntityMapper
 {
+    private static readonly JsonSerializerOptions JsonOptions = new()
+    {
+        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+        PropertyNameCaseInsensitive = true
+    };
+
     public static AgentVo ToVo(this Agent agent)
     {
         List<FallbackModelVo>? fallbackModels = null;
@@ -15,59 +21,10 @@ public static class EntityMapper
         {
             try
             {
-                var configs = JsonSerializer.Deserialize<List<Core.DTOs.FallbackModelConfig>>(agent.FallbackModels);
-                if (configs != null)
-                {
-                    fallbackModels = configs.Select(c =>
-                    {
-                        var modelVo = new FallbackModelVo
-                        {
-                            LlmConfigId = c.LlmConfigId.ToString(),
-                            LlmModelConfigId = c.LlmModelConfigId?.ToString(),
-                            Priority = c.Priority
-                        };
-                        
-                        Console.WriteLine($"[DEBUG] ToListItemVo - FallbackModel LlmConfigId: {c.LlmConfigId}, LlmModelConfigId: {c.LlmModelConfigId}");
-                        Console.WriteLine($"[DEBUG] ToListItemVo - AllLlmConfigs count: {agent.AllLlmConfigs?.Count ?? 0}");
-                        
-                        if (agent.AllLlmConfigs != null)
-                        {
-                            var llmConfig = agent.AllLlmConfigs.FirstOrDefault(lc => lc.Id == c.LlmConfigId);
-                            Console.WriteLine($"[DEBUG] ToListItemVo - Found llmConfig: {llmConfig?.Name ?? "null"}");
-                            
-                            if (llmConfig?.Models != null)
-                            {
-                                var model = llmConfig.Models.FirstOrDefault(m => m.Id == c.LlmModelConfigId);
-                                Console.WriteLine($"[DEBUG] ToListItemVo - Found model: {model?.DisplayName ?? model?.ModelName ?? "null"}");
-                                
-                                if (model != null)
-                                {
-                                    modelVo.ModelName = model.DisplayName ?? model.ModelName;
-                                    modelVo.LlmConfigName = llmConfig.Name;
-                                }
-                            }
-                        }
-                        
-                        return modelVo;
-                    }).ToList();
-                }
+                fallbackModels = JsonSerializer.Deserialize<List<FallbackModelVo>>(agent.FallbackModels, JsonOptions);
             }
-            catch (Exception ex)
+            catch
             {
-                Console.WriteLine($"[DEBUG] ToListItemVo - Exception: {ex.Message}");
-            }
-        }
-        
-        string? primaryModelName = null;
-        string? primaryLlmConfigName = null;
-        
-        if (agent.LlmModelConfigId.HasValue && agent.LlmConfig?.Models != null)
-        {
-            var model = agent.LlmConfig.Models.FirstOrDefault(m => m.Id == agent.LlmModelConfigId.Value);
-            if (model != null)
-            {
-                primaryModelName = model.DisplayName ?? model.ModelName;
-                primaryLlmConfigName = agent.LlmConfig.Name;
             }
         }
         
@@ -77,14 +34,15 @@ public static class EntityMapper
             Name = agent.Name,
             Description = agent.Description,
             Type = agent.Type,
+            TypeName = agent.TypeName,
             SystemPrompt = agent.SystemPrompt,
             Avatar = agent.Avatar,
-            UserId = agent.UserId,
+            UserId = agent.UserId.ToString(),
             Status = agent.Status,
             LlmConfigId = agent.LlmConfigId,
             LlmModelConfigId = agent.LlmModelConfigId,
-            LlmConfigName = primaryLlmConfigName,
-            PrimaryModelName = primaryModelName,
+            LlmConfigName = agent.LlmConfigName,
+            PrimaryModelName = agent.LlmModelName,
             CreatedAt = agent.CreatedAt,
             LlmConfig = agent.LlmConfig?.ToVo(),
             FallbackModels = fallbackModels
@@ -93,73 +51,16 @@ public static class EntityMapper
 
     public static AgentListItemVo ToListItemVo(this Agent agent)
     {
-        string? primaryModelName = null;
-        string? primaryLlmConfigName = null;
-        
-        if (agent.LlmModelConfigId.HasValue && agent.LlmConfig?.Models != null)
-        {
-            var model = agent.LlmConfig.Models.FirstOrDefault(m => m.Id == agent.LlmModelConfigId.Value);
-            if (model != null)
-            {
-                primaryModelName = model.DisplayName ?? model.ModelName;
-                primaryLlmConfigName = agent.LlmConfig.Name;
-            }
-        }
-        
         List<FallbackModelVo>? fallbackModels = null;
         
         if (!string.IsNullOrEmpty(agent.FallbackModels))
         {
             try
             {
-                var configs = JsonSerializer.Deserialize<List<Core.DTOs.FallbackModelConfig>>(agent.FallbackModels);
-                Console.WriteLine($"[DEBUG] ToListItemVo - FallbackModels JSON: {agent.FallbackModels}");
-                Console.WriteLine($"[DEBUG] ToListItemVo - Deserialized configs count: {configs?.Count ?? 0}");
-                Console.WriteLine($"[DEBUG] ToListItemVo - AllLlmConfigs count: {agent.AllLlmConfigs?.Count ?? 0}");
-                
-                if (configs != null)
-                {
-                    fallbackModels = configs.Select(c =>
-                    {
-                        var modelVo = new FallbackModelVo
-                        {
-                            LlmConfigId = c.LlmConfigId.ToString(),
-                            LlmModelConfigId = c.LlmModelConfigId?.ToString(),
-                            Priority = c.Priority
-                        };
-                        
-                        Console.WriteLine($"[DEBUG] ToListItemVo - Processing FallbackModel LlmConfigId: {c.LlmConfigId}, LlmModelConfigId: {c.LlmModelConfigId}");
-                        
-                        if (agent.AllLlmConfigs != null)
-                        {
-                            var llmConfig = agent.AllLlmConfigs.FirstOrDefault(lc => lc.Id == c.LlmConfigId);
-                            Console.WriteLine($"[DEBUG] ToListItemVo - Found llmConfig: {llmConfig?.Name ?? "null"}, Models count: {llmConfig?.Models?.Count ?? 0}");
-                            
-                            if (llmConfig?.Models != null)
-                            {
-                                Console.WriteLine($"[DEBUG] ToListItemVo - Available model IDs: {string.Join(", ", llmConfig.Models.Select(m => m.Id))}");
-                                Console.WriteLine($"[DEBUG] ToListItemVo - Looking for model ID: {c.LlmModelConfigId}");
-                                
-                                var model = llmConfig.Models.FirstOrDefault(m => m.Id == c.LlmModelConfigId);
-                                Console.WriteLine($"[DEBUG] ToListItemVo - Found model: {model?.DisplayName ?? model?.ModelName ?? "null"}");
-                                
-                                if (model != null)
-                                {
-                                    modelVo.ModelName = model.DisplayName ?? model.ModelName;
-                                    modelVo.LlmConfigName = llmConfig.Name;
-                                }
-                            }
-                        }
-                        
-                        Console.WriteLine($"[DEBUG] ToListItemVo - Result: LlmConfigName={modelVo.LlmConfigName}, ModelName={modelVo.ModelName}");
-                        
-                        return modelVo;
-                    }).ToList();
-                }
+                fallbackModels = JsonSerializer.Deserialize<List<FallbackModelVo>>(agent.FallbackModels, JsonOptions);
             }
-            catch (Exception ex)
+            catch
             {
-                Console.WriteLine($"[DEBUG] ToListItemVo - Exception: {ex.Message}");
             }
         }
         
@@ -169,12 +70,13 @@ public static class EntityMapper
             Name = agent.Name,
             Description = agent.Description,
             Type = agent.Type,
+            TypeName = agent.TypeName,
             Avatar = agent.Avatar,
             Status = agent.Status,
             LlmConfigId = agent.LlmConfigId?.ToString(),
             LlmModelConfigId = agent.LlmModelConfigId?.ToString(),
-            LlmConfigName = primaryLlmConfigName,
-            PrimaryModelName = primaryModelName,
+            LlmConfigName = agent.LlmConfigName,
+            PrimaryModelName = agent.LlmModelName,
             FallbackModels = fallbackModels,
             CreatedAt = agent.CreatedAt,
             SystemPrompt = agent.SystemPrompt
@@ -205,7 +107,7 @@ public static class EntityMapper
             Description = collaboration.Description,
             Path = collaboration.Path,
             Status = collaboration.Status,
-            UserId = collaboration.UserId,
+            UserId = collaboration.UserId.ToString(),
             GitRepositoryUrl = collaboration.GitRepositoryUrl,
             GitBranch = collaboration.GitBranch,
             CreatedAt = collaboration.CreatedAt
@@ -237,7 +139,7 @@ public static class EntityMapper
             ApiKey = config.ApiKey,
             Endpoint = config.Endpoint,
             DefaultModel = config.DefaultModel,
-            UserId = config.UserId,
+            UserId = config.UserId.ToString(),
             IsDefault = config.IsDefault,
             IsEnabled = config.IsEnabled,
             CreatedAt = config.CreatedAt,
@@ -264,6 +166,9 @@ public static class EntityMapper
             IsDefault = model.IsDefault,
             IsEnabled = model.IsEnabled,
             SortOrder = model.SortOrder,
+            LastTestTime = model.LastTestTime,
+            AvailabilityStatus = model.AvailabilityStatus,
+            TestResult = model.TestResult,
             CreatedAt = model.CreatedAt
         };
     }

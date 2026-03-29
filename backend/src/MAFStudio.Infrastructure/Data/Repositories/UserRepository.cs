@@ -13,7 +13,7 @@ public class UserRepository : IUserRepository
         _context = context;
     }
 
-    public async Task<User?> GetByIdAsync(string id)
+    public async Task<User?> GetByIdAsync(long id)
     {
         using var connection = _context.CreateConnection();
         const string sql = "SELECT * FROM users WHERE id = @Id";
@@ -62,7 +62,7 @@ public class UserRepository : IUserRepository
         return await connection.QueryFirstAsync<User>(sql, user);
     }
 
-    public async Task<bool> DeleteAsync(string id)
+    public async Task<bool> DeleteAsync(long id)
     {
         using var connection = _context.CreateConnection();
         const string sql = "DELETE FROM users WHERE id = @Id";
@@ -76,5 +76,13 @@ public class UserRepository : IUserRepository
         const string sql = "SELECT COUNT(*) FROM users WHERE username = @Username OR email = @Email";
         var count = await connection.ExecuteScalarAsync<int>(sql, new { Username = username, Email = email });
         return count > 0;
+    }
+
+    public async Task<List<User>> GetAllAsync()
+    {
+        using var connection = _context.CreateConnection();
+        const string sql = "SELECT * FROM users ORDER BY created_at DESC";
+        var result = await connection.QueryAsync<User>(sql);
+        return result.ToList();
     }
 }

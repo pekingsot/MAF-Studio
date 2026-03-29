@@ -30,5 +30,8 @@ public class LlmModelConfigVo
     public bool IsDefault { get; set; }
     public bool IsEnabled { get; set; }
     public int SortOrder { get; set; }
+    public DateTime? LastTestTime { get; set; }
+    public int AvailabilityStatus { get; set; }
+    public string? TestResult { get; set; }
     public DateTime CreatedAt { get; set; }
 }

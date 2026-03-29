@@ -29,7 +29,7 @@ public class LlmConfigRepository : ILlmConfigRepository
         return config;
     }
 
-    public async Task<List<LlmConfig>> GetByUserIdAsync(string userId)
+    public async Task<List<LlmConfig>> GetByUserIdAsync(long userId)
     {
         using var connection = _context.CreateConnection();
         const string sql = "SELECT * FROM llm_configs WHERE user_id = @UserId ORDER BY created_at DESC";
@@ -62,11 +62,10 @@ public class LlmConfigRepository : ILlmConfigRepository
     public async Task<LlmConfig> CreateAsync(LlmConfig config)
     {
         using var connection = _context.CreateConnection();
-        config.GenerateId();
         config.CreatedAt = DateTime.UtcNow;
         const string sql = @"
-            INSERT INTO llm_configs (id, name, provider, api_key, endpoint, default_model, user_id, is_default, is_enabled, created_at, updated_at)
-            VALUES (@Id, @Name, @Provider, @ApiKey, @Endpoint, @DefaultModel, @UserId, @IsDefault, @IsEnabled, @CreatedAt, @UpdatedAt)
+            INSERT INTO llm_configs (name, provider, api_key, endpoint, default_model, user_id, is_default, is_enabled, created_at, updated_at)
+            VALUES (@Name, @Provider, @ApiKey, @Endpoint, @DefaultModel, @UserId, @IsDefault, @IsEnabled, @CreatedAt, @UpdatedAt)
             RETURNING *";
         return await connection.QueryFirstAsync<LlmConfig>(sql, config);
     }
@@ -93,14 +92,33 @@ public class LlmConfigRepository : ILlmConfigRepository
     public async Task<bool> DeleteAsync(long id)
     {
         using var connection = _context.CreateConnection();
-        const string sql = "DELETE FROM llm_configs WHERE id = @Id";
-        var rows = await connection.ExecuteAsync(sql, new { Id = id });
-        return rows > 0;
+        connection.Open();
+        using var transaction = connection.BeginTransaction();
+        
+        try
+        {
+            await connection.ExecuteAsync(
+                "DELETE FROM llm_model_configs WHERE llm_config_id = @Id",
+                new { Id = id },
+                transaction);
+            
+            const string sql = "DELETE FROM llm_configs WHERE id = @Id";
+            var rows = await connection.ExecuteAsync(sql, new { Id = id }, transaction);
+            
+            transaction.Commit();
+            return rows > 0;
+        }
+        catch
+        {
+            transaction.Rollback();
+            throw;
+        }
     }
 
-    public async Task SetDefaultAsync(long id, string userId)
+    public async Task SetDefaultAsync(long id, long userId)
     {
         using var connection = _context.CreateConnection();
+        connection.Open();
         using var transaction = connection.BeginTransaction();
         try
         {

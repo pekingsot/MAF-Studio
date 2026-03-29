@@ -1,9 +1,12 @@
+import api, { setTokens, clearTokens } from './api';
+
 export interface User {
   id: string;
   username: string;
   email: string;
   avatar?: string;
-  role: string;
+  roles: string[];
+  permissions: string[];
   createdAt?: string;
 }
 
@@ -11,52 +14,36 @@ export interface AuthResponse {
   message: string;
   user: User;
   token: string;
+  refreshToken?: string;
 }
 
-const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
+const TOKEN_KEY = 'token';
+const USER_KEY = 'user';
+const REFRESH_TOKEN_KEY = 'refreshToken';
 
 class AuthService {
-  private tokenKey = 'token';
-  private userKey = 'user';
-
   async register(username: string, email: string, password: string): Promise<AuthResponse> {
-    const response = await fetch(`${API_URL}/auth/register`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ username, email, password }),
+    const response = await api.post<AuthResponse>('/auth/register', {
+      username,
+      email,
+      password,
     });
-
-    if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.message || '注册失败');
-    }
-
-    const data: AuthResponse = await response.json();
-    this.setToken(data.token);
-    this.setUser(data.user);
-    return data;
+    this.setSession(response.data);
+    return response.data;
   }
 
   async login(username: string, password: string): Promise<AuthResponse> {
-    const response = await fetch(`${API_URL}/auth/login`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ username, password }),
+    const response = await api.post<AuthResponse>('/auth/login', {
+      username,
+      password,
     });
+    this.setSession(response.data);
+    return response.data;
+  }
 
-    if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.message || '登录失败');
-    }
-
-    const data: AuthResponse = await response.json();
-    this.setToken(data.token);
+  private setSession(data: AuthResponse): void {
+    setTokens(data.token, data.refreshToken);
     this.setUser(data.user);
-    return data;
   }
 
   async getCurrentUser(): Promise<User> {
@@ -65,41 +52,33 @@ class AuthService {
       throw new Error('未登录');
     }
 
-    const response = await fetch(`${API_URL}/auth/me`, {
-      headers: {
-        'Authorization': `Bearer ${token}`,
-      },
-    });
-
-    if (!response.ok) {
-      this.logout();
-      throw new Error('获取用户信息失败');
-    }
-
-    const user: User = await response.json();
-    this.setUser(user);
-    return user;
+    const response = await api.get<User>('/auth/me');
+    this.setUser(response.data);
+    return response.data;
   }
 
   logout(): void {
-    localStorage.removeItem(this.tokenKey);
-    localStorage.removeItem(this.userKey);
+    clearTokens();
   }
 
   setToken(token: string): void {
-    localStorage.setItem(this.tokenKey, token);
+    localStorage.setItem(TOKEN_KEY, token);
   }
 
   getToken(): string | null {
-    return localStorage.getItem(this.tokenKey);
+    return localStorage.getItem(TOKEN_KEY);
+  }
+
+  getRefreshToken(): string | null {
+    return localStorage.getItem(REFRESH_TOKEN_KEY);
   }
 
   setUser(user: User): void {
-    localStorage.setItem(this.userKey, JSON.stringify(user));
+    localStorage.setItem(USER_KEY, JSON.stringify(user));
   }
 
   getUser(): User | null {
-    const userStr = localStorage.getItem(this.userKey);
+    const userStr = localStorage.getItem(USER_KEY);
     return userStr ? JSON.parse(userStr) : null;
   }
 
@@ -109,7 +88,37 @@ class AuthService {
 
   isAdmin(): boolean {
     const user = this.getUser();
-    return user?.role === 'admin';
+    return user?.roles?.includes('SUPER_ADMIN') || user?.roles?.includes('ADMIN') || false;
+  }
+
+  isSuperAdmin(): boolean {
+    const user = this.getUser();
+    return user?.roles?.includes('SUPER_ADMIN') || false;
+  }
+
+  hasPermission(permission: string): boolean {
+    const user = this.getUser();
+    return user?.permissions?.includes(permission) || false;
+  }
+
+  hasAnyPermission(...permissions: string[]): boolean {
+    const user = this.getUser();
+    return permissions.some(p => user?.permissions?.includes(p)) || false;
+  }
+
+  hasAllPermissions(...permissions: string[]): boolean {
+    const user = this.getUser();
+    return permissions.every(p => user?.permissions?.includes(p)) || false;
+  }
+
+  hasRole(role: string): boolean {
+    const user = this.getUser();
+    return user?.roles?.includes(role) || false;
+  }
+
+  hasAnyRole(...roles: string[]): boolean {
+    const user = this.getUser();
+    return roles.some(r => user?.roles?.includes(r)) || false;
   }
 }
 

@@ -10,4 +10,5 @@ public interface ILlmModelConfigRepository
     Task<LlmModelConfig> UpdateAsync(LlmModelConfig config);
     Task<bool> DeleteAsync(long id);
     Task SetDefaultAsync(long llmConfigId, long modelId);
+    Task UpdateTestStatusAsync(long modelId, bool isAvailable, string testResult);
 }

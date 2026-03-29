@@ -8,7 +8,7 @@ const { TextArea } = Input;
 const { Text } = Typography;
 
 interface AgentType {
-  id: string;
+  id: number;
   code: string;
   name: string;
   description?: string;
@@ -76,7 +76,7 @@ const AgentTypes: React.FC = () => {
     setModalVisible(true);
   };
 
-  const handleDelete = async (id: string) => {
+  const handleDelete = async (id: number) => {
     try {
       await api.delete(`/agenttypes/${id}`);
       message.success('删除成功');
@@ -108,7 +108,7 @@ const AgentTypes: React.FC = () => {
     }
   };
 
-  const handleToggleEnabled = async (id: string, enabled: boolean) => {
+  const handleToggleEnabled = async (id: number, enabled: boolean) => {
     try {
       await api.patch(`/agenttypes/${id}/enable`, { isEnabled: enabled });
       message.success(enabled ? '已启用' : '已禁用');

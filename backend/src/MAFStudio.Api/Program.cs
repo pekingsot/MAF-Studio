@@ -2,16 +2,26 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using System.Text;
+using System.Text.Json;
+using System.Text.Json.Serialization;
 using MAFStudio.Infrastructure;
 using MAFStudio.Application;
 using MAFStudio.Api.Services;
 using MAFStudio.Api.Middleware;
+using MAFStudio.Api.Converters;
 
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddControllers(options =>
 {
     options.Filters.Add<MAFStudio.Api.Filters.GlobalExceptionFilter>();
+})
+.AddJsonOptions(options =>
+{
+    options.JsonSerializerOptions.PropertyNamingPolicy = JsonNamingPolicy.CamelCase;
+    options.JsonSerializerOptions.DictionaryKeyPolicy = JsonNamingPolicy.CamelCase;
+    options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
+    options.JsonSerializerOptions.Converters.Add(new LongToStringConverter());
 });
 
 builder.Services.AddEndpointsApiExplorer();
@@ -95,9 +105,10 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseCors();
-app.UseMiddleware<ApiCallLoggingMiddleware>();
 app.UseAuthentication();
 app.UseAuthorization();
+app.UseMiddleware<GlobalAuthorizationMiddleware>();
+app.UseMiddleware<ApiCallLoggingMiddleware>();
 app.MapControllers();
 app.MapHub<MAFStudio.Api.Hubs.AgentHub>("/hubs/agent");
 

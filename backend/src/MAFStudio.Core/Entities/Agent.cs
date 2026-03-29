@@ -1,5 +1,4 @@
 using MAFStudio.Core.Enums;
-using MAFStudio.Core.Utils;
 
 namespace MAFStudio.Core.Entities;
 
@@ -16,13 +15,18 @@ public class Agent : BaseEntityWithUpdate
     public string Type { get; set; } = "Assistant";
 
     /// <summary>
+    /// 智能体类型名称（冗余字段，优化查询性能）
+    /// </summary>
+    public string? TypeName { get; set; }
+
+    /// <summary>
     /// 系统提示词（智能体自定义的提示词）
     /// </summary>
     public string? SystemPrompt { get; set; }
 
     public string? Avatar { get; set; }
 
-    public string UserId { get; set; } = string.Empty;
+    public long UserId { get; set; }
 
     public AgentStatus Status { get; set; } = AgentStatus.Inactive;
 
@@ -32,13 +36,24 @@ public class Agent : BaseEntityWithUpdate
     public long? LlmConfigId { get; set; }
 
     /// <summary>
+    /// 主模型配置名称（冗余字段，优化查询性能）
+    /// </summary>
+    public string? LlmConfigName { get; set; }
+
+    /// <summary>
     /// 主模型的具体模型ID
     /// </summary>
     public long? LlmModelConfigId { get; set; }
 
     /// <summary>
+    /// 主模型名称（冗余字段，优化查询性能）
+    /// </summary>
+    public string? LlmModelName { get; set; }
+
+    /// <summary>
     /// 副模型配置列表（JSON格式，用于故障转移）
-    /// 格式：[{"llmConfigId":123,"llmModelConfigId":456,"priority":1}]
+    /// 格式：[{"llmConfigId":123,"llmConfigName":"配置名","llmModelConfigId":456,"modelName":"模型名","priority":1}]
+    /// 包含冗余字段（llmConfigName、modelName）优化查询性能
     /// </summary>
     public string? FallbackModels { get; set; }
 
@@ -49,12 +64,8 @@ public class Agent : BaseEntityWithUpdate
     
     /// <summary>
     /// 所有相关的LLM配置（包括主模型和副模型）
+    /// 仅用于兼容旧逻辑，新逻辑使用冗余字段
     /// </summary>
     [Dapper.Contrib.Extensions.Write(false)]
     public List<LlmConfig>? AllLlmConfigs { get; set; }
-
-    public void GenerateId()
-    {
-        Id = SnowflakeIdGenerator.Instance.NextId();
-    }
 }

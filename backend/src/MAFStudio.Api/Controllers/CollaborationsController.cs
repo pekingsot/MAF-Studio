@@ -6,6 +6,7 @@ using MAFStudio.Application.Mappers;
 using MAFStudio.Application.DTOs.Requests;
 using System.Security.Claims;
 using MAFStudio.Core.Enums;
+using MAFStudio.Api.Extensions;
 
 namespace MAFStudio.Api.Controllers;
 
@@ -28,8 +29,8 @@ public class CollaborationsController : ControllerBase
     [HttpGet]
     public async Task<ActionResult<List<CollaborationVo>>> GetAllCollaborations()
     {
-        var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-        var collaborations = await _collaborationService.GetByUserIdAsync(userId!);
+        var userId = User.GetUserId();
+        var collaborations = await _collaborationService.GetByUserIdAsync(userId);
         var vos = collaborations.Select(c => c.ToVo()).ToList();
         return Ok(vos);
     }
@@ -37,8 +38,8 @@ public class CollaborationsController : ControllerBase
     [HttpGet("{id}")]
     public async Task<ActionResult<CollaborationVo>> GetCollaboration(long id)
     {
-        var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-        var collaboration = await _collaborationService.GetByIdAsync(id, userId!);
+        var userId = User.GetUserId();
+        var collaboration = await _collaborationService.GetByIdAsync(id, userId);
         if (collaboration == null)
         {
             return NotFound();
@@ -59,7 +60,7 @@ public class CollaborationsController : ControllerBase
     [HttpPost]
     public async Task<ActionResult<Core.Entities.Collaboration>> CreateCollaboration([FromBody] CreateCollaborationRequest request)
     {
-        var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        var userId = User.GetUserId();
         
         var collaboration = await _collaborationService.CreateAsync(
             request.Name,
@@ -70,10 +71,10 @@ public class CollaborationsController : ControllerBase
             request.GitUsername,
             request.GitEmail,
             request.GitAccessToken,
-            userId!
+            userId
         );
         
-        await _logService.LogAsync(userId!, "创建", "协作项目", $"创建协作项目: {request.Name}", null);
+        await _logService.LogAsync(userId, "创建", "协作项目", $"创建协作项目: {request.Name}", null);
         
         return CreatedAtAction(nameof(GetCollaboration), new { id = collaboration.Id }, collaboration);
     }
@@ -81,15 +82,15 @@ public class CollaborationsController : ControllerBase
     [HttpDelete("{id}")]
     public async Task<ActionResult> DeleteCollaboration(long id)
     {
-        var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        var userId = User.GetUserId();
         
-        var result = await _collaborationService.DeleteAsync(id, userId!);
+        var result = await _collaborationService.DeleteAsync(id, userId);
         if (!result)
         {
             return NotFound();
         }
         
-        await _logService.LogAsync(userId!, "删除", "协作项目", $"删除协作项目: {id}", null);
+        await _logService.LogAsync(userId, "删除", "协作项目", $"删除协作项目: {id}", null);
         
         return NoContent();
     }
@@ -97,9 +98,9 @@ public class CollaborationsController : ControllerBase
     [HttpPost("{id}/agents")]
     public async Task<ActionResult> AddAgentToCollaboration(long id, [FromBody] AddAgentRequest request)
     {
-        var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        var userId = User.GetUserId();
         
-        var result = await _collaborationService.AddAgentAsync(id, request.AgentId, request.Role, userId!);
+        var result = await _collaborationService.AddAgentAsync(id, request.AgentId, request.Role, userId);
         if (!result)
         {
             return BadRequest();
@@ -111,9 +112,9 @@ public class CollaborationsController : ControllerBase
     [HttpDelete("{id}/agents/{agentId}")]
     public async Task<ActionResult> RemoveAgentFromCollaboration(long id, long agentId)
     {
-        var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        var userId = User.GetUserId();
         
-        var result = await _collaborationService.RemoveAgentAsync(id, agentId, userId!);
+        var result = await _collaborationService.RemoveAgentAsync(id, agentId, userId);
         if (!result)
         {
             return NotFound();
@@ -125,9 +126,9 @@ public class CollaborationsController : ControllerBase
     [HttpPost("{id}/tasks")]
     public async Task<ActionResult<Core.Entities.CollaborationTask>> CreateTask(long id, [FromBody] CreateTaskRequest request)
     {
-        var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        var userId = User.GetUserId();
         
-        var task = await _collaborationService.CreateTaskAsync(id, request.Title, request.Description, userId!);
+        var task = await _collaborationService.CreateTaskAsync(id, request.Title, request.Description, userId);
         
         return CreatedAtAction(nameof(GetCollaboration), new { id }, task);
     }
@@ -135,14 +136,14 @@ public class CollaborationsController : ControllerBase
     [HttpPatch("tasks/{taskId}/status")]
     public async Task<ActionResult<Core.Entities.CollaborationTask>> UpdateTaskStatus(long taskId, [FromBody] UpdateTaskStatusRequest request)
     {
-        var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        var userId = User.GetUserId();
         
         if (!Enum.TryParse<CollaborationTaskStatus>(request.Status, out var status))
         {
             return BadRequest("Invalid status value");
         }
         
-        var task = await _collaborationService.UpdateTaskStatusAsync(taskId, status, userId!);
+        var task = await _collaborationService.UpdateTaskStatusAsync(taskId, status, userId);
         
         return Ok(task);
     }
@@ -150,9 +151,9 @@ public class CollaborationsController : ControllerBase
     [HttpDelete("tasks/{taskId}")]
     public async Task<ActionResult> DeleteTask(long taskId)
     {
-        var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        var userId = User.GetUserId();
         
-        var result = await _collaborationService.DeleteTaskAsync(taskId, userId!);
+        var result = await _collaborationService.DeleteTaskAsync(taskId, userId);
         if (!result)
         {
             return NotFound();

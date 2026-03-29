@@ -9,8 +9,8 @@ const { Option } = Select;
 
 const Messages: React.FC = () => {
   const [agents, setAgents] = useState<Agent[]>([]);
-  const [selectedAgent1, setSelectedAgent1] = useState<string>('');
-  const [selectedAgent2, setSelectedAgent2] = useState<string>('');
+  const [selectedAgent1, setSelectedAgent1] = useState<number | null>(null);
+  const [selectedAgent2, setSelectedAgent2] = useState<number | null>(null);
   const [messages, setMessages] = useState<any[]>([]);
   const [newMessage, setNewMessage] = useState('');
   const [loading, setLoading] = useState(false);
@@ -42,7 +42,7 @@ const Messages: React.FC = () => {
     try {
       setLoading(true);
       const response = await agentService.getAllAgents();
-      setAgents(response.agents || []);
+      setAgents(response || []);
     } catch (error) {
       message.error('加载智能体列表失败');
     } finally {
@@ -51,6 +51,7 @@ const Messages: React.FC = () => {
   };
 
   const loadMessages = async () => {
+    if (!selectedAgent1 || !selectedAgent2) return;
     try {
       setLoading(true);
       const response = await fetch(
@@ -68,6 +69,11 @@ const Messages: React.FC = () => {
   const handleSendMessage = () => {
     if (!newMessage.trim()) {
       message.warning('请输入消息内容');
+      return;
+    }
+
+    if (!selectedAgent1 || !selectedAgent2) {
+      message.warning('请选择智能体');
       return;
     }
 

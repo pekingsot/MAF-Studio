@@ -22,6 +22,8 @@ public static class DependencyInjection
         services.AddScoped<ILlmModelConfigRepository, LlmModelConfigRepository>();
         services.AddScoped<IOperationLogRepository, OperationLogRepository>();
         services.AddScoped<ISystemLogRepository, SystemLogRepository>();
+        services.AddScoped<IRoleRepository, RoleRepository>();
+        services.AddScoped<IPermissionRepository, PermissionRepository>();
         
         return services;
     }

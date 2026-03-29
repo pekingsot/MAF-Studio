@@ -35,11 +35,10 @@ public class AgentMessageRepository : IAgentMessageRepository
     public async Task<AgentMessage> CreateAsync(AgentMessage message)
     {
         using var connection = _context.CreateConnection();
-        message.GenerateId();
         message.CreatedAt = DateTime.UtcNow;
         const string sql = @"
-            INSERT INTO agent_messages (id, from_agent_id, to_agent_id, collaboration_id, content, sender_type, sender_name, user_id, created_at, is_streaming)
-            VALUES (@Id, @FromAgentId, @ToAgentId, @CollaborationId, @Content, @SenderType, @SenderName, @UserId, @CreatedAt, @IsStreaming)
+            INSERT INTO agent_messages (from_agent_id, to_agent_id, collaboration_id, content, sender_type, sender_name, user_id, created_at, is_streaming)
+            VALUES (@FromAgentId, @ToAgentId, @CollaborationId, @Content, @SenderType, @SenderName, @UserId, @CreatedAt, @IsStreaming)
             RETURNING *";
         return await connection.QueryFirstAsync<AgentMessage>(sql, message);
     }

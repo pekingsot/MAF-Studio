@@ -32,7 +32,7 @@ const Collaborations: React.FC = () => {
         agentService.getAllAgents(),
       ]);
       setCollaborations(collaborationsData);
-      setAgents(agentsResponse.agents || []);
+      setAgents(agentsResponse || []);
     } catch (error) {
       message.error('加载数据失败');
     } finally {
@@ -117,7 +117,7 @@ const Collaborations: React.FC = () => {
     }
   };
 
-  const handleRemoveAgent = async (collaborationId: string, agentId: string) => {
+  const handleRemoveAgent = async (collaborationId: string, agentId: number) => {
     try {
       await collaborationService.removeAgentFromCollaboration(collaborationId, agentId);
       message.success('移除成功');

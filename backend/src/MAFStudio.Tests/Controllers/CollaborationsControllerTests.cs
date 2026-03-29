@@ -22,7 +22,7 @@ public class CollaborationsControllerTests : TestBase
     private readonly Mock<IAuthService> _mockAuthService;
     private readonly Mock<IOperationLogService> _mockLogService;
     private readonly CollaborationsController _controller;
-    private readonly string _testUserId = "test-user-id";
+    private readonly long _testUserId = 1000000000000001;
 
     public CollaborationsControllerTests() : base()
     {
@@ -38,7 +38,7 @@ public class CollaborationsControllerTests : TestBase
 
         var user = new ClaimsPrincipal(new ClaimsIdentity(new Claim[]
         {
-            new Claim(ClaimTypes.NameIdentifier, _testUserId)
+            new Claim(ClaimTypes.NameIdentifier, _testUserId.ToString())
         }, "mock"));
 
         _controller.ControllerContext = new ControllerContext
@@ -68,7 +68,7 @@ public class CollaborationsControllerTests : TestBase
     public async Task GetCollaboration_ExistingId_ShouldReturnOkWithCollaboration()
     {
         var collaboration = CreateTestCollaboration("Collaboration1", _testUserId);
-        collaboration.GenerateId();
+        collaboration.Id = 1001;
 
         _mockCollaborationService
             .Setup(s => s.GetByIdAsync(collaboration.Id, _testUserId))
@@ -128,7 +128,7 @@ public class CollaborationsControllerTests : TestBase
     public async Task DeleteCollaboration_ExistingId_ShouldReturnNoContent()
     {
         var collaboration = CreateTestCollaboration("Collaboration1", _testUserId);
-        collaboration.GenerateId();
+        collaboration.Id = 1002;
 
         _mockCollaborationService
             .Setup(s => s.DeleteAsync(collaboration.Id, _testUserId))
@@ -157,10 +157,10 @@ public class CollaborationsControllerTests : TestBase
     public async Task AddAgentToCollaboration_ValidRequest_ShouldReturnOk()
     {
         var collaboration = CreateTestCollaboration("Collaboration1", _testUserId);
-        collaboration.GenerateId();
+        collaboration.Id = 1003;
         
         var agent = CreateTestAgent("Agent1", _testUserId);
-        agent.GenerateId();
+        agent.Id = 2001;
 
         var request = new AddAgentRequest
         {
@@ -181,10 +181,10 @@ public class CollaborationsControllerTests : TestBase
     public async Task RemoveAgentFromCollaboration_ValidRequest_ShouldReturnNoContent()
     {
         var collaboration = CreateTestCollaboration("Collaboration1", _testUserId);
-        collaboration.GenerateId();
+        collaboration.Id = 1004;
         
         var agent = CreateTestAgent("Agent1", _testUserId);
-        agent.GenerateId();
+        agent.Id = 2002;
 
         _mockCollaborationService
             .Setup(s => s.RemoveAgentAsync(collaboration.Id, agent.Id, _testUserId))
@@ -199,7 +199,7 @@ public class CollaborationsControllerTests : TestBase
     public async Task CreateTask_ValidRequest_ShouldReturnCreatedAtAction()
     {
         var collaboration = CreateTestCollaboration("Collaboration1", _testUserId);
-        collaboration.GenerateId();
+        collaboration.Id = 1005;
 
         var request = new CreateTaskRequest
         {
@@ -224,10 +224,10 @@ public class CollaborationsControllerTests : TestBase
     public async Task UpdateTaskStatus_ValidRequest_ShouldReturnOk()
     {
         var collaboration = CreateTestCollaboration("Collaboration1", _testUserId);
-        collaboration.GenerateId();
+        collaboration.Id = 1006;
         
         var task = CreateTestTask(collaboration.Id, "Task1");
-        task.GenerateId();
+        task.Id = 3001;
 
         var request = new UpdateTaskStatusRequest
         {
@@ -258,10 +258,10 @@ public class CollaborationsControllerTests : TestBase
     public async Task DeleteTask_ExistingId_ShouldReturnNoContent()
     {
         var collaboration = CreateTestCollaboration("Collaboration1", _testUserId);
-        collaboration.GenerateId();
+        collaboration.Id = 1007;
         
         var task = CreateTestTask(collaboration.Id, "Task1");
-        task.GenerateId();
+        task.Id = 3002;
 
         _mockCollaborationService
             .Setup(s => s.DeleteTaskAsync(task.Id, _testUserId))

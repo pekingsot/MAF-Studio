@@ -2,6 +2,7 @@ using System.Diagnostics;
 using System.Security.Claims;
 using System.Text.Json;
 using MAFStudio.Core.Interfaces.Services;
+using MAFStudio.Api.Extensions;
 
 namespace MAFStudio.Api.Middleware;
 
@@ -49,7 +50,22 @@ public class ApiCallLoggingMiddleware
         }
 
         var stopwatch = Stopwatch.StartNew();
-        var userId = context.User?.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "anonymous";
+        long? userId = null;
+        try
+        {
+            userId = context.User?.GetUserId();
+        }
+        catch
+        {
+            // 用户未登录，userId保持null
+        }
+        
+        if (!userId.HasValue)
+        {
+            await _next(context);
+            return;
+        }
+        
         var ipAddress = GetClientIpAddress(context);
         var userAgent = context.Request.Headers.UserAgent.ToString();
         var requestPath = context.Request.Path.Value ?? "";
@@ -81,7 +97,7 @@ public class ApiCallLoggingMiddleware
             try
             {
                 await SaveOperationLogAsync(
-                    userId,
+                    userId.Value,
                     requestMethod,
                     requestPath,
                     context.Response.StatusCode,
@@ -144,7 +160,7 @@ public class ApiCallLoggingMiddleware
     }
 
     private async Task SaveOperationLogAsync(
-        string userId,
+        long userId,
         string method,
         string path,
         int statusCode,

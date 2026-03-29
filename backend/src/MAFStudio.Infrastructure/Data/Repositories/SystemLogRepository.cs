@@ -20,7 +20,7 @@ public class SystemLogRepository : ISystemLogRepository
         return await connection.QueryFirstOrDefaultAsync<SystemLog>(sql, new { Id = id });
     }
 
-    public async Task<List<SystemLog>> GetAsync(string? level = null, string? category = null, string? userId = null, int limit = 100)
+    public async Task<List<SystemLog>> GetAsync(string? level = null, string? category = null, long? userId = null, int limit = 100)
     {
         using var connection = _context.CreateConnection();
         var sql = "SELECT * FROM system_logs WHERE 1=1";
@@ -38,10 +38,10 @@ public class SystemLogRepository : ISystemLogRepository
             parameters.Add("Category", category);
         }
 
-        if (!string.IsNullOrEmpty(userId))
+        if (userId.HasValue)
         {
             sql += " AND user_id = @UserId";
-            parameters.Add("UserId", userId);
+            parameters.Add("UserId", userId.Value);
         }
 
         sql += " ORDER BY created_at DESC LIMIT @Limit";
@@ -54,11 +54,10 @@ public class SystemLogRepository : ISystemLogRepository
     public async Task<SystemLog> CreateAsync(SystemLog log)
     {
         using var connection = _context.CreateConnection();
-        log.GenerateId();
         log.CreatedAt = DateTime.UtcNow;
         const string sql = @"
-            INSERT INTO system_logs (id, level, category, message, exception, stack_trace, user_id, request_path, additional_data, created_at)
-            VALUES (@Id, @Level, @Category, @Message, @Exception, @StackTrace, @UserId, @RequestPath, @AdditionalData, @CreatedAt)
+            INSERT INTO system_logs (level, category, message, exception, stack_trace, user_id, request_path, additional_data, created_at)
+            VALUES (@Level, @Category, @Message, @Exception, @StackTrace, @UserId, @RequestPath, @AdditionalData, @CreatedAt)
             RETURNING *";
         return await connection.QueryFirstAsync<SystemLog>(sql, log);
     }

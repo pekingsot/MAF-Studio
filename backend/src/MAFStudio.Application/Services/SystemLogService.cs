@@ -13,7 +13,7 @@ public class SystemLogService : ISystemLogService
         _logRepository = logRepository;
     }
 
-    public async Task LogAsync(string level, string category, string message, string? exception = null, string? stackTrace = null, string? userId = null, string? requestPath = null, string? additionalData = null)
+    public async Task LogAsync(string level, string category, string message, string? exception = null, string? stackTrace = null, long? userId = null, string? requestPath = null, string? additionalData = null)
     {
         var log = new SystemLog
         {
@@ -30,7 +30,7 @@ public class SystemLogService : ISystemLogService
         await _logRepository.CreateAsync(log);
     }
 
-    public async Task<List<SystemLog>> GetAsync(string? level = null, string? category = null, string? userId = null, int limit = 100)
+    public async Task<List<SystemLog>> GetAsync(string? level = null, string? category = null, long? userId = null, int limit = 100)
     {
         return await _logRepository.GetAsync(level, category, userId, limit);
     }

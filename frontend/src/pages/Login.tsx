@@ -2,57 +2,57 @@ import React, { useState } from 'react';
 import { Form, Input, Button, Card, message, Tabs, Typography } from 'antd';
 import { UserOutlined, LockOutlined, MailOutlined, RobotOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
-import authService, { User } from '../services/authService';
+import { useAuth } from '../contexts/AuthContext';
+import { handleApiError } from '../utils/errorHandler';
 
 const { Title, Text } = Typography;
 
 const Login: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
+  const { login } = useAuth();
 
-  const handleLogin = async (values: any) => {
+  const handleLogin = async (values: { username: string; password: string }) => {
     try {
       setLoading(true);
-      await authService.login(values.username, values.password);
+      await login(values.username, values.password);
       message.success('登录成功');
       navigate('/');
-    } catch (error: any) {
-      message.error(error.message || '登录失败');
+    } catch (error) {
+      handleApiError(error, '登录失败');
     } finally {
       setLoading(false);
     }
   };
 
-  const handleRegister = async (values: any) => {
+  const handleRegister = async (values: { username: string; email: string; password: string }) => {
     try {
       setLoading(true);
+      const { default: authService } = await import('../services/authService');
       await authService.register(values.username, values.email, values.password);
       message.success('注册成功');
       navigate('/');
-    } catch (error: any) {
-      message.error(error.message || '注册失败');
+    } catch (error) {
+      handleApiError(error, '注册失败');
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div style={{
+    <div className="flex-center" style={{
       height: '100vh',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
       background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
     }}>
       <Card
         style={{
           width: 450,
-          boxShadow: '0 10px 40px rgba(0,0,0,0.2)',
-          borderRadius: '16px',
+          boxShadow: 'var(--shadow-lg)',
+          borderRadius: 'var(--border-radius-lg)',
         }}
       >
         <div style={{ textAlign: 'center', marginBottom: 32 }}>
-          <RobotOutlined style={{ fontSize: 64, color: '#667eea', marginBottom: 16 }} />
+          <RobotOutlined style={{ fontSize: 64, color: 'var(--primary-color)', marginBottom: 16 }} />
           <Title level={2} style={{ margin: 0, color: '#333' }}>MAF Studio</Title>
           <Text type="secondary">多智能体协作平台</Text>
         </div>

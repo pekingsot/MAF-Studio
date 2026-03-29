@@ -22,7 +22,7 @@ const AgentDetail: React.FC = () => {
   const loadAgent = async (agentId: string) => {
     try {
       setLoading(true);
-      const data = await agentService.getAgentById(agentId);
+      const data = await agentService.getAgentById(parseInt(agentId, 10));
       setAgent(data);
     } catch (error) {
       message.error('加载智能体详情失败');

@@ -16,12 +16,12 @@ public class CollaborationService : ICollaborationService
         _taskRepository = taskRepository;
     }
 
-    public async Task<List<Collaboration>> GetByUserIdAsync(string userId)
+    public async Task<List<Collaboration>> GetByUserIdAsync(long userId)
     {
         return await _collaborationRepository.GetByUserIdAsync(userId);
     }
 
-    public async Task<Collaboration?> GetByIdAsync(long id, string userId)
+    public async Task<Collaboration?> GetByIdAsync(long id, long userId)
     {
         var collaboration = await _collaborationRepository.GetByIdAsync(id);
         if (collaboration == null || collaboration.UserId != userId)
@@ -31,7 +31,7 @@ public class CollaborationService : ICollaborationService
         return collaboration;
     }
 
-    public async Task<Collaboration> CreateAsync(string name, string? description, string? path, string? gitRepositoryUrl, string? gitBranch, string? gitUsername, string? gitEmail, string? gitAccessToken, string userId)
+    public async Task<Collaboration> CreateAsync(string name, string? description, string? path, string? gitRepositoryUrl, string? gitBranch, string? gitUsername, string? gitEmail, string? gitAccessToken, long userId)
     {
         var collaboration = new Collaboration
         {
@@ -56,7 +56,7 @@ public class CollaborationService : ICollaborationService
         return await _collaborationRepository.UpdateAsync(collaboration);
     }
 
-    public async Task<bool> DeleteAsync(long id, string userId)
+    public async Task<bool> DeleteAsync(long id, long userId)
     {
         var collaboration = await _collaborationRepository.GetByIdAsync(id);
         if (collaboration == null || collaboration.UserId != userId)
@@ -66,7 +66,7 @@ public class CollaborationService : ICollaborationService
         return await _collaborationRepository.DeleteAsync(id);
     }
 
-    public async Task<bool> AddAgentAsync(long collaborationId, long agentId, string? role, string userId)
+    public async Task<bool> AddAgentAsync(long collaborationId, long agentId, string? role, long userId)
     {
         var collaboration = await _collaborationRepository.GetByIdAsync(collaborationId);
         if (collaboration == null || collaboration.UserId != userId)
@@ -76,7 +76,7 @@ public class CollaborationService : ICollaborationService
         return await _collaborationRepository.AddAgentAsync(collaborationId, agentId, role);
     }
 
-    public async Task<bool> RemoveAgentAsync(long collaborationId, long agentId, string userId)
+    public async Task<bool> RemoveAgentAsync(long collaborationId, long agentId, long userId)
     {
         var collaboration = await _collaborationRepository.GetByIdAsync(collaborationId);
         if (collaboration == null || collaboration.UserId != userId)
@@ -91,7 +91,7 @@ public class CollaborationService : ICollaborationService
         return await _collaborationRepository.GetAgentsAsync(collaborationId);
     }
 
-    public async Task<CollaborationTask> CreateTaskAsync(long collaborationId, string title, string? description, string userId)
+    public async Task<CollaborationTask> CreateTaskAsync(long collaborationId, string title, string? description, long userId)
     {
         var collaboration = await _collaborationRepository.GetByIdAsync(collaborationId);
         if (collaboration == null || collaboration.UserId != userId)
@@ -110,7 +110,7 @@ public class CollaborationService : ICollaborationService
         return await _taskRepository.CreateAsync(task);
     }
 
-    public async Task<CollaborationTask> UpdateTaskStatusAsync(long taskId, CollaborationTaskStatus status, string userId)
+    public async Task<CollaborationTask> UpdateTaskStatusAsync(long taskId, CollaborationTaskStatus status, long userId)
     {
         var task = await _taskRepository.GetByIdAsync(taskId);
         if (task == null)
@@ -133,7 +133,7 @@ public class CollaborationService : ICollaborationService
         return await _taskRepository.UpdateAsync(task);
     }
 
-    public async Task<bool> DeleteTaskAsync(long taskId, string userId)
+    public async Task<bool> DeleteTaskAsync(long taskId, long userId)
     {
         var task = await _taskRepository.GetByIdAsync(taskId);
         if (task == null)

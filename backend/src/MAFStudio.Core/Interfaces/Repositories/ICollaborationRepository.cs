@@ -6,7 +6,7 @@ namespace MAFStudio.Core.Interfaces.Repositories;
 public interface ICollaborationRepository
 {
     Task<Collaboration?> GetByIdAsync(long id);
-    Task<List<Collaboration>> GetByUserIdAsync(string userId);
+    Task<List<Collaboration>> GetByUserIdAsync(long userId);
     Task<Collaboration> CreateAsync(Collaboration collaboration);
     Task<Collaboration> UpdateAsync(Collaboration collaboration);
     Task<bool> DeleteAsync(long id);

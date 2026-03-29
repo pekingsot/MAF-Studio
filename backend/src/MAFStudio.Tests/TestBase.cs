@@ -30,7 +30,7 @@ public abstract class TestBase : IDisposable
         MockOperationLogRepository = new Mock<IOperationLogRepository>();
     }
 
-    protected User CreateTestUser(string id = "test-user-id", string username = "testuser", string email = "test@test.com", string role = "user")
+    protected User CreateTestUser(long id = 1000000000000001, string username = "testuser", string email = "test@test.com", string role = "user")
     {
         return new User
         {
@@ -44,7 +44,7 @@ public abstract class TestBase : IDisposable
         };
     }
 
-    protected Agent CreateTestAgent(string name, string userId, long? llmConfigId = null)
+    protected Agent CreateTestAgent(string name, long userId, long? llmConfigId = null)
     {
         return new Agent
         {
@@ -58,7 +58,7 @@ public abstract class TestBase : IDisposable
         };
     }
 
-    protected Collaboration CreateTestCollaboration(string name, string userId)
+    protected Collaboration CreateTestCollaboration(string name, long userId)
     {
         return new Collaboration
         {
@@ -90,7 +90,7 @@ public abstract class TestBase : IDisposable
         };
     }
 
-    protected LlmConfig CreateTestLlmConfig(string name, string userId)
+    protected LlmConfig CreateTestLlmConfig(string name, long userId)
     {
         return new LlmConfig
         {

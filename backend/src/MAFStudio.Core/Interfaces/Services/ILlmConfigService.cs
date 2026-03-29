@@ -4,13 +4,13 @@ namespace MAFStudio.Core.Interfaces.Services;
 
 public interface ILlmConfigService
 {
-    Task<List<LlmConfig>> GetByUserIdAsync(string userId);
+    Task<List<LlmConfig>> GetByUserIdAsync(long userId);
     Task<List<LlmConfig>> GetAllAsync();
     Task<LlmConfig?> GetByIdAsync(long id);
-    Task<LlmConfig> CreateAsync(string name, string provider, string? apiKey, string? endpoint, string? defaultModel, string userId);
+    Task<LlmConfig> CreateAsync(string name, string provider, string? apiKey, string? endpoint, string? defaultModel, long userId);
     Task<LlmConfig> UpdateAsync(long id, string name, string? apiKey, string? endpoint, string? defaultModel);
     Task<bool> DeleteAsync(long id);
-    Task SetDefaultAsync(long id, string userId);
+    Task SetDefaultAsync(long id, long userId);
     Task<ConnectionTestResult> TestConnectionAsync(long id);
     Task<ConnectionTestResult> TestModelConnectionAsync(long configId, long modelId);
 }

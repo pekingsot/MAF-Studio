@@ -22,7 +22,7 @@ public class CollaborationRepository : ICollaborationRepository
         return await connection.QueryFirstOrDefaultAsync<Collaboration>(sql, new { Id = id });
     }
 
-    public async Task<List<Collaboration>> GetByUserIdAsync(string userId)
+    public async Task<List<Collaboration>> GetByUserIdAsync(long userId)
     {
         using var connection = _context.CreateConnection();
         const string sql = "SELECT * FROM collaborations WHERE user_id = @UserId ORDER BY created_at DESC";
@@ -33,11 +33,10 @@ public class CollaborationRepository : ICollaborationRepository
     public async Task<Collaboration> CreateAsync(Collaboration collaboration)
     {
         using var connection = _context.CreateConnection();
-        collaboration.GenerateId();
         collaboration.CreatedAt = DateTime.UtcNow;
         const string sql = @"
-            INSERT INTO collaborations (id, name, description, path, status, user_id, git_repository_url, git_branch, git_username, git_email, git_access_token, created_at, updated_at)
-            VALUES (@Id, @Name, @Description, @Path, @Status, @UserId, @GitRepositoryUrl, @GitBranch, @GitUsername, @GitEmail, @GitAccessToken, @CreatedAt, @UpdatedAt)
+            INSERT INTO collaborations (name, description, path, status, user_id, git_repository_url, git_branch, git_username, git_email, git_access_token, created_at, updated_at)
+            VALUES (@Name, @Description, @Path, @Status, @UserId, @GitRepositoryUrl, @GitBranch, @GitUsername, @GitEmail, @GitAccessToken, @CreatedAt, @UpdatedAt)
             RETURNING *";
         return await connection.QueryFirstAsync<Collaboration>(sql, collaboration);
     }

@@ -1,5 +1,3 @@
-using MAFStudio.Core.Utils;
-
 namespace MAFStudio.Core.Entities;
 
 [Dapper.Contrib.Extensions.Table("llm_model_configs")]
@@ -36,10 +34,11 @@ public class LlmModelConfig
 
     public string? StopSequences { get; set; }
 
-    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    public DateTime? LastTestTime { get; set; }
 
-    public void GenerateId()
-    {
-        Id = SnowflakeIdGenerator.Instance.NextId();
-    }
+    public int AvailabilityStatus { get; set; } = 0;
+
+    public string? TestResult { get; set; }
+
+    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 }
