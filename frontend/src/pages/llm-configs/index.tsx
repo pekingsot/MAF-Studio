@@ -121,7 +121,7 @@ const LLMConfigs: React.FC = () => {
         onAddModel={handleCreateModel}
       />
     </div>
-  ), [connectionStatus, testingIds, handleTestConnection, handleEditModel, handleSetModelDefault, handleDeleteModel, handleCreateModel]);
+  ), []);
 
   const onSubmitConfig = useCallback(async (values: Partial<LLMConfig>) => {
     return handleSubmit(values, editingConfig);
@@ -163,14 +163,16 @@ const LLMConfigs: React.FC = () => {
         onSubmit={onSubmitConfig}
       />
 
-      <ModelFormModal
-        visible={modelModalVisible}
-        editingModel={editingModel}
-        onCancel={() => setModelModalVisible(false)}
-        onSubmit={onSubmitModel}
-      />
+      {modelModalVisible && (
+        <ModelFormModal
+          visible={modelModalVisible}
+          editingModel={editingModel}
+          onCancel={() => setModelModalVisible(false)}
+          onSubmit={onSubmitModel}
+        />
+      )}
 
-      {parentConfigId && (
+      {batchAddModalVisible && parentConfigId && (
         <BatchAddModelsModal
           visible={batchAddModalVisible}
           configId={parentConfigId}

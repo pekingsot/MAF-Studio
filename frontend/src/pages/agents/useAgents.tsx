@@ -42,8 +42,12 @@ export const useAgents = () => {
 
   const loadLLMConfigs = useCallback(async () => {
     try {
+      console.log('开始加载llmConfigs');
       const response = await api.get('/llmconfigs');
+      console.log('llmConfigs API响应:', response);
       const configs = (response.data || []).filter((c: LLMConfig) => c.isEnabled);
+      console.log('过滤后的llmConfigs:', configs);
+      console.log('llmConfigs数量:', configs.length);
       setLLMConfigs(configs);
       return configs;
     } catch (error) {

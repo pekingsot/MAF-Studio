@@ -23,7 +23,7 @@ public class LlmModelConfigRepository : ILlmModelConfigRepository
     public async Task<List<LlmModelConfig>> GetByLlmConfigIdAsync(long llmConfigId)
     {
         using var connection = _context.CreateConnection();
-        const string sql = "SELECT * FROM llm_model_configs WHERE llm_config_id = @LlmConfigId ORDER BY sort_order, id";
+        const string sql = "SELECT * FROM llm_model_configs WHERE llm_config_id = @LlmConfigId ORDER BY id ASC";
         var result = await connection.QueryAsync<LlmModelConfig>(sql, new { LlmConfigId = llmConfigId });
         return result.ToList();
     }

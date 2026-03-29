@@ -41,7 +41,15 @@ const AgentFormModal: React.FC<AgentFormModalProps> = ({
   onTypeChange,
 }) => {
   const [form] = Form.useForm();
-  const [fallbackSelectorValue, setFallbackSelectorValue] = useState<string | undefined>(undefined);
+
+  useEffect(() => {
+    console.log('AgentFormModal - visible变化:', visible);
+    console.log('AgentFormModal - editingAgent:', editingAgent);
+    console.log('AgentFormModal - selectedPrimaryModel:', selectedPrimaryModel);
+    console.log('AgentFormModal - selectedFallbackModels:', selectedFallbackModels);
+    console.log('AgentFormModal - llmConfigs:', llmConfigs);
+    console.log('AgentFormModal - llmConfigs数量:', llmConfigs?.length);
+  }, [visible, editingAgent, selectedPrimaryModel, selectedFallbackModels, llmConfigs]);
 
   useEffect(() => {
     if (visible) {
@@ -76,7 +84,23 @@ const AgentFormModal: React.FC<AgentFormModalProps> = ({
     try {
       const values = await form.validateFields();
       
+      console.log('表单值:', values);
+      console.log('选中的主模型:', selectedPrimaryModel);
+      console.log('选中的副模型:', selectedFallbackModels);
+      
       if (!selectedPrimaryModel) {
+        Modal.error({
+          title: '请选择主模型',
+          content: '创建智能体必须选择一个主模型',
+        });
+        return;
+      }
+      
+      if (!selectedPrimaryModel.llmConfigId || !selectedPrimaryModel.llmModelConfigId) {
+        Modal.error({
+          title: '主模型信息不完整',
+          content: '请重新选择主模型',
+        });
         return;
       }
       
@@ -98,10 +122,18 @@ const AgentFormModal: React.FC<AgentFormModalProps> = ({
       form.resetFields();
     } catch (error) {
       console.error('表单验证失败:', error);
+      Modal.error({
+        title: '提交失败',
+        content: '请检查表单填写是否正确',
+      });
     }
   };
 
   const handlePrimaryModelSelect = (val: string | undefined) => {
+    console.log('主模型选择值:', val);
+    console.log('当前llmConfigs:', llmConfigs);
+    console.log('llmConfigs长度:', llmConfigs?.length);
+    
     if (!val) {
       onPrimaryModelChange(null);
       return;
@@ -109,22 +141,40 @@ const AgentFormModal: React.FC<AgentFormModalProps> = ({
     const [configIdStr, modelIdStr] = val.split('|');
     const configId = parseInt(configIdStr, 10);
     const modelId = parseInt(modelIdStr, 10);
+    
+    console.log('解析后的ID - configId:', configId, 'modelId:', modelId);
+    console.log('llmConfigs中的所有ID:', llmConfigs?.map(c => c.id));
+    
     const config = llmConfigs.find(c => c.id === configId);
     const model = config?.models?.find(m => m.id === modelId);
     
+    console.log('找到的配置:', config);
+    console.log('找到的模型:', model);
+    
     if (config && model) {
-      onPrimaryModelChange({
+      const selectedModel = {
         llmConfigId: config.id,
         llmConfigName: config.name,
         llmModelConfigId: model.id,
         modelName: model.displayName || model.modelName,
         provider: config.provider,
-      });
+      };
+      
+      console.log('设置的主模型:', selectedModel);
+      onPrimaryModelChange(selectedModel);
+    } else {
+      console.error('未找到配置或模型');
+      console.error('configId:', configId, '类型:', typeof configId);
+      console.error('llmConfigs中的第一个配置ID:', llmConfigs?.[0]?.id, '类型:', typeof llmConfigs?.[0]?.id);
     }
   };
 
   const handleFallbackModelSelect = (val: string | undefined) => {
-    if (!val) return;
+    console.log('副模型选择值:', val);
+    
+    if (!val) {
+      return;
+    }
     
     const [configIdStr, modelIdStr] = val.split('|');
     const configId = parseInt(configIdStr, 10);
@@ -132,23 +182,50 @@ const AgentFormModal: React.FC<AgentFormModalProps> = ({
     const config = llmConfigs.find(c => c.id === configId);
     const model = config?.models?.find(m => m.id === modelId);
     
+    console.log('副模型 - 解析ID:', { configId, modelId });
+    console.log('副模型 - 找到配置:', config);
+    console.log('副模型 - 找到模型:', model);
+    
     if (config && model) {
       const exists = selectedFallbackModels.some(
         m => m.llmConfigId === configId && m.llmModelConfigId === modelId
       );
       const isPrimary = selectedPrimaryModel?.llmConfigId === configId && selectedPrimaryModel?.llmModelConfigId === modelId;
       
-      if (!exists && !isPrimary && selectedFallbackModels.length < 3) {
-        onFallbackModelsChange([...selectedFallbackModels, {
+      console.log('副模型 - 是否已存在:', exists);
+      console.log('副模型 - 是否是主模型:', isPrimary);
+      console.log('副模型 - 当前数量:', selectedFallbackModels.length);
+      
+      if (!exists && !isPrimary && selectedFallbackModels.length < 20) {
+        const newModel = {
           llmConfigId: config.id,
           llmConfigName: config.name,
           llmModelConfigId: model.id,
           modelName: model.displayName || model.modelName,
           provider: config.provider,
-        }]);
+        };
+        
+        console.log('副模型 - 添加新模型:', newModel);
+        onFallbackModelsChange([...selectedFallbackModels, newModel]);
+      } else if (exists) {
+        Modal.warning({
+          title: '模型已存在',
+          content: '该模型已在副模型列表中',
+        });
+      } else if (isPrimary) {
+        Modal.warning({
+          title: '不能选择主模型',
+          content: '副模型不能与主模型相同',
+        });
+      } else if (selectedFallbackModels.length >= 20) {
+        Modal.warning({
+          title: '已达上限',
+          content: '最多只能选择20个副模型',
+        });
       }
+    } else {
+      console.error('副模型 - 未找到配置或模型');
     }
-    setFallbackSelectorValue(undefined);
   };
 
   const getAvailableModelsForFallback = () => {
@@ -265,81 +342,129 @@ const AgentFormModal: React.FC<AgentFormModalProps> = ({
         <Form.Item 
           label={
             <span>
-              副模型 <span style={{ color: '#999', fontWeight: 'normal', fontSize: 12 }}>（故障转移，主模型失败时按顺序尝试）</span>
+              副模型 <span style={{ color: '#999', fontWeight: 'normal', fontSize: 12 }}>（故障转移，主模型失败时按顺序尝试，最多20个）</span>
             </span>
           }
         >
-          <Space direction="vertical" style={{ width: '100%' }} size="middle">
-            {selectedFallbackModels.length > 0 && (
-              <List
-                size="small"
-                bordered
-                dataSource={selectedFallbackModels}
-                renderItem={(model, index) => (
-                  <List.Item
-                    actions={[
-                      <Button
-                        key="up"
-                        size="small"
-                        type="text"
-                        icon={<ArrowUpOutlined />}
-                        onClick={() => onMoveUp(index)}
-                        disabled={index === 0}
-                      />,
-                      <Button
-                        key="down"
-                        size="small"
-                        type="text"
-                        icon={<ArrowDownOutlined />}
-                        onClick={() => onMoveDown(index)}
-                        disabled={index === selectedFallbackModels.length - 1}
-                      />,
-                      <Button
-                        key="delete"
-                        size="small"
-                        type="text"
-                        danger
-                        icon={<DeleteOutlined />}
-                        onClick={() => onRemoveFallbackModel(`${model.llmConfigId}_${model.llmModelConfigId}`)}
-                      />,
-                    ]}
-                  >
-                    <Space>
-                      <Tag color="orange">{index + 1}</Tag>
-                      <Tag color="blue">{model.llmConfigName}</Tag>
-                      <span>{model.modelName}</span>
-                    </Space>
-                  </List.Item>
+          <Row gutter={16}>
+            <Col span={12}>
+              <div style={{ marginBottom: 8, fontWeight: 500 }}>可选模型</div>
+              <div style={{ 
+                border: '1px solid #d9d9d9', 
+                borderRadius: 4, 
+                height: 300, 
+                overflow: 'auto',
+                padding: 8 
+              }}>
+                {getAvailableModelsForFallback().length === 0 ? (
+                  <div style={{ color: '#999', textAlign: 'center', padding: 20 }}>
+                    暂无可选模型
+                  </div>
+                ) : (
+                  getAvailableModelsForFallback().map(config => (
+                    <div key={config.id} style={{ marginBottom: 8 }}>
+                      <div style={{ fontWeight: 500, marginBottom: 4, color: '#1890ff' }}>
+                        {config.name} ({config.provider})
+                      </div>
+                      {config.models?.map(model => (
+                        <div
+                          key={`${config.id}|${model.id}`}
+                          style={{
+                            padding: '8px 12px',
+                            cursor: 'pointer',
+                            borderRadius: 4,
+                            marginBottom: 4,
+                            background: '#fafafa',
+                            transition: 'all 0.3s',
+                          }}
+                          onClick={() => {
+                            const val = `${config.id}|${model.id}`;
+                            console.log('点击副模型:', val);
+                            handleFallbackModelSelect(val);
+                          }}
+                          onMouseEnter={(e) => {
+                            e.currentTarget.style.background = '#e6f7ff';
+                          }}
+                          onMouseLeave={(e) => {
+                            e.currentTarget.style.background = '#fafafa';
+                          }}
+                        >
+                          <Space>
+                            <Tag color="blue" style={{ margin: 0 }}>{config.name}</Tag>
+                            <span>{model.displayName || model.modelName}</span>
+                          </Space>
+                        </div>
+                      ))}
+                    </div>
+                  ))
                 )}
-                style={{ marginBottom: 8 }}
-              />
-            )}
-            
-            {selectedFallbackModels.length < 3 && (
-              <Select
-                style={{ width: '100%' }}
-                placeholder="添加副模型"
-                value={fallbackSelectorValue}
-                onChange={handleFallbackModelSelect}
-                allowClear
-                showSearch
-                optionFilterProp="children"
-              >
-                {getAvailableModelsForFallback().map(config => (
-                  <Select.OptGroup key={config.id} label={`${config.name} (${config.provider})`}>
-                    {config.models?.map(model => (
-                      <Option key={`${config.id}|${model.id}`} value={`${config.id}|${model.id}`}>
-                        <Space>
-                          <Tag color="blue" style={{ margin: 0 }}>{config.name}</Tag>
-                          {model.displayName || model.modelName}
-                        </Space>
-                      </Option>
-                    ))}
-                  </Select.OptGroup>
-                ))}
-              </Select>
-            )}
-          </Space>
+              </div>
+            </Col>
+            <Col span={12}>
+              <div style={{ marginBottom: 8, fontWeight: 500 }}>
+                已选模型 ({selectedFallbackModels.length}/20)
+              </div>
+              <div style={{ 
+                border: '1px solid #d9d9d9', 
+                borderRadius: 4, 
+                height: 300, 
+                overflow: 'auto',
+                padding: 8,
+                background: selectedFallbackModels.length === 0 ? '#fafafa' : '#fff'
+              }}>
+                {selectedFallbackModels.length === 0 ? (
+                  <div style={{ color: '#999', textAlign: 'center', padding: 40 }}>
+                    请从左侧选择模型
+                  </div>
+                ) : (
+                  selectedFallbackModels.map((model, index) => (
+                    <div
+                      key={`${model.llmConfigId}|${model.llmModelConfigId}`}
+                      style={{
+                        padding: '8px 12px',
+                        marginBottom: 8,
+                        background: '#f0f5ff',
+                        border: '1px solid #adc6ff',
+                        borderRadius: 4,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                      }}
+                    >
+                      <Space>
+                        <Tag color="orange">{index + 1}</Tag>
+                        <Tag color="blue">{model.llmConfigName}</Tag>
+                        <span>{model.modelName}</span>
+                      </Space>
+                      <Space size="small">
+                        <Button
+                          size="small"
+                          type="text"
+                          icon={<ArrowUpOutlined />}
+                          onClick={() => onMoveUp(index)}
+                          disabled={index === 0}
+                        />
+                        <Button
+                          size="small"
+                          type="text"
+                          icon={<ArrowDownOutlined />}
+                          onClick={() => onMoveDown(index)}
+                          disabled={index === selectedFallbackModels.length - 1}
+                        />
+                        <Button
+                          size="small"
+                          type="text"
+                          danger
+                          icon={<DeleteOutlined />}
+                          onClick={() => onRemoveFallbackModel(`${model.llmConfigId}_${model.llmModelConfigId}`)}
+                        />
+                      </Space>
+                    </div>
+                  ))
+                )}
+              </div>
+            </Col>
+          </Row>
         </Form.Item>
       </Form>
     </Modal>

@@ -18,15 +18,16 @@ public class AgentListVo
     public List<AgentTypeVo> AgentTypes { get; set; } = new();
 }
 
-public class AgentVo : BaseVo
+public class AgentVo
 {
+    public long Id { get; set; }
     public string Name { get; set; } = string.Empty;
     public string? Description { get; set; }
     public string Type { get; set; } = string.Empty;
     public string? TypeName { get; set; }
     public string? SystemPrompt { get; set; }
     public string? Avatar { get; set; }
-    public string UserId { get; set; } = string.Empty;
+    public long UserId { get; set; }
     public AgentStatus Status { get; set; }
     public long? LlmConfigId { get; set; }
     public long? LlmModelConfigId { get; set; }
@@ -38,19 +39,22 @@ public class AgentVo : BaseVo
     /// 副模型配置列表（用于故障转移）
     /// </summary>
     public List<FallbackModelVo>? FallbackModels { get; set; }
+    
+    public DateTime CreatedAt { get; set; }
+    public DateTime? UpdatedAt { get; set; }
 }
 
 public class AgentListItemVo
 {
-    public string Id { get; set; } = string.Empty;
+    public long Id { get; set; }
     public string Name { get; set; } = string.Empty;
     public string? Description { get; set; }
     public string Type { get; set; } = string.Empty;
     public string? TypeName { get; set; }
     public string? Avatar { get; set; }
     public AgentStatus Status { get; set; }
-    public string? LlmConfigId { get; set; }
-    public string? LlmModelConfigId { get; set; }
+    public long? LlmConfigId { get; set; }
+    public long? LlmModelConfigId { get; set; }
     public string? LlmConfigName { get; set; }
     public string? PrimaryModelName { get; set; }
     public List<FallbackModelVo>? FallbackModels { get; set; }
@@ -63,9 +67,9 @@ public class AgentListItemVo
 /// </summary>
 public class FallbackModelVo
 {
-    public string LlmConfigId { get; set; } = string.Empty;
+    public long LlmConfigId { get; set; }
     public string? LlmConfigName { get; set; }
-    public string? LlmModelConfigId { get; set; }
+    public long? LlmModelConfigId { get; set; }
     public string? ModelName { get; set; }
     public int Priority { get; set; }
 }
