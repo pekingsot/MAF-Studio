@@ -103,6 +103,11 @@ public class CollaborationService : ICollaborationService
         return await _collaborationAgentRepository.GetWithAgentDetailsByCollaborationIdAsync(collaborationId);
     }
 
+    public async Task<List<CollaborationTask>> GetTasksAsync(long collaborationId)
+    {
+        return await _collaborationTaskRepository.GetByCollaborationIdAsync(collaborationId);
+    }
+
     public async Task<CollaborationTask> CreateTaskAsync(long collaborationId, string title, string? description, long userId)
     {
         var collaboration = await GetByIdAsync(collaborationId, userId);

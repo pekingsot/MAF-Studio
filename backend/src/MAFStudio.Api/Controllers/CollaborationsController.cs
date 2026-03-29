@@ -47,6 +47,20 @@ public class CollaborationsController : ControllerBase
                 Role = a.Role,
                 JoinedAt = a.JoinedAt
             }).ToList();
+            
+            var tasks = await _collaborationService.GetTasksAsync(collaboration.Id);
+            vo.Tasks = tasks.Select(t => new CollaborationTaskVo
+            {
+                Id = t.Id,
+                CollaborationId = t.CollaborationId,
+                Title = t.Title,
+                Description = t.Description,
+                Status = t.Status,
+                AssignedTo = t.AssignedTo,
+                CompletedAt = t.CompletedAt,
+                CreatedAt = t.CreatedAt
+            }).ToList();
+            
             vos.Add(vo);
         }
         
@@ -74,6 +88,19 @@ public class CollaborationsController : ControllerBase
             AgentAvatar = a.AgentAvatar,
             Role = a.Role,
             JoinedAt = a.JoinedAt
+        }).ToList();
+        
+        var tasks = await _collaborationService.GetTasksAsync(id);
+        vo.Tasks = tasks.Select(t => new CollaborationTaskVo
+        {
+            Id = t.Id,
+            CollaborationId = t.CollaborationId,
+            Title = t.Title,
+            Description = t.Description,
+            Status = t.Status,
+            AssignedTo = t.AssignedTo,
+            CompletedAt = t.CompletedAt,
+            CreatedAt = t.CreatedAt
         }).ToList();
 
         return Ok(vo);
