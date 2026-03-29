@@ -14,7 +14,7 @@ public class CollaborationTask
 
     public Enums.CollaborationTaskStatus Status { get; set; } = Enums.CollaborationTaskStatus.Pending;
 
-    public string? AssignedTo { get; set; }
+    public long? AssignedTo { get; set; }
 
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
