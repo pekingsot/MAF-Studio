@@ -2407,6 +2407,244 @@ export default CollaborationChatPage;
 
 ---
 
+## 12. API参考
+
+### 12.1 协作工作流API
+
+#### POST /api/collaborationworkflow/{collaborationId}/sequential
+执行顺序工作流
+
+**请求体**：
+```json
+{
+  "input": "用户输入内容"
+}
+```
+
+**响应**：
+```json
+{
+  "success": true,
+  "output": "最终输出结果",
+  "messages": [
+    {
+      "sender": "Agent",
+      "content": "Agent的回复内容",
+      "role": "assistant",
+      "timestamp": "2026-03-29T10:00:00Z"
+    }
+  ]
+}
+```
+
+#### POST /api/collaborationworkflow/{collaborationId}/concurrent
+执行并发工作流
+
+**请求体**：
+```json
+{
+  "input": "用户输入内容"
+}
+```
+
+**响应**：
+```json
+{
+  "success": true,
+  "output": "合并后的输出结果",
+  "messages": [
+    {
+      "sender": "Agent1",
+      "content": "Agent1的处理结果",
+      "role": "assistant",
+      "timestamp": "2026-03-29T10:00:00Z"
+    },
+    {
+      "sender": "Agent2",
+      "content": "Agent2的处理结果",
+      "role": "assistant",
+      "timestamp": "2026-03-29T10:00:00Z"
+    }
+  ]
+}
+```
+
+#### POST /api/collaborationworkflow/{collaborationId}/handoffs
+执行任务移交工作流
+
+**请求体**：
+```json
+{
+  "input": "用户输入内容"
+}
+```
+
+**响应**：
+```json
+{
+  "success": true,
+  "output": "最终输出结果",
+  "messages": [
+    {
+      "sender": "Agent1",
+      "content": "Agent1处理并移交给Agent2",
+      "role": "assistant",
+      "timestamp": "2026-03-29T10:00:00Z"
+    },
+    {
+      "sender": "Agent2",
+      "content": "Agent2继续处理",
+      "role": "assistant",
+      "timestamp": "2026-03-29T10:00:01Z"
+    }
+  ]
+}
+```
+
+#### POST /api/collaborationworkflow/{collaborationId}/groupchat
+执行群聊工作流（流式响应）
+
+**请求体**：
+```json
+{
+  "input": "用户输入内容"
+}
+```
+
+**响应**（Server-Sent Events）：
+```
+data: {"sender":"Agent1","content":"消息内容1","role":"assistant","timestamp":"2026-03-29T10:00:00Z"}
+
+data: {"sender":"Agent2","content":"消息内容2","role":"assistant","timestamp":"2026-03-29T10:00:01Z"}
+
+```
+
+### 12.2 Skill管理API
+
+#### GET /api/skills
+获取所有已加载的Skills
+
+**响应**：
+```json
+[
+  {
+    "id": "skill-001",
+    "name": "代码生成器",
+    "description": "根据需求生成代码",
+    "version": "1.0.0",
+    "author": "MAF Studio",
+    "path": "/app/skills/code-generator",
+    "tags": ["代码", "生成"],
+    "dependencies": ["python >= 3.8"],
+    "entryPoint": "main.py",
+    "runtime": "python",
+    "parameters": {
+      "language": "python",
+      "framework": "fastapi"
+    },
+    "loadedAt": "2026-03-29T10:00:00Z"
+  }
+]
+```
+
+#### POST /api/skills/load
+加载指定路径的Skill
+
+**请求体**：
+```json
+{
+  "path": "/app/skills/code-generator"
+}
+```
+
+**响应**：
+```json
+{
+  "id": "skill-001",
+  "name": "代码生成器",
+  "description": "根据需求生成代码",
+  "version": "1.0.0",
+  "author": "MAF Studio",
+  "path": "/app/skills/code-generator",
+  "loadedAt": "2026-03-29T10:00:00Z"
+}
+```
+
+#### POST /api/skills/load-all
+加载所有Skills
+
+**响应**：
+```json
+[
+  {
+    "id": "skill-001",
+    "name": "代码生成器",
+    "path": "/app/skills/code-generator"
+  },
+  {
+    "id": "skill-002",
+    "name": "文档生成器",
+    "path": "/app/skills/doc-generator"
+  }
+]
+```
+
+#### GET /api/skills/{skillId}
+获取指定Skill详情
+
+**响应**：
+```json
+{
+  "id": "skill-001",
+  "name": "代码生成器",
+  "description": "根据需求生成代码",
+  "version": "1.0.0",
+  "author": "MAF Studio",
+  "path": "/app/skills/code-generator",
+  "tags": ["代码", "生成"],
+  "dependencies": ["python >= 3.8"],
+  "entryPoint": "main.py",
+  "runtime": "python",
+  "parameters": {
+    "language": "python",
+    "framework": "fastapi"
+  }
+}
+```
+
+#### DELETE /api/skills/{skillId}
+卸载指定Skill
+
+**响应**：
+```json
+{
+  "message": "Skill已卸载"
+}
+```
+
+#### POST /api/skills/{skillId}/execute
+执行指定Skill
+
+**请求体**：
+```json
+{
+  "parameters": {
+    "language": "python",
+    "framework": "fastapi",
+    "requirement": "创建一个REST API"
+  }
+}
+```
+
+**响应**：
+```json
+{
+  "result": "Skill执行结果输出"
+}
+```
+
+---
+
 ## 13. 部署方案
 
 ### 13.1 Docker部署
