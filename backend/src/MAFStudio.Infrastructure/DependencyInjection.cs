@@ -17,6 +17,7 @@ public static class DependencyInjection
         services.AddScoped<IAgentTypeRepository, AgentTypeRepository>();
         services.AddScoped<IAgentMessageRepository, AgentMessageRepository>();
         services.AddScoped<ICollaborationRepository, CollaborationRepository>();
+        services.AddScoped<ICollaborationAgentRepository, CollaborationAgentRepository>();
         services.AddScoped<ICollaborationTaskRepository, CollaborationTaskRepository>();
         services.AddScoped<ILlmConfigRepository, LlmConfigRepository>();
         services.AddScoped<ILlmModelConfigRepository, LlmModelConfigRepository>();
