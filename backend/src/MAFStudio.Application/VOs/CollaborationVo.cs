@@ -35,7 +35,7 @@ public class CollaborationTaskVo
     public string Title { get; set; } = string.Empty;
     public string? Description { get; set; }
     public CollaborationTaskStatus Status { get; set; }
-    public string? AssignedTo { get; set; }
+    public long? AssignedTo { get; set; }
     public DateTime? CompletedAt { get; set; }
     public DateTime CreatedAt { get; set; }
 }
