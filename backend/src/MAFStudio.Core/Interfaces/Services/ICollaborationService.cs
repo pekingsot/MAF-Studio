@@ -15,6 +15,7 @@ public interface ICollaborationService
     Task<bool> RemoveAgentAsync(long collaborationId, long agentId, long userId);
     Task<List<CollaborationAgent>> GetAgentsAsync(long collaborationId);
     Task<List<CollaborationAgentWithDetails>> GetAgentsWithDetailsAsync(long collaborationId);
+    Task<List<CollaborationTask>> GetTasksAsync(long collaborationId);
     Task<CollaborationTask> CreateTaskAsync(long collaborationId, string title, string? description, long userId);
     Task<CollaborationTask> UpdateTaskStatusAsync(long taskId, CollaborationTaskStatus status, long userId);
     Task<bool> DeleteTaskAsync(long taskId, long userId);
