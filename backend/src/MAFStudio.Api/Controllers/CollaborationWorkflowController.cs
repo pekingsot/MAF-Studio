@@ -94,9 +94,36 @@ public class CollaborationWorkflowController : ControllerBase
             yield return message;
         }
     }
+
+    [HttpPost("{collaborationId}/review-iterative")]
+    public async Task<ActionResult<CollaborationResult>> ExecuteReviewIterative(
+        long collaborationId,
+        [FromBody] ReviewIterativeRequest request)
+    {
+        try
+        {
+            var result = await _workflowService.ExecuteReviewIterativeAsync(
+                collaborationId,
+                request.Input,
+                request.Parameters);
+
+            return Ok(result);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "执行审阅迭代工作流失败");
+            return BadRequest(new { error = ex.Message });
+        }
+    }
 }
 
 public class WorkflowRequest
 {
     public string Input { get; set; } = string.Empty;
+}
+
+public class ReviewIterativeRequest
+{
+    public string Input { get; set; } = string.Empty;
+    public ReviewIterativeParameters? Parameters { get; set; }
 }

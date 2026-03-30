@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Modal, Form, Select, InputNumber, Input, Button, Space, message, Card, Radio, List, Tag } from 'antd';
 import { PlayCircleOutlined, SettingOutlined, SwapOutlined, TeamOutlined, MessageOutlined } from '@ant-design/icons';
-import { collaborationService, Collaboration, CollaborationAgent } from '../../services/collaborationService';
+import { collaborationService, Collaboration, CollaborationAgent } from '../services/collaborationService';
 
 const { Option } = Select;
 const { TextArea } = Input;

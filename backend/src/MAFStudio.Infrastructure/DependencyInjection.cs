@@ -2,6 +2,8 @@ using Microsoft.Extensions.DependencyInjection;
 using MAFStudio.Core.Interfaces.Repositories;
 using MAFStudio.Infrastructure.Data;
 using MAFStudio.Infrastructure.Data.Repositories;
+using MAFStudio.Core.Interfaces;
+using MAFStudio.Infrastructure.Repositories;
 
 namespace MAFStudio.Infrastructure;
 
@@ -25,6 +27,7 @@ public static class DependencyInjection
         services.AddScoped<ISystemLogRepository, SystemLogRepository>();
         services.AddScoped<IRoleRepository, RoleRepository>();
         services.AddScoped<IPermissionRepository, PermissionRepository>();
+        services.AddScoped<IWorkflowTemplateRepository, WorkflowTemplateRepository>();
         
         return services;
     }

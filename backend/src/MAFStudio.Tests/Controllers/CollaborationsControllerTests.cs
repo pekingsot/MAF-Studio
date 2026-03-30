@@ -174,7 +174,7 @@ public class CollaborationsControllerTests : TestBase
 
         var result = await _controller.AddAgentToCollaboration(collaboration.Id, request);
 
-        Assert.IsType<OkResult>(result);
+        Assert.IsType<OkObjectResult>(result);
     }
 
     [Fact]
