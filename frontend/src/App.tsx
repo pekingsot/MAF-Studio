@@ -26,6 +26,10 @@ const Collaborations = lazy(() => import('./pages/Collaborations'));
 const CollaborationDetail = lazy(() => import('./pages/CollaborationDetail'));
 const CollaborationWorkflow = lazy(() => import('./pages/collaboration-workflow'));
 const SkillManagement = lazy(() => import('./pages/skill-management'));
+const WorkflowTemplateManagement = lazy(() => import('./pages/WorkflowTemplateManagement'));
+const WorkflowEditor = lazy(() => import('./pages/WorkflowEditor'));
+const WorkflowExecute = lazy(() => import('./pages/WorkflowExecute'));
+const MagenticWorkflow = lazy(() => import('./pages/MagenticWorkflow'));
 const Messages = lazy(() => import('./pages/Messages'));
 const CollaborationChat = lazy(() => import('./pages/CollaborationChat'));
 const Login = lazy(() => import('./pages/Login'));
@@ -83,6 +87,10 @@ function App() {
           <Route path="/collaborations/:id" element={lazyLoad(CollaborationDetail)} />
           <Route path="/collaboration-workflow" element={lazyLoad(CollaborationWorkflow)} />
           <Route path="/skill-management" element={lazyLoad(SkillManagement)} />
+          <Route path="/workflow-templates" element={lazyLoad(WorkflowTemplateManagement)} />
+          <Route path="/workflow-editor" element={lazyLoad(WorkflowEditor)} />
+          <Route path="/workflow-execute" element={lazyLoad(WorkflowExecute)} />
+          <Route path="/magentic-workflow" element={lazyLoad(MagenticWorkflow)} />
           <Route path="/messages" element={lazyLoad(Messages)} />
           <Route path="/chat" element={lazyLoad(CollaborationChat)} />
           <Route path="/profile" element={lazyLoad(Profile)} />

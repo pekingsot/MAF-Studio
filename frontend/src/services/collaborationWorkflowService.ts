@@ -9,6 +9,7 @@ export interface ChatMessageDto {
   content: string;
   role: string;
   timestamp: string;
+  metadata?: Record<string, any>;
 }
 
 export interface CollaborationResult {
@@ -16,6 +17,19 @@ export interface CollaborationResult {
   output: string;
   messages: ChatMessageDto[];
   error?: string;
+  metadata?: Record<string, any>;
+}
+
+export interface ReviewIterativeParameters {
+  maxIterations?: number;
+  reviewCriteria?: string;
+  approvalKeyword?: string;
+  saveVersions?: boolean;
+}
+
+export interface ReviewIterativeRequest {
+  input: string;
+  parameters?: ReviewIterativeParameters;
 }
 
 export const collaborationWorkflowService = {
@@ -88,5 +102,17 @@ export const collaborationWorkflowService = {
         }
       }
     }
+  },
+
+  executeReviewIterative: async (
+    collaborationId: number,
+    input: string,
+    parameters?: ReviewIterativeParameters
+  ): Promise<CollaborationResult> => {
+    const response = await api.post<CollaborationResult>(
+      `/collaborationworkflow/${collaborationId}/review-iterative`,
+      { input, parameters }
+    );
+    return response.data;
   },
 };

@@ -6,7 +6,7 @@ using Microsoft.Extensions.Logging;
 
 namespace MAFStudio.Application.Services;
 
-public class CollaborationWorkflowService : ICollaborationWorkflowService
+public partial class CollaborationWorkflowService : ICollaborationWorkflowService
 {
     private readonly ICollaborationRepository _collaborationRepository;
     private readonly ICollaborationAgentRepository _collaborationAgentRepository;

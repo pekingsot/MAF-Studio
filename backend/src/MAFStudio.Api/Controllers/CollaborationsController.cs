@@ -37,7 +37,7 @@ public class CollaborationsController : ControllerBase
         {
             var vo = collaboration.ToVo();
             var agents = await _collaborationService.GetAgentsWithDetailsAsync(collaboration.Id);
-            vo.Agents = agents.Select(a => new CollaborationAgentVo
+            vo.Agents = agents?.Select(a => new CollaborationAgentVo
             {
                 AgentId = a.AgentId,
                 AgentName = a.AgentName,
@@ -46,10 +46,10 @@ public class CollaborationsController : ControllerBase
                 AgentAvatar = a.AgentAvatar,
                 Role = a.Role,
                 JoinedAt = a.JoinedAt
-            }).ToList();
+            }).ToList() ?? new List<CollaborationAgentVo>();
             
             var tasks = await _collaborationService.GetTasksAsync(collaboration.Id);
-            vo.Tasks = tasks.Select(t => new CollaborationTaskVo
+            vo.Tasks = tasks?.Select(t => new CollaborationTaskVo
             {
                 Id = t.Id,
                 CollaborationId = t.CollaborationId,
@@ -59,7 +59,7 @@ public class CollaborationsController : ControllerBase
                 AssignedTo = t.AssignedTo,
                 CompletedAt = t.CompletedAt,
                 CreatedAt = t.CreatedAt
-            }).ToList();
+            }).ToList() ?? new List<CollaborationTaskVo>();
             
             vos.Add(vo);
         }
@@ -79,7 +79,7 @@ public class CollaborationsController : ControllerBase
 
         var vo = collaboration.ToVo();
         var agents = await _collaborationService.GetAgentsWithDetailsAsync(id);
-        vo.Agents = agents.Select(a => new CollaborationAgentVo
+        vo.Agents = agents?.Select(a => new CollaborationAgentVo
         {
             AgentId = a.AgentId,
             AgentName = a.AgentName,
@@ -88,10 +88,10 @@ public class CollaborationsController : ControllerBase
             AgentAvatar = a.AgentAvatar,
             Role = a.Role,
             JoinedAt = a.JoinedAt
-        }).ToList();
+        }).ToList() ?? new List<CollaborationAgentVo>();
         
         var tasks = await _collaborationService.GetTasksAsync(id);
-        vo.Tasks = tasks.Select(t => new CollaborationTaskVo
+        vo.Tasks = tasks?.Select(t => new CollaborationTaskVo
         {
             Id = t.Id,
             CollaborationId = t.CollaborationId,
@@ -101,7 +101,7 @@ public class CollaborationsController : ControllerBase
             AssignedTo = t.AssignedTo,
             CompletedAt = t.CompletedAt,
             CreatedAt = t.CreatedAt
-        }).ToList();
+        }).ToList() ?? new List<CollaborationTaskVo>();
 
         return Ok(vo);
     }

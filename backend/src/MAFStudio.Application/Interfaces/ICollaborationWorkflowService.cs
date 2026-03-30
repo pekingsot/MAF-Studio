@@ -29,4 +29,14 @@ public interface ICollaborationWorkflowService
     /// 适用场景：A写文档 → B审阅 → 不满意 → 打回去 → A修改 → 循环直到满意
     /// </summary>
     Task<CollaborationResult> ExecuteReviewIterativeAsync(long collaborationId, string input, ReviewIterativeParameters? parameters = null, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// 生成Magentic计划
+    /// </summary>
+    Task<WorkflowDefinitionDto> GenerateMagenticPlanAsync(long collaborationId, string task, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// 执行自定义工作流
+    /// </summary>
+    Task<CollaborationResult> ExecuteCustomWorkflowAsync(long collaborationId, WorkflowDefinitionDto workflow, string input, CancellationToken cancellationToken = default);
 }

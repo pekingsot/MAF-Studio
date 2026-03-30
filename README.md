@@ -8,7 +8,9 @@ MAF Studio 是一个功能强大的多智能体协作平台，支持：
 
 - ✅ **智能体管理** - 创建、配置和管理多个AI智能体
 - ✅ **协作工作流** - 支持顺序、并发、任务移交、群聊协作、审阅迭代等多种工作流模式
-- ✅ **可视化设计** - 计划支持拖拽式工作流设计器
+- ✅ **工作流模板系统** - 保存、管理和复用工作流模板
+- ✅ **Magentic 工作流** - 智能Agent自动编排工作流，支持人工审核和修改
+- ✅ **可视化设计器** - 拖拽式工作流设计器，类似n8n、Dify、Coze
 - ✅ **实时通信** - 基于SignalR的实时消息传递
 - ✅ **RAG知识库** - 文档上传、分割、向量入库和检索
 - ✅ **多LLM支持** - 支持OpenAI、阿里千问、智谱AI等多种大模型
@@ -26,7 +28,8 @@ maf-studio/
 │   │   │   │   ├── LlmConfig.cs      # LLM配置
 │   │   │   │   ├── Collaboration.cs  # 协作项目
 │   │   │   │   ├── CollaborationAgent.cs  # 协作智能体
-│   │   │   │   └── CollaborationTask.cs   # 协作任务
+│   │   │   │   ├── CollaborationTask.cs   # 协作任务
+│   │   │   │   └── WorkflowTemplate.cs    # 工作流模板
 │   │   │   ├── Enums/                # 枚举定义
 │   │   │   └── Interfaces/           # 接口定义
 │   │   │       ├── Repositories/     # 仓储接口
@@ -49,6 +52,8 @@ maf-studio/
 │   │   │   │   ├── CollaborationService.cs
 │   │   │   │   ├── CollaborationWorkflowService.cs
 │   │   │   │   ├── CollaborationWorkflowService.ReviewIterative.cs
+│   │   │   │   ├── CollaborationWorkflowService.MagenticPlan.cs  # Magentic工作流
+│   │   │   │   ├── WorkflowTemplateService.cs  # 工作流模板服务
 │   │   │   │   └── ...
 │   │   │   ├── Clients/              # LLM客户端
 │   │   │   │   └── CustomOpenAICompatibleChatClient.cs
@@ -81,6 +86,10 @@ maf-studio/
 │   │   │   ├── Agents.tsx            # 智能体管理
 │   │   │   ├── Collaborations.tsx    # 协作管理
 │   │   │   ├── CollaborationChat.tsx # 协作聊天
+│   │   │   ├── WorkflowEditor.tsx    # 工作流编辑器
+│   │   │   ├── WorkflowTemplateManagement.tsx  # 工作流模板管理
+│   │   │   ├── WorkflowExecute.tsx   # 工作流执行
+│   │   │   ├── MagenticWorkflow.tsx  # Magentic工作流
 │   │   │   ├── collaboration-detail/ # 协作详情
 │   │   │   └── ...
 │   │   ├── services/                 # API服务
@@ -98,7 +107,9 @@ maf-studio/
 │   ├── 协作工作流设计.md
 │   ├── 协作工作流问题解答.md
 │   ├── 审阅迭代工作流详解.md
-│   └── 可视化工作流设计器方案.md
+│   ├── 可视化工作流设计器方案.md
+│   ├── Magentic工作流方案.md         # Magentic工作流方案
+│   └── 工作流模板系统设计.md          # 工作流模板系统设计
 │
 └── docker-compose.yml                # Docker Compose 配置
 ```
@@ -178,16 +189,25 @@ maf-studio/
   - **群聊协作**: 多Agent群聊讨论
   - **审阅迭代**: A写文档 → B审阅 → 打回修改 → 循环直到满意
 
-- **协作管理** 🆕
-  - 创建协作项目
-  - 添加/移除智能体
-  - 任务管理和状态跟踪
-  - 实时协作聊天
+- **工作流模板系统** 🆕
+  - **模板管理**: 创建、编辑、删除工作流模板
+  - **模板分类**: 按分类、标签组织模板
+  - **模板搜索**: 根据关键词、标签搜索模板
+  - **模板复用**: 执行保存的工作流模板
+  - **使用统计**: 记录模板使用次数
 
-- **可视化工作流设计器** 🔜
-  - 拖拽式工作流设计
-  - 自定义节点连接
-  - 支持复杂协作流程
+- **Magentic 工作流** 🆕
+  - **智能编排**: Manager Agent 自动分析任务并制定执行计划
+  - **人工审核**: 生成的计划可人工审核和修改
+  - **计划保存**: 将优化后的计划保存为模板
+  - **自动学习**: 系统记住优秀的流程，下次类似任务直接使用
+
+- **可视化工作流设计器** 🆕
+  - **拖拽设计**: 类似n8n、Dify、Coze的拖拽式设计
+  - **自定义节点**: Start、Agent、Aggregator、Condition、Loop等节点
+  - **边类型**: Sequential、FanOut、FanIn、Conditional、Loop等边
+  - **实时预览**: 实时预览工作流结构
+  - **参数配置**: 为节点配置参数和输入模板
 
 ### 其他功能
 
@@ -281,6 +301,18 @@ npm start
 - `POST /api/collaborations/{id}/workflow/handoffs` - 任务移交
 - `POST /api/collaborations/{id}/workflow/groupchat` - 群聊协作（流式）
 - `POST /api/collaborations/{id}/workflow/review-iterative` - 审阅迭代
+
+### 工作流模板 🆕
+- `GET /api/workflow-templates` - 获取模板列表
+- `GET /api/workflow-templates/{id}` - 获取模板详情
+- `POST /api/workflow-templates` - 创建模板
+- `PUT /api/workflow-templates/{id}` - 更新模板
+- `DELETE /api/workflow-templates/{id}` - 删除模板
+- `POST /api/workflow-templates/{id}/execute` - 执行模板
+- `POST /api/workflow-templates/generate-magentic` - 生成Magentic计划
+- `POST /api/workflow-templates/save-magentic` - 保存Magentic计划
+- `GET /api/workflow-templates/search` - 搜索模板
+- `GET /api/workflow-templates/categories` - 获取分类列表
 
 ### RAG服务
 - `POST /api/rag/upload` - 上传文档
@@ -396,6 +428,8 @@ POST /api/collaborations/{id}/workflow/review-iterative
 - [协作工作流问题解答](docs/协作工作流问题解答.md)
 - [审阅迭代工作流详解](docs/审阅迭代工作流详解.md)
 - [可视化工作流设计器方案](docs/可视化工作流设计器方案.md)
+- [Magentic工作流方案](docs/Magentic工作流方案.md)
+- [工作流模板系统设计](docs/工作流模板系统设计.md)
 
 ## 🐳 Docker 部署
 

@@ -24,6 +24,7 @@ public static class DependencyInjection
         
         services.AddScoped<IAgentFactoryService, AgentFactoryService>();
         services.AddScoped<ICollaborationWorkflowService, CollaborationWorkflowService>();
+        services.AddScoped<IWorkflowTemplateService, WorkflowTemplateService>();
         
         services.AddSingleton<SkillLoader>();
         services.AddScoped<SkillExecutor>();
