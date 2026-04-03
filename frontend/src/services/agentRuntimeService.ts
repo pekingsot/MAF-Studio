@@ -28,23 +28,12 @@ export const agentRuntimeService = {
     return response.data;
   },
 
-  sleep: async (agentId: number): Promise<AgentRuntimeStatus> => {
-    const response = await api.post<AgentRuntimeStatus>(`/agentruntime/${agentId}/sleep`);
-    return response.data;
-  },
-
-  destroy: async (agentId: number): Promise<AgentRuntimeStatus> => {
-    const response = await api.post<AgentRuntimeStatus>(`/agentruntime/${agentId}/destroy`);
-    return response.data;
-  },
-
-  test: async (agentId: number, input?: string): Promise<AgentTestResponse> => {
-    const response = await api.post<AgentTestResponse>(`/agentruntime/${agentId}/test`, { input });
-    return response.data;
-  },
-
-  getActiveAgents: async (): Promise<AgentRuntimeStatus[]> => {
-    const response = await api.get<AgentRuntimeStatus[]>('/agentruntime/active');
+  test: async (agentId: number, input?: string, llmConfigId?: number, llmModelConfigId?: number): Promise<AgentTestResponse> => {
+    const response = await api.post<AgentTestResponse>(`/agentruntime/${agentId}/test`, { 
+      input,
+      llmConfigId,
+      llmModelConfigId
+    });
     return response.data;
   },
 };

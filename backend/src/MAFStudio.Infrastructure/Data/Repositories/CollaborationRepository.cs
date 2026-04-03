@@ -70,19 +70,20 @@ public class CollaborationRepository : ICollaborationRepository
         return rows > 0;
     }
 
-    public async Task<bool> AddAgentAsync(long collaborationId, long agentId, string? role)
+    public async Task<bool> AddAgentAsync(long collaborationId, long agentId, string? role, string? customPrompt)
     {
         using var connection = _context.CreateConnection();
         var id = SnowflakeIdGenerator.Instance.NextId();
         const string sql = @"
-            INSERT INTO collaboration_agents (id, collaboration_id, agent_id, role, joined_at)
-            VALUES (@Id, @CollaborationId, @AgentId, @Role, @JoinedAt)";
+            INSERT INTO collaboration_agents (id, collaboration_id, agent_id, role, custom_prompt, joined_at)
+            VALUES (@Id, @CollaborationId, @AgentId, @Role, @CustomPrompt, @JoinedAt)";
         var rows = await connection.ExecuteAsync(sql, new 
         { 
             Id = id, 
             CollaborationId = collaborationId, 
             AgentId = agentId, 
             Role = role, 
+            CustomPrompt = customPrompt,
             JoinedAt = DateTime.UtcNow 
         });
         return rows > 0;
@@ -93,6 +94,23 @@ public class CollaborationRepository : ICollaborationRepository
         using var connection = _context.CreateConnection();
         const string sql = "DELETE FROM collaboration_agents WHERE collaboration_id = @CollaborationId AND agent_id = @AgentId";
         var rows = await connection.ExecuteAsync(sql, new { CollaborationId = collaborationId, AgentId = agentId });
+        return rows > 0;
+    }
+
+    public async Task<bool> UpdateAgentRoleAsync(long collaborationId, long agentId, string role, string? customPrompt)
+    {
+        using var connection = _context.CreateConnection();
+        const string sql = @"
+            UPDATE collaboration_agents 
+            SET role = @Role, custom_prompt = @CustomPrompt
+            WHERE collaboration_id = @CollaborationId AND agent_id = @AgentId";
+        var rows = await connection.ExecuteAsync(sql, new 
+        { 
+            CollaborationId = collaborationId, 
+            AgentId = agentId, 
+            Role = role, 
+            CustomPrompt = customPrompt 
+        });
         return rows > 0;
     }
 

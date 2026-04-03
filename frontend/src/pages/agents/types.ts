@@ -88,8 +88,7 @@ export const AGENT_STATUS_MAP: Record<string, { color: string; label: string }> 
 
 export const RUNTIME_STATE_MAP: Record<string, { color: string; label: string }> = {
   Uninitialized: { color: 'default', label: '未初始化' },
-  Ready: { color: 'green', label: '就绪' },
+  Ready: { color: 'green', label: '可用' },
   Busy: { color: 'orange', label: '忙碌' },
-  Sleeping: { color: 'purple', label: '休眠' },
   Error: { color: 'red', label: '错误' },
 };

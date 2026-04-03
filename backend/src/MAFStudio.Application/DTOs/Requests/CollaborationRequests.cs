@@ -23,6 +23,13 @@ public class AddAgentRequest
 {
     public long AgentId { get; set; }
     public string? Role { get; set; }
+    public string? CustomPrompt { get; set; }
+}
+
+public class UpdateAgentRoleRequest
+{
+    public string Role { get; set; } = string.Empty;
+    public string? CustomPrompt { get; set; }
 }
 
 public class CreateTaskRequest

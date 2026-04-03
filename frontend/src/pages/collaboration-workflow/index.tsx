@@ -115,12 +115,13 @@ const CollaborationWorkflowPage: React.FC = () => {
           setSelectedCollaboration(null);
         }}
         footer={null}
-        width={800}
+        width={900}
       >
         {selectedCollaboration && (
           <WorkflowExecutor
             collaborationId={parseInt(selectedCollaboration.id)}
             collaborationName={selectedCollaboration.name}
+            agents={selectedCollaboration.agents}
           />
         )}
       </Modal>

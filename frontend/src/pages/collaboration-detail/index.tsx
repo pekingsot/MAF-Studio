@@ -6,10 +6,11 @@ import { useCollaborationDetail } from './useCollaborationDetail';
 import CollaborationInfo from './CollaborationInfo';
 import AgentTable from './AgentTable';
 import TaskTable from './TaskTable';
+import ChatHistory from './ChatHistory';
 
 const CollaborationDetail: React.FC = () => {
   const navigate = useNavigate();
-  const { collaboration, loading, handleRemoveAgent } = useCollaborationDetail();
+  const { id, collaboration, loading, handleRemoveAgent, loadCollaboration } = useCollaborationDetail();
 
   if (loading || !collaboration) {
     return <div>加载中...</div>;
@@ -37,7 +38,9 @@ const CollaborationDetail: React.FC = () => {
               children: (
                 <AgentTable
                   agents={collaboration.agents}
+                  collaborationId={Number(id)}
                   onRemove={handleRemoveAgent}
+                  onUpdate={() => id && loadCollaboration(id)}
                 />
               ),
             },
@@ -45,6 +48,11 @@ const CollaborationDetail: React.FC = () => {
               key: 'tasks',
               label: `任务 (${collaboration.tasks.length})`,
               children: <TaskTable tasks={collaboration.tasks} />,
+            },
+            {
+              key: 'chat',
+              label: '协作过程',
+              children: <ChatHistory collaborationId={id || ''} />,
             },
           ]}
           style={{ marginTop: 24 }}

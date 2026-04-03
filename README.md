@@ -291,16 +291,17 @@ npm start
 - `DELETE /api/collaborations/{id}` - 删除协作项目
 - `POST /api/collaborations/{id}/agents` - 添加智能体到协作
 - `DELETE /api/collaborations/{id}/agents/{agentId}` - 移除智能体
+- `PATCH /api/collaborations/{id}/agents/{agentId}/role` - 更新智能体角色和提示词
 - `POST /api/collaborations/{id}/tasks` - 创建任务
-- `PATCH /api/collaborations/tasks/{taskId}/status` - 更新任务状态
+- `DELETE /api/collaborations/tasks/{taskId}` - 删除任务
+- `GET /api/collaborations/{id}/messages` - 获取协作消息历史 🆕
 
 ### 协作工作流 🆕
-- `POST /api/collaborations/{id}/workflow/execute` - 执行工作流
-- `POST /api/collaborations/{id}/workflow/sequential` - 顺序执行
-- `POST /api/collaborations/{id}/workflow/concurrent` - 并发执行
-- `POST /api/collaborations/{id}/workflow/handoffs` - 任务移交
-- `POST /api/collaborations/{id}/workflow/groupchat` - 群聊协作（流式）
-- `POST /api/collaborations/{id}/workflow/review-iterative` - 审阅迭代
+- `POST /api/collaborationworkflow/{id}/sequential` - 顺序执行（Magentic工作流）
+- `POST /api/collaborationworkflow/{id}/concurrent` - 并发执行
+- `POST /api/collaborationworkflow/{id}/handoffs` - 任务移交
+- `POST /api/collaborationworkflow/{id}/groupchat` - 群聊协作（流式）
+- `POST /api/collaborationworkflow/{id}/review-iterative` - 审阅迭代（Magentic工作流）
 
 ### 工作流模板 🆕
 - `GET /api/workflow-templates` - 获取模板列表
@@ -540,3 +541,38 @@ pekingsot <北京醉鬼>
 ## 🙏 致谢
 
 感谢 Microsoft Agent Framework (MAF) 团队提供的优秀框架！
+
+## 🔄 最近更新
+
+### 2026-04-04 协作管理功能优化
+
+#### 🎯 任务执行优化
+- **角色验证**: 执行任务前检查协作中是否包含必要的Manager（协调者）和Worker（执行者）角色
+- **执行弹窗**: 添加任务执行弹窗，支持选择工作流类型（Magentic智能工作流/群聊）
+- **友好提示**: 缺少角色时显示详细提示，引导用户添加必要的智能体
+
+#### 🤖 智能体管理优化
+- **重复过滤**: 添加智能体时自动过滤已在协作中的智能体，避免重复添加
+- **错误提示**: 显示后端返回的具体错误消息，如"该Agent已经存在于协作中，请勿重复添加"
+- **空状态提示**: 当所有智能体都已在协作中时，显示友好的提示信息
+
+#### 🎨 UI/UX优化
+- **布局优化**: 协作管理列表使用百分比宽度，避免超出屏幕
+- **按钮优化**: 操作按钮使用小尺寸，添加wrap属性自动换行
+- **标题简化**: "智能体数量" → "智能体"，"任务数量" → "任务"
+- **提示词显示**: 自定义提示词列添加Tooltip，鼠标悬停显示完整内容
+
+#### 💬 群聊工作流改进
+- **主持人机制**: 添加主持人（Manager角色）控制对话流程
+- **防止死循环**: 主持人决定何时结束讨论，避免无限循环
+- **流程控制**: 主持人指定下一个发言的Agent，或直接结束讨论
+
+#### 🗃️ 数据库优化
+- **ID类型转换**: 将agent_messages表的UUID字段改为BIGINT自增ID（V34迁移脚本）
+- **遵循规范**: 所有ID统一使用自增ID，不使用UUID
+
+#### 📋 API更新
+- 新增 `PATCH /api/collaborations/{id}/agents/{agentId}/role` - 更新智能体角色和提示词
+- 新增 `DELETE /api/collaborations/tasks/{taskId}` - 删除任务
+- 新增 `GET /api/collaborations/{id}/messages` - 获取协作消息历史
+- 更新协作工作流API路径：`/api/collaborationworkflow/{id}/...`

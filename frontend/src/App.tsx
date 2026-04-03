@@ -77,7 +77,11 @@ function App() {
 
   return (
     <MainLayout>
-      <Content style={{ padding: '24px', minHeight: 'calc(100vh - 64px)' }}>
+      <Content style={{ 
+        padding: location.pathname === '/workflow-editor' ? 0 : '24px', 
+        minHeight: 'calc(100vh - 64px)',
+        height: location.pathname === '/workflow-editor' ? 'calc(100vh - 64px)' : 'auto',
+      }}>
         <Routes>
           <Route path="/" element={lazyLoad(Dashboard)} />
           <Route path="/agents" element={lazyLoad(Agents)} />

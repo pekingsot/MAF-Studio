@@ -43,13 +43,16 @@ public class CollaborationWorkflowController : ControllerBase
     [HttpPost("{collaborationId}/concurrent")]
     public async Task<ActionResult<CollaborationResult>> ExecuteConcurrent(
         long collaborationId,
-        [FromBody] WorkflowRequest request)
+        [FromBody] ConcurrentWorkflowRequest request)
     {
         try
         {
             var result = await _workflowService.ExecuteConcurrentAsync(
                 collaborationId,
-                request.Input);
+                request.Input,
+                request.ExecutorAgentIds,
+                request.AggregatorAgentId,
+                request.AggregationStrategy);
 
             return Ok(result);
         }
@@ -120,6 +123,26 @@ public class CollaborationWorkflowController : ControllerBase
 public class WorkflowRequest
 {
     public string Input { get; set; } = string.Empty;
+}
+
+public class ConcurrentWorkflowRequest
+{
+    public string Input { get; set; } = string.Empty;
+    
+    /// <summary>
+    /// 参与并发执行的Agent ID列表（如果不指定，则使用协作中的所有Agent）
+    /// </summary>
+    public List<long>? ExecutorAgentIds { get; set; }
+    
+    /// <summary>
+    /// 聚合Agent ID（如果指定，则使用该Agent智能合并结果）
+    /// </summary>
+    public long? AggregatorAgentId { get; set; }
+    
+    /// <summary>
+    /// 聚合策略：simple（简单拼接）或 intelligent（智能合并）
+    /// </summary>
+    public string AggregationStrategy { get; set; } = "simple";
 }
 
 public class ReviewIterativeRequest

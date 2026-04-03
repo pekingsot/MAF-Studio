@@ -35,11 +35,19 @@ public class CollaborationAgentRepository : ICollaborationAgentRepository
                 ca.collaboration_id,
                 ca.agent_id,
                 ca.role,
+                ca.custom_prompt,
                 ca.joined_at,
                 a.name as agent_name,
-                a.type as agent_type,
-                a.status as agent_status,
-                a.avatar as agent_avatar
+                a.type_name as agent_type,
+                CASE a.status
+                    WHEN 0 THEN 'Inactive'
+                    WHEN 1 THEN 'Active'
+                    WHEN 2 THEN 'Busy'
+                    WHEN 3 THEN 'Error'
+                    ELSE 'Inactive'
+                END as agent_status,
+                a.avatar as agent_avatar,
+                a.system_prompt as system_prompt
             FROM collaboration_agents ca
             INNER JOIN agents a ON ca.agent_id = a.id
             WHERE ca.collaboration_id = @CollaborationId 

@@ -14,7 +14,7 @@ public class MessageService : IMessageService
         _messageRepository = messageRepository;
     }
 
-    public async Task<AgentMessage> CreateUserMessageAsync(long collaborationId, string content, long? userId, string? senderName)
+    public async Task<AgentMessage> CreateUserMessageAsync(long collaborationId, string content, string? userId, string? senderName)
     {
         var message = new AgentMessage
         {
@@ -23,7 +23,8 @@ public class MessageService : IMessageService
             SenderType = SenderType.User,
             SenderName = senderName ?? "User",
             UserId = userId,
-            IsStreaming = false
+            IsStreaming = false,
+            CreatedAt = DateTime.UtcNow
         };
 
         return await _messageRepository.CreateAsync(message);
@@ -38,14 +39,15 @@ public class MessageService : IMessageService
             Content = content,
             SenderType = SenderType.Agent,
             SenderName = senderName,
-            IsStreaming = false
+            IsStreaming = false,
+            CreatedAt = DateTime.UtcNow
         };
 
         return await _messageRepository.CreateAsync(message);
     }
 
-    public async Task<List<AgentMessage>> GetByCollaborationIdAsync(long collaborationId, int limit = 100)
+    public async Task<List<AgentMessage>> GetByCollaborationIdAsync(long collaborationId)
     {
-        return await _messageRepository.GetByCollaborationIdAsync(collaborationId, limit);
+        return await _messageRepository.GetByCollaborationIdAsync(collaborationId);
     }
 }
