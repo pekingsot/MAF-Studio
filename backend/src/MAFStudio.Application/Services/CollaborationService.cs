@@ -77,12 +77,12 @@ public class CollaborationService : ICollaborationService
         return true;
     }
 
-    public async Task<bool> AddAgentAsync(long collaborationId, long agentId, string? role, long userId)
+    public async Task<bool> AddAgentAsync(long collaborationId, long agentId, string? role, string? customPrompt, long userId)
     {
         var collaboration = await GetByIdAsync(collaborationId, userId);
         if (collaboration == null) return false;
 
-        return await _collaborationRepository.AddAgentAsync(collaborationId, agentId, role);
+        return await _collaborationRepository.AddAgentAsync(collaborationId, agentId, role, customPrompt);
     }
 
     public async Task<bool> RemoveAgentAsync(long collaborationId, long agentId, long userId)
@@ -91,6 +91,14 @@ public class CollaborationService : ICollaborationService
         if (collaboration == null) return false;
 
         return await _collaborationRepository.RemoveAgentAsync(collaborationId, agentId);
+    }
+
+    public async Task<bool> UpdateAgentRoleAsync(long collaborationId, long agentId, string role, string? customPrompt, long userId)
+    {
+        var collaboration = await GetByIdAsync(collaborationId, userId);
+        if (collaboration == null) return false;
+
+        return await _collaborationRepository.UpdateAgentRoleAsync(collaborationId, agentId, role, customPrompt);
     }
 
     public async Task<List<CollaborationAgent>> GetAgentsAsync(long collaborationId)
@@ -135,6 +143,11 @@ public class CollaborationService : ICollaborationService
         await _collaborationTaskRepository.UpdateStatusAsync(taskId, status);
 
         return await _collaborationTaskRepository.GetByIdAsync(taskId) ?? task;
+    }
+
+    public async Task<CollaborationTask?> GetTaskByIdAsync(long taskId)
+    {
+        return await _collaborationTaskRepository.GetByIdAsync(taskId);
     }
 
     public async Task<bool> DeleteTaskAsync(long taskId, long userId)

@@ -7,6 +7,7 @@ using MAFStudio.Application.DTOs.Requests;
 using System.Security.Claims;
 using MAFStudio.Core.Enums;
 using MAFStudio.Api.Extensions;
+using MAFStudio.Core.Interfaces.Repositories;
 
 namespace MAFStudio.Api.Controllers;
 
@@ -18,12 +19,18 @@ public class CollaborationsController : ControllerBase
     private readonly ICollaborationService _collaborationService;
     private readonly IAuthService _authService;
     private readonly IOperationLogService _logService;
+    private readonly IAgentMessageRepository _agentMessageRepository;
 
-    public CollaborationsController(ICollaborationService collaborationService, IAuthService authService, IOperationLogService logService)
+    public CollaborationsController(
+        ICollaborationService collaborationService, 
+        IAuthService authService, 
+        IOperationLogService logService,
+        IAgentMessageRepository agentMessageRepository)
     {
         _collaborationService = collaborationService;
         _authService = authService;
         _logService = logService;
+        _agentMessageRepository = agentMessageRepository;
     }
 
     [HttpGet]
@@ -45,6 +52,8 @@ public class CollaborationsController : ControllerBase
                 AgentStatus = a.AgentStatus,
                 AgentAvatar = a.AgentAvatar,
                 Role = a.Role,
+                CustomPrompt = a.CustomPrompt,
+                SystemPrompt = a.SystemPrompt,
                 JoinedAt = a.JoinedAt
             }).ToList() ?? new List<CollaborationAgentVo>();
             
@@ -87,6 +96,8 @@ public class CollaborationsController : ControllerBase
             AgentStatus = a.AgentStatus,
             AgentAvatar = a.AgentAvatar,
             Role = a.Role,
+            CustomPrompt = a.CustomPrompt,
+            SystemPrompt = a.SystemPrompt,
             JoinedAt = a.JoinedAt
         }).ToList() ?? new List<CollaborationAgentVo>();
         
@@ -151,7 +162,7 @@ public class CollaborationsController : ControllerBase
         
         try
         {
-            var result = await _collaborationService.AddAgentAsync(id, request.AgentId, request.Role, userId);
+            var result = await _collaborationService.AddAgentAsync(id, request.AgentId, request.Role, request.CustomPrompt, userId);
             if (!result)
             {
                 return BadRequest(new { success = false, message = "添加Agent失败，请检查协作和Agent是否存在" });
@@ -183,6 +194,29 @@ public class CollaborationsController : ControllerBase
         }
         
         return NoContent();
+    }
+
+    [HttpPatch("{id}/agents/{agentId}/role")]
+    public async Task<ActionResult> UpdateAgentRole(long id, long agentId, [FromBody] UpdateAgentRoleRequest request)
+    {
+        var userId = User.GetUserId();
+        
+        try
+        {
+            var result = await _collaborationService.UpdateAgentRoleAsync(id, agentId, request.Role, request.CustomPrompt, userId);
+            if (!result)
+            {
+                return NotFound(new { success = false, message = "协作或Agent不存在" });
+            }
+            
+            await _logService.LogAsync(userId, "更新", "协作Agent角色", $"更新协作 {id} 中Agent {agentId} 的角色为 {request.Role}", null);
+            
+            return Ok(new { success = true, message = "角色更新成功" });
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(new { success = false, message = $"更新角色失败: {ex.Message}" });
+        }
     }
 
     [HttpPost("{id}/tasks")]
@@ -222,5 +256,46 @@ public class CollaborationsController : ControllerBase
         }
         
         return NoContent();
+    }
+
+    [HttpPost("tasks/{taskId}/execute")]
+    public async Task<ActionResult> ExecuteTask(long taskId)
+    {
+        var userId = User.GetUserId();
+        
+        try
+        {
+            var task = await _collaborationService.GetTaskByIdAsync(taskId);
+            if (task == null)
+            {
+                return NotFound(new { success = false, message = "任务不存在" });
+            }
+
+            await _collaborationService.UpdateTaskStatusAsync(taskId, CollaborationTaskStatus.InProgress, userId);
+            
+            await _logService.LogAsync(userId, "执行", "协作任务", $"开始执行任务: {task.Title}", null);
+            
+            return Ok(new { success = true, message = "任务已启动，请查看工作流执行日志" });
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(new { success = false, message = $"启动任务失败: {ex.Message}" });
+        }
+    }
+
+    [HttpGet("{id}/messages")]
+    public async Task<ActionResult<List<Core.Entities.AgentMessage>>> GetCollaborationMessages(long id)
+    {
+        var userId = User.GetUserId();
+        
+        var collaboration = await _collaborationService.GetByIdAsync(id, userId);
+        if (collaboration == null)
+        {
+            return NotFound();
+        }
+
+        var messages = await _agentMessageRepository.GetByCollaborationIdAsync(collaboration.Id);
+        
+        return Ok(messages);
     }
 }

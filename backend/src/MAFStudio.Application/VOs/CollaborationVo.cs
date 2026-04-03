@@ -25,6 +25,8 @@ public class CollaborationAgentVo
     public string? AgentStatus { get; set; }
     public string? AgentAvatar { get; set; }
     public string? Role { get; set; }
+    public string? CustomPrompt { get; set; }
+    public string? SystemPrompt { get; set; }
     public DateTime JoinedAt { get; set; }
 }
 

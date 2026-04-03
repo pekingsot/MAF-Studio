@@ -27,6 +27,13 @@ export interface ReviewIterativeParameters {
   saveVersions?: boolean;
 }
 
+export interface ConcurrentWorkflowRequest {
+  input: string;
+  executorAgentIds?: number[];
+  aggregatorAgentId?: number;
+  aggregationStrategy?: 'simple' | 'intelligent';
+}
+
 export interface ReviewIterativeRequest {
   input: string;
   parameters?: ReviewIterativeParameters;
@@ -41,10 +48,13 @@ export const collaborationWorkflowService = {
     return response.data;
   },
 
-  executeConcurrent: async (collaborationId: number, input: string): Promise<CollaborationResult> => {
+  executeConcurrent: async (
+    collaborationId: number, 
+    request: ConcurrentWorkflowRequest
+  ): Promise<CollaborationResult> => {
     const response = await api.post<CollaborationResult>(
       `/collaborationworkflow/${collaborationId}/concurrent`,
-      { input }
+      request
     );
     return response.data;
   },

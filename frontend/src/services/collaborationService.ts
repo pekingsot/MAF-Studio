@@ -23,6 +23,8 @@ export interface CollaborationAgent {
   agentStatus?: string;
   agentAvatar?: string;
   role?: string;
+  customPrompt?: string;
+  systemPrompt?: string;
   joinedAt: string;
 }
 
@@ -50,6 +52,12 @@ export interface CreateCollaborationRequest {
 export interface AddAgentRequest {
   agentId: number;
   role?: string;
+  customPrompt?: string;
+}
+
+export interface UpdateAgentRoleRequest {
+  role: string;
+  customPrompt?: string;
 }
 
 export interface CreateTaskRequest {
@@ -91,6 +99,10 @@ export const collaborationService = {
     await api.delete(`/collaborations/${id}/agents/${agentId}`);
   },
 
+  updateAgentRole: async (id: number, agentId: number, request: UpdateAgentRoleRequest): Promise<void> => {
+    await api.patch(`/collaborations/${id}/agents/${agentId}/role`, request);
+  },
+
   createTask: async (id: string, request: CreateTaskRequest): Promise<CollaborationTask> => {
     const response = await api.post<CollaborationTask>(`/collaborations/${id}/tasks`, request);
     return response.data;
@@ -103,6 +115,36 @@ export const collaborationService = {
 
   deleteTask: async (taskId: string): Promise<void> => {
     await api.delete(`/collaborations/tasks/${taskId}`);
+  },
+
+  executeTask: async (taskId: string): Promise<any> => {
+    const response = await api.post(`/collaborations/tasks/${taskId}/execute`);
+    return response.data;
+  },
+
+  executeSequentialWorkflow: async (collaborationId: string, input: string): Promise<any> => {
+    const response = await api.post(`/collaborationworkflow/${collaborationId}/sequential`, { input });
+    return response.data;
+  },
+
+  executeConcurrentWorkflow: async (collaborationId: string, input: string, executorAgentIds?: number[], aggregatorAgentId?: number, aggregationStrategy?: string): Promise<any> => {
+    const response = await api.post(`/collaborationworkflow/${collaborationId}/concurrent`, {
+      input,
+      executorAgentIds,
+      aggregatorAgentId,
+      aggregationStrategy: aggregationStrategy || 'simple'
+    });
+    return response.data;
+  },
+
+  executeHandoffsWorkflow: async (collaborationId: string, input: string): Promise<any> => {
+    const response = await api.post(`/collaborationworkflow/${collaborationId}/handoffs`, { input });
+    return response.data;
+  },
+
+  executeGroupChatWorkflow: async (collaborationId: string, input: string): Promise<any> => {
+    const response = await api.post(`/collaborationworkflow/${collaborationId}/groupchat`, { input });
+    return response.data;
   },
 
   sendChatMessage: async (collaborationId: string, content: string, mentionedAgentIds?: string[]): Promise<any> => {
@@ -124,6 +166,11 @@ export const collaborationService = {
 
   getCollaborationAgents: async (collaborationId: string): Promise<CollaborationAgent[]> => {
     const response = await api.get<CollaborationAgent[]>(`/collaborations/${collaborationId}/agents`);
+    return response.data;
+  },
+
+  getCollaborationMessages: async (collaborationId: string): Promise<any[]> => {
+    const response = await api.get<any[]>(`/collaborations/${collaborationId}/messages`);
     return response.data;
   },
 };

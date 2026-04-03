@@ -25,9 +25,6 @@ namespace MAFStudio.Application.Services;
 /// </summary>
 public partial class CollaborationWorkflowService
 {
-    /// <summary>
-    /// 执行Magentic工作流（动态Agent编排）
-    /// </summary>
     public async Task<CollaborationResult> ExecuteReviewIterativeAsync(
         long collaborationId,
         string input,
@@ -36,30 +33,66 @@ public partial class CollaborationWorkflowService
     {
         try
         {
-            var chatClients = await GetAgentsAsync(collaborationId);
+            var collaborationAgents = await _collaborationAgentRepository.GetByCollaborationIdAsync(collaborationId);
             
-            if (chatClients.Count < 2)
+            if (collaborationAgents.Count == 0)
             {
                 return new CollaborationResult
                 {
                     Success = false,
-                    Error = "Magentic工作流至少需要2个Agent（Manager和至少一个Worker）"
+                    Error = "协作中没有Agent"
+                };
+            }
+
+            // 查找Manager Agent（Role为"Manager"）
+            var managerAgent = collaborationAgents.FirstOrDefault(a => 
+                a.Role?.Equals("Manager", StringComparison.OrdinalIgnoreCase) == true);
+            
+            // 如果没有指定Manager，使用第一个Agent作为Manager
+            if (managerAgent == null)
+            {
+                _logger.LogWarning("未指定Manager Agent，使用第一个Agent作为Manager");
+                managerAgent = collaborationAgents[0];
+            }
+
+            // 其余的Agent作为Worker
+            var workerAgents = collaborationAgents
+                .Where(a => a.Id != managerAgent.Id)
+                .ToList();
+
+            if (workerAgents.Count == 0)
+            {
+                return new CollaborationResult
+                {
+                    Success = false,
+                    Error = "Magentic工作流至少需要1个Manager和1个Worker"
                 };
             }
 
             parameters ??= new ReviewIterativeParameters();
             
-            _logger.LogInformation($"开始Magentic工作流，最大迭代次数: {parameters.MaxIterations ?? 10}");
+            _logger.LogInformation($"开始Magentic工作流，Manager: Agent#{managerAgent.AgentId}, Workers: {workerAgents.Count}个，最大迭代次数: {parameters.MaxIterations ?? 10}");
+
+            // 获取Manager的ChatClient
+            var managerClient = await _agentFactory.CreateAgentAsync(managerAgent.AgentId);
 
             // 准备Worker Agents的描述信息
             var workerDescriptions = new List<string>();
-            for (int i = 1; i < chatClients.Count; i++)
+            var workerClients = new List<IChatClient>();
+            
+            foreach (var workerAgent in workerAgents)
             {
-                workerDescriptions.Add($"- Agent_{i}: Worker Agent #{i}");
+                var workerClient = await _agentFactory.CreateAgentAsync(workerAgent.AgentId);
+                workerClients.Add(workerClient);
+                
+                var description = !string.IsNullOrEmpty(workerAgent.CustomPrompt) 
+                    ? workerAgent.CustomPrompt 
+                    : $"Worker Agent #{workerAgents.IndexOf(workerAgent) + 1}";
+                    
+                workerDescriptions.Add($"- Agent_{workerAgents.IndexOf(workerAgent) + 1}: {description}");
             }
 
-            // 创建Manager Agent
-            // Manager的System Prompt需要明确告诉它有哪些下属，以及如何协调他们
+            // 创建Manager Agent的System Prompt
             var managerInstructions = $@"你是一个智能工作流协调者（Magentic Manager），负责协调多个Worker Agent完成复杂任务。
 
 你的职责：
@@ -86,22 +119,6 @@ public partial class CollaborationWorkflowService
 - 最多执行 {parameters.MaxIterations ?? 10} 轮迭代
 
 请开始协调任务！";
-
-            // 创建Manager Agent（使用第一个Agent的LLM配置）
-            var managerClient = chatClients[0];
-            
-            // 创建Worker Agents
-            var workers = new List<AIAgent>();
-            for (int i = 1; i < chatClients.Count; i++)
-            {
-                var workerAgent = chatClients[i].AsAIAgent(
-                    instructions: $@"你是一个专业的Worker Agent #{i}。
-你的职责是执行Manager分配给你的任务。
-请认真完成任务并提供详细的执行结果。",
-                    name: $"Agent_{i}",
-                    description: $"Worker Agent #{i}");
-                workers.Add(workerAgent);
-            }
 
             // 执行Magentic工作流
             var messages = new List<ChatMessageDto>();
@@ -164,17 +181,19 @@ public partial class CollaborationWorkflowService
 
                 // 检查是否要委托任务
                 // 简化处理：如果Manager提到某个Agent，就委托给那个Agent
-                foreach (var worker in workers)
+                for (int i = 0; i < workerAgents.Count; i++)
                 {
-                    if (managerOutput.Contains(worker.Name ?? "", StringComparison.OrdinalIgnoreCase))
+                    var workerName = $"Agent_{i + 1}";
+                    if (managerOutput.Contains(workerName, StringComparison.OrdinalIgnoreCase) ||
+                        managerOutput.Contains($"Worker #{i + 1}", StringComparison.OrdinalIgnoreCase))
                     {
-                        _logger.LogInformation($"Manager委托任务给 {worker.Name}");
+                        _logger.LogInformation($"Manager委托任务给 {workerName}");
 
                         // 提取任务描述（简化处理）
                         var taskForWorker = $"请执行以下任务：{input}\n\nManager的指示：{managerOutput}";
 
                         // 执行Worker Agent
-                        var workerResponse = await worker.RunAsync(
+                        var workerResponse = await workerClients[i].GetResponseAsync(
                             new List<ChatMessage> { new(ChatRole.User, taskForWorker) },
                             cancellationToken: cancellationToken);
 
@@ -182,14 +201,14 @@ public partial class CollaborationWorkflowService
                         
                         messages.Add(new ChatMessageDto
                         {
-                            Sender = worker.Name ?? "Worker",
+                            Sender = workerName,
                             Content = workerOutput,
                             Timestamp = DateTime.UtcNow
                         });
 
-                        conversationHistory.Add(new ChatMessage(ChatRole.User, $"[{worker.Name}] {workerOutput}"));
+                        conversationHistory.Add(new ChatMessage(ChatRole.User, $"[{workerName}] {workerOutput}"));
 
-                        _logger.LogInformation($"[{worker.Name}] {workerOutput}");
+                        _logger.LogInformation($"[{workerName}] {workerOutput}");
                         currentContent = workerOutput;
                         break;
                     }
@@ -206,7 +225,9 @@ public partial class CollaborationWorkflowService
                     ["iterations"] = iteration,
                     ["isCompleted"] = isCompleted,
                     ["maxIterations"] = maxIterations,
-                    ["pattern"] = "Magentic"
+                    ["pattern"] = "Magentic",
+                    ["managerAgentId"] = managerAgent.AgentId,
+                    ["workerCount"] = workerAgents.Count
                 }
             };
         }

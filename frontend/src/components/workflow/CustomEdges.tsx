@@ -4,9 +4,10 @@ import {
   EdgeLabelRenderer,
   getBezierPath,
   Position,
+  EdgeProps,
 } from 'reactflow';
-import { Tag } from 'antd';
-import type { EdgeType } from '../../types/workflow-template';
+import { Tag, Tooltip } from 'antd';
+import { EdgeType } from '../../types/workflow-template';
 
 /**
  * 获取边类型标签颜色
@@ -49,20 +50,29 @@ const getEdgeTypeText = (type: EdgeType) => {
 };
 
 /**
+ * 获取边类型颜色值
+ */
+const getEdgeColor = (type: EdgeType) => {
+  switch (type) {
+    case 'sequential':
+      return '#1890ff';
+    case 'fan-out':
+      return '#52c41a';
+    case 'fan-in':
+      return '#722ed1';
+    case 'conditional':
+      return '#fa8c16';
+    case 'loop':
+      return '#eb2f96';
+    default:
+      return '#1890ff';
+  }
+};
+
+/**
  * 自定义边组件
  */
-export const CustomEdge: React.FC<{
-  id: string;
-  sourceX: number;
-  sourceY: number;
-  targetX: number;
-  targetY: number;
-  sourcePosition: Position;
-  targetPosition: Position;
-  data: { type: EdgeType; description?: string };
-  style?: React.CSSProperties;
-  markerEnd?: string;
-}> = ({
+export const CustomEdge: React.FC<EdgeProps<{ type: EdgeType; description?: string }>> = ({
   id,
   sourceX,
   sourceY,
@@ -83,6 +93,9 @@ export const CustomEdge: React.FC<{
     targetPosition,
   });
 
+  const edgeType = data?.type || EdgeType.SEQUENTIAL;
+  const edgeColor = getEdgeColor(edgeType);
+
   return (
     <>
       <BaseEdge
@@ -90,8 +103,9 @@ export const CustomEdge: React.FC<{
         markerEnd={markerEnd}
         style={{
           ...style,
-          strokeWidth: 2,
-          stroke: data.type === 'fan-out' || data.type === 'fan-in' ? '#52c41a' : '#1890ff',
+          strokeWidth: 3,
+          stroke: edgeColor,
+          transition: 'all 0.3s ease',
         }}
       />
       <EdgeLabelRenderer>
@@ -104,7 +118,21 @@ export const CustomEdge: React.FC<{
           }}
           className="nodrag nopan"
         >
-          <Tag color={getEdgeTypeColor(data.type)}>{getEdgeTypeText(data.type)}</Tag>
+          <Tooltip title={data?.description || getEdgeTypeText(edgeType)}>
+            <Tag 
+              color={getEdgeTypeColor(edgeType)}
+              style={{
+                margin: 0,
+                padding: '2px 8px',
+                borderRadius: '12px',
+                fontSize: '11px',
+                boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+                transition: 'all 0.3s ease',
+              }}
+            >
+              {getEdgeTypeText(edgeType)}
+            </Tag>
+          </Tooltip>
         </div>
       </EdgeLabelRenderer>
     </>

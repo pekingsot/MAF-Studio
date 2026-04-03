@@ -12,7 +12,20 @@ public interface ICollaborationWorkflowService
     /// <summary>
     /// 执行并发工作流
     /// </summary>
-    Task<CollaborationResult> ExecuteConcurrentAsync(long collaborationId, string input, CancellationToken cancellationToken = default);
+    /// <param name="collaborationId">协作ID</param>
+    /// <param name="input">输入内容</param>
+    /// <param name="executorAgentIds">参与并发执行的Agent ID列表（可选）</param>
+    /// <param name="aggregatorAgentId">聚合Agent ID（可选）</param>
+    /// <param name="aggregationStrategy">聚合策略：simple或intelligent</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>协作结果</returns>
+    Task<CollaborationResult> ExecuteConcurrentAsync(
+        long collaborationId, 
+        string input, 
+        List<long>? executorAgentIds = null,
+        long? aggregatorAgentId = null,
+        string aggregationStrategy = "simple",
+        CancellationToken cancellationToken = default);
 
     /// <summary>
     /// 执行任务移交工作流

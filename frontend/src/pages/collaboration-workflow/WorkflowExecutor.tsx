@@ -1,53 +1,25 @@
 import React, { useState } from 'react';
-import { Card, Button, Input, Select, message, Spin, Divider, List, Tag, Space, Typography, InputNumber, Collapse } from 'antd';
-import { PlayCircleOutlined, ThunderboltOutlined, SwapOutlined, TeamOutlined, SyncOutlined, SettingOutlined } from '@ant-design/icons';
-import { collaborationWorkflowService, CollaborationResult, ReviewIterativeParameters } from '../../services/collaborationWorkflowService';
+import { Card, Button, Input, message, Spin, Divider, List, Tag, Space, Typography, InputNumber, Alert, Select } from 'antd';
+import { PlayCircleOutlined, TeamOutlined, SettingOutlined, MessageOutlined } from '@ant-design/icons';
+import { collaborationWorkflowService, CollaborationResult } from '../../services/collaborationWorkflowService';
+import { CollaborationAgent } from '../../services/collaborationService';
 
 const { TextArea } = Input;
 const { Option } = Select;
 const { Title, Text } = Typography;
-const { Panel } = Collapse;
 
 interface WorkflowExecutorProps {
   collaborationId: number;
   collaborationName: string;
+  agents: CollaborationAgent[];
 }
 
-const WorkflowExecutor: React.FC<WorkflowExecutorProps> = ({ collaborationId, collaborationName }) => {
-  const [workflowType, setWorkflowType] = useState<'sequential' | 'concurrent' | 'handoffs' | 'groupchat' | 'review-iterative'>('sequential');
+const WorkflowExecutor: React.FC<WorkflowExecutorProps> = ({ collaborationId, collaborationName, agents }) => {
+  const [workflowType, setWorkflowType] = useState<'magentic' | 'groupchat'>('magentic');
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<CollaborationResult | null>(null);
-  
-  const [reviewParams, setReviewParams] = useState<ReviewIterativeParameters>({
-    maxIterations: 10,
-    approvalKeyword: '[APPROVED]',
-    saveVersions: true,
-  });
-
-  const workflowIcons = {
-    sequential: <PlayCircleOutlined />,
-    concurrent: <ThunderboltOutlined />,
-    handoffs: <SwapOutlined />,
-    groupchat: <TeamOutlined />,
-    'review-iterative': <SyncOutlined />,
-  };
-
-  const workflowNames = {
-    sequential: '顺序执行',
-    concurrent: '并发执行',
-    handoffs: '任务移交',
-    groupchat: '群聊协作',
-    'review-iterative': '审阅迭代',
-  };
-
-  const workflowDescriptions = {
-    sequential: '多个Agent按顺序依次执行任务',
-    concurrent: '多个Agent同时执行任务，最后合并结果',
-    handoffs: 'Agent之间相互移交任务',
-    groupchat: '多个Agent进行群聊协作',
-    'review-iterative': 'A写文档 → B审阅 → 不满意 → 打回去 → A修改 → 循环直到满意',
-  };
+  const [maxIterations, setMaxIterations] = useState(10);
 
   const handleExecute = async () => {
     if (!input.trim()) {
@@ -61,33 +33,21 @@ const WorkflowExecutor: React.FC<WorkflowExecutorProps> = ({ collaborationId, co
     try {
       let response: CollaborationResult;
 
-      switch (workflowType) {
-        case 'sequential':
-          response = await collaborationWorkflowService.executeSequential(collaborationId, input);
-          break;
-        case 'concurrent':
-          response = await collaborationWorkflowService.executeConcurrent(collaborationId, input);
-          break;
-        case 'handoffs':
-          response = await collaborationWorkflowService.executeHandoffs(collaborationId, input);
-          break;
-        case 'groupchat':
-          await collaborationWorkflowService.executeGroupChat(collaborationId, input);
-          response = {
-            success: true,
-            output: '群聊工作流已启动，请查看实时消息流',
-            messages: [],
-          };
-          break;
-        case 'review-iterative':
-          response = await collaborationWorkflowService.executeReviewIterative(
-            collaborationId,
-            input,
-            reviewParams
-          );
-          break;
-        default:
-          throw new Error('未知的工作流类型');
+      if (workflowType === 'magentic') {
+        // Magentic智能工作流
+        response = await collaborationWorkflowService.executeReviewIterative(
+          collaborationId,
+          input,
+          { maxIterations }
+        );
+      } else {
+        // 群聊协作
+        await collaborationWorkflowService.executeGroupChat(collaborationId, input);
+        response = {
+          success: true,
+          output: '群聊工作流已启动，请查看实时消息流',
+          messages: [],
+        };
       }
 
       setResult(response);
@@ -110,93 +70,147 @@ const WorkflowExecutor: React.FC<WorkflowExecutorProps> = ({ collaborationId, co
     }
   };
 
+  const workflowDescriptions = {
+    magentic: {
+      title: 'Magentic智能工作流',
+      icon: <TeamOutlined />,
+      description: 'Manager Agent根据任务动态协调Worker Agents执行任务',
+      features: [
+        '✅ 自动决定执行顺序（顺序/并发）',
+        '✅ 动态分配任务给最合适的Agent',
+        '✅ 智能合并和优化结果',
+        '✅ 自动处理错误和重试',
+      ],
+      useCases: '适合有明确目标的任务，如：开发功能、分析问题、设计方案',
+    },
+    groupchat: {
+      title: '群聊协作',
+      icon: <MessageOutlined />,
+      description: '多个Agents平等对话，自由交流想法',
+      features: [
+        '✅ 去中心化，无Manager协调',
+        '✅ 自由讨论，头脑风暴',
+        '✅ 观点碰撞，创意生成',
+        '✅ 多轮对话，达成共识',
+      ],
+      useCases: '适合开放性任务，如：头脑风暴、创意讨论、方案评审',
+    },
+  };
+
   return (
     <div>
       <Card title={`协作工作流 - ${collaborationName}`}>
         <Space direction="vertical" style={{ width: '100%' }} size="large">
           <div>
-            <Title level={5}>选择工作流类型</Title>
+            <Title level={5}>选择工作流模式</Title>
             <Select
               value={workflowType}
               onChange={setWorkflowType}
               style={{ width: '100%' }}
             >
-              {Object.entries(workflowNames).map(([key, name]) => (
-                <Option key={key} value={key}>
-                  <Space>
-                    {workflowIcons[key as keyof typeof workflowIcons]}
-                    <span>{name}</span>
-                  </Space>
-                </Option>
-              ))}
+              <Option value="magentic">
+                <Space>
+                  <TeamOutlined />
+                  <span>Magentic智能工作流</span>
+                  <Tag color="blue">中心化协调</Tag>
+                </Space>
+              </Option>
+              <Option value="groupchat">
+                <Space>
+                  <MessageOutlined />
+                  <span>群聊协作</span>
+                  <Tag color="green">去中心化对话</Tag>
+                </Space>
+              </Option>
             </Select>
-            <Text type="secondary" style={{ display: 'block', marginTop: 8 }}>
-              {workflowDescriptions[workflowType]}
-            </Text>
           </div>
+
+          <Alert
+            message={workflowDescriptions[workflowType].title}
+            description={
+              <div>
+                <p>{workflowDescriptions[workflowType].description}</p>
+                <br />
+                {workflowDescriptions[workflowType].features.map((feature, index) => (
+                  <p key={index}>{feature}</p>
+                ))}
+                <br />
+                <p><strong>适用场景：</strong>{workflowDescriptions[workflowType].useCases}</p>
+              </div>
+            }
+            type="info"
+            showIcon
+            icon={workflowDescriptions[workflowType].icon}
+          />
 
           <Divider />
 
-          {workflowType === 'review-iterative' && (
-            <>
-              <div>
-                <Title level={5}>
-                  <SettingOutlined /> 审阅迭代配置
-                </Title>
-                <Space direction="vertical" style={{ width: '100%' }} size="middle">
-                  <div>
-                    <Text>最大迭代次数</Text>
-                    <InputNumber
-                      value={reviewParams.maxIterations}
-                      onChange={(value) => setReviewParams({ ...reviewParams, maxIterations: value || 10 })}
-                      min={1}
-                      max={50}
-                      style={{ width: '100%', marginTop: 8 }}
-                      placeholder="默认10次"
-                    />
-                  </div>
-                  
-                  <div>
-                    <Text>审阅标准（可选）</Text>
-                    <TextArea
-                      value={reviewParams.reviewCriteria}
-                      onChange={(e) => setReviewParams({ ...reviewParams, reviewCriteria: e.target.value })}
-                      placeholder="请输入审阅标准，如：内容完整性、逻辑性、格式规范性等"
-                      rows={3}
-                      style={{ marginTop: 8 }}
-                    />
-                  </div>
-                  
-                  <div>
-                    <Text>通过关键词</Text>
-                    <Input
-                      value={reviewParams.approvalKeyword}
-                      onChange={(e) => setReviewParams({ ...reviewParams, approvalKeyword: e.target.value })}
-                      placeholder="默认 [APPROVED]"
-                      style={{ marginTop: 8 }}
-                    />
-                    <Text type="secondary" style={{ fontSize: 12 }}>
-                      审阅者在文档满意时回复此关键词
-                    </Text>
-                  </div>
-                </Space>
-              </div>
-              <Divider />
-            </>
+          {workflowType === 'magentic' && (
+            <div>
+              <Title level={5}>
+                <SettingOutlined /> 配置参数
+              </Title>
+              <Space direction="vertical" style={{ width: '100%' }} size="middle">
+                <div>
+                  <Text>最大迭代次数</Text>
+                  <InputNumber
+                    value={maxIterations}
+                    onChange={(value) => setMaxIterations(value || 10)}
+                    min={1}
+                    max={50}
+                    style={{ width: '100%', marginTop: 8 }}
+                    placeholder="默认10次"
+                  />
+                  <Text type="secondary" style={{ fontSize: 12 }}>
+                    Manager最多进行多少轮迭代决策
+                  </Text>
+                </div>
+              </Space>
+            </div>
           )}
+
+          {workflowType === 'groupchat' && (
+            <div>
+              <Title level={5}>
+                <MessageOutlined /> 群聊配置
+              </Title>
+              <Space direction="vertical" style={{ width: '100%' }} size="middle">
+                <div>
+                  <Text>参与Agent（共 {agents.length} 个）</Text>
+                  <div style={{ marginTop: 8 }}>
+                    {agents.map((agent) => (
+                      <Tag key={agent.agentId} color="blue" style={{ marginBottom: 4 }}>
+                        {agent.agentName}
+                        {agent.role && ` (${agent.role})`}
+                      </Tag>
+                    ))}
+                  </div>
+                  <Text type="secondary" style={{ fontSize: 12 }}>
+                    所有Agent将参与群聊讨论
+                  </Text>
+                </div>
+              </Space>
+            </div>
+          )}
+
+          <Divider />
 
           <div>
             <Title level={5}>任务输入</Title>
             <TextArea
               value={input}
               onChange={(e) => setInput(e.target.value)}
-              placeholder="请输入任务内容..."
+              placeholder={
+                workflowType === 'magentic'
+                  ? "请输入任务内容，例如：\n• 开发一个用户登录功能\n• 分析这段代码的性能问题\n• 设计一个电商系统的架构"
+                  : "请输入讨论主题，例如：\n• 如何提高系统的可扩展性？\n• 新产品应该具备哪些核心功能？\n• 代码审查的最佳实践是什么？"
+              }
               rows={6}
               style={{ marginBottom: 16 }}
             />
             <Button
               type="primary"
-              icon={workflowIcons[workflowType]}
+              icon={<PlayCircleOutlined />}
               onClick={handleExecute}
               loading={loading}
               size="large"
@@ -210,7 +224,11 @@ const WorkflowExecutor: React.FC<WorkflowExecutorProps> = ({ collaborationId, co
             <div style={{ textAlign: 'center', padding: '40px 0' }}>
               <Spin size="large" />
               <div style={{ marginTop: 16 }}>
-                <Text>正在执行工作流，请稍候...</Text>
+                <Text>
+                  {workflowType === 'magentic'
+                    ? 'Manager Agent正在协调Worker Agents执行任务...'
+                    : 'Agents正在进行群聊讨论...'}
+                </Text>
               </div>
             </div>
           )}
@@ -226,22 +244,16 @@ const WorkflowExecutor: React.FC<WorkflowExecutorProps> = ({ collaborationId, co
                   </Tag>
                 </Title>
 
-                {result.metadata && workflowType === 'review-iterative' && (
-                  <Card size="small" title="迭代统计" style={{ marginBottom: 16 }}>
+                {result.metadata && workflowType === 'magentic' && (
+                  <Card size="small" title="执行统计" style={{ marginBottom: 16 }}>
                     <Space direction="vertical" style={{ width: '100%' }}>
                       <div>
                         <Text strong>迭代次数：</Text>
                         <Text>{result.metadata.iterations || 0} 次</Text>
                       </div>
                       <div>
-                        <Text strong>审阅状态：</Text>
-                        <Tag color={result.metadata.isApproved ? 'success' : 'warning'}>
-                          {result.metadata.isApproved ? '已通过' : '未通过'}
-                        </Tag>
-                      </div>
-                      <div>
-                        <Text strong>最大迭代次数：</Text>
-                        <Text>{result.metadata.maxIterations || 10} 次</Text>
+                        <Text strong>工作流模式：</Text>
+                        <Tag color="blue">{result.metadata.pattern || 'Magentic'}</Tag>
                       </div>
                     </Space>
                   </Card>
@@ -249,7 +261,7 @@ const WorkflowExecutor: React.FC<WorkflowExecutorProps> = ({ collaborationId, co
 
                 {result.output && (
                   <Card size="small" title="最终输出" style={{ marginBottom: 16 }}>
-                    <Text>{result.output}</Text>
+                    <Text style={{ whiteSpace: 'pre-wrap' }}>{result.output}</Text>
                   </Card>
                 )}
 
@@ -295,7 +307,7 @@ const WorkflowExecutor: React.FC<WorkflowExecutorProps> = ({ collaborationId, co
                               }
                               description={
                                 <>
-                                  <Text>{msg.content}</Text>
+                                  <Text style={{ whiteSpace: 'pre-wrap' }}>{msg.content}</Text>
                                   <br />
                                   <Text type="secondary" style={{ fontSize: 12 }}>
                                     {new Date(msg.timestamp).toLocaleString()}

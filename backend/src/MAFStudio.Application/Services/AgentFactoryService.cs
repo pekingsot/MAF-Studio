@@ -1,26 +1,22 @@
-using MAFStudio.Application.Clients;
 using MAFStudio.Application.Interfaces;
 using MAFStudio.Core.Entities;
 using MAFStudio.Core.Interfaces.Repositories;
+using MAFStudio.Core.Interfaces.Services;
 using Microsoft.Extensions.AI;
-using OpenAI;
 
 namespace MAFStudio.Application.Services;
 
 public class AgentFactoryService : IAgentFactoryService
 {
     private readonly IAgentRepository _agentRepository;
-    private readonly ILlmConfigRepository _llmConfigRepository;
-    private readonly ILlmModelConfigRepository _llmModelConfigRepository;
+    private readonly IChatClientFactory _chatClientFactory;
 
     public AgentFactoryService(
         IAgentRepository agentRepository,
-        ILlmConfigRepository llmConfigRepository,
-        ILlmModelConfigRepository llmModelConfigRepository)
+        IChatClientFactory chatClientFactory)
     {
         _agentRepository = agentRepository;
-        _llmConfigRepository = llmConfigRepository;
-        _llmModelConfigRepository = llmModelConfigRepository;
+        _chatClientFactory = chatClientFactory;
     }
 
     public async Task<IChatClient> CreateAgentAsync(long agentId)
@@ -36,54 +32,12 @@ public class AgentFactoryService : IAgentFactoryService
             throw new BusinessException("Agent缺少LLM配置");
         }
 
-        return await CreateChatClientAsync(agent.LlmConfigId.Value, agent.LlmModelConfigId.Value);
+        return await _chatClientFactory.CreateClientAsync(agent.LlmConfigId.Value, agent.LlmModelConfigId.Value);
     }
 
     public async Task<IChatClient> CreateChatClientAsync(long llmConfigId, long llmModelConfigId)
     {
-        var llmConfig = await _llmConfigRepository.GetByIdAsync(llmConfigId);
-        if (llmConfig == null)
-        {
-            throw new NotFoundException($"LLM配置 {llmConfigId} 不存在");
-        }
-
-        var modelConfig = await _llmModelConfigRepository.GetByIdAsync(llmModelConfigId);
-        if (modelConfig == null)
-        {
-            throw new NotFoundException($"模型配置 {llmModelConfigId} 不存在");
-        }
-
-        return llmConfig.Provider.ToLower() switch
-        {
-            "openai" => CreateOpenAIChatClient(llmConfig, modelConfig),
-            "azure" => CreateAzureOpenAIChatClient(llmConfig, modelConfig),
-            "qwen" => CreateCustomChatClient(llmConfig, modelConfig),
-            "deepseek" => CreateCustomChatClient(llmConfig, modelConfig),
-            _ => throw new NotSupportedException($"不支持的LLM提供商: {llmConfig.Provider}")
-        };
-    }
-
-    private IChatClient CreateOpenAIChatClient(LlmConfig config, LlmModelConfig model)
-    {
-        var client = new OpenAIClient(config.ApiKey);
-        return client.GetChatClient(model.ModelName).AsIChatClient();
-    }
-
-    private IChatClient CreateAzureOpenAIChatClient(LlmConfig config, LlmModelConfig model)
-    {
-        throw new NotImplementedException("Azure OpenAI ChatClient待实现，需要Azure.Identity包");
-    }
-
-    private IChatClient CreateCustomChatClient(LlmConfig config, LlmModelConfig model)
-    {
-        var baseUrl = config.Endpoint ?? "https://api.openai.com";
-        
-        return new CustomOpenAICompatibleChatClient(
-            config.ApiKey ?? string.Empty,
-            baseUrl,
-            model.ModelName,
-            config.Provider
-        );
+        return await _chatClientFactory.CreateClientAsync(llmConfigId, llmModelConfigId);
     }
 }
 

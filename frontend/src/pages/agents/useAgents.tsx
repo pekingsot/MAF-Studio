@@ -92,54 +92,12 @@ export const useAgents = () => {
     }
   }, [loadAgents]);
 
-  const handleSleep = useCallback(async (agentId: number) => {
-    try {
-      const status = await agentRuntimeService.sleep(agentId);
-      setRuntimeStatuses(prev => ({ ...prev, [agentId]: status }));
-      message.success('智能体已休眠');
-      loadAgents();
-    } catch (error: any) {
-      message.error(error.response?.data?.message || '休眠失败');
-    }
-  }, [loadAgents]);
-
-  const handleDestroy = useCallback(async (agentId: number) => {
-    try {
-      const status = await agentRuntimeService.destroy(agentId);
-      setRuntimeStatuses(prev => ({ ...prev, [agentId]: status }));
-      message.success('智能体已关闭');
-      loadAgents();
-    } catch (error: any) {
-      message.error(error.response?.data?.message || '关闭失败');
-    }
-  }, [loadAgents]);
-
-  const handleTest = useCallback(async (agentId: number) => {
+  const handleTest = useCallback(async (agentId: number, input?: string) => {
     setTestingAgent(agentId);
     try {
-      const result = await agentRuntimeService.test(agentId);
+      const result = await agentRuntimeService.test(agentId, input);
       if (result.success) {
         message.success(`测试成功 (${result.latencyMs}ms)`);
-        Modal.info({
-          title: '智能体响应',
-          content: (
-            <div>
-              <p><strong>状态:</strong> {result.state}</p>
-              <p><strong>延迟:</strong> {result.latencyMs}ms</p>
-              <p><strong>响应:</strong></p>
-              <div style={{ 
-                background: '#f5f5f5', 
-                padding: 12, 
-                borderRadius: 4,
-                maxHeight: 300,
-                overflow: 'auto'
-              }}>
-                {result.response}
-              </div>
-            </div>
-          ),
-          width: 600,
-        });
       } else {
         message.error(result.message);
       }
@@ -187,8 +145,6 @@ export const useAgents = () => {
     loadAgents,
     loadLLMConfigs,
     handleActivate,
-    handleSleep,
-    handleDestroy,
     handleTest,
     handleDelete,
   };
