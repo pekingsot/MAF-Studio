@@ -155,6 +155,33 @@ public class CollaborationsController : ControllerBase
         return NoContent();
     }
 
+    [HttpPut("{id}")]
+    public async Task<ActionResult<Core.Entities.Collaboration>> UpdateCollaboration(long id, [FromBody] CreateCollaborationRequest request)
+    {
+        var userId = User.GetUserId();
+        
+        var collaboration = await _collaborationService.GetByIdAsync(id, userId);
+        if (collaboration == null)
+        {
+            return NotFound(new { success = false, message = "协作项目不存在" });
+        }
+        
+        collaboration.Name = request.Name;
+        collaboration.Description = request.Description;
+        collaboration.Path = request.Path;
+        collaboration.GitRepositoryUrl = request.GitRepositoryUrl;
+        collaboration.GitBranch = request.GitBranch;
+        collaboration.GitUsername = request.GitUsername;
+        collaboration.GitEmail = request.GitEmail;
+        collaboration.GitAccessToken = request.GitAccessToken;
+        
+        var updatedCollaboration = await _collaborationService.UpdateAsync(collaboration);
+        
+        await _logService.LogAsync(userId, "更新", "协作项目", $"更新协作项目: {request.Name}", null);
+        
+        return Ok(updatedCollaboration);
+    }
+
     [HttpPost("{id}/agents")]
     public async Task<ActionResult> AddAgentToCollaboration(long id, [FromBody] AddAgentRequest request)
     {

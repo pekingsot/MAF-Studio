@@ -21,6 +21,7 @@ public class CollaborationsControllerTests : TestBase
     private readonly Mock<ICollaborationService> _mockCollaborationService;
     private readonly Mock<IAuthService> _mockAuthService;
     private readonly Mock<IOperationLogService> _mockLogService;
+    private readonly Mock<IAgentMessageRepository> _mockAgentMessageRepository;
     private readonly CollaborationsController _controller;
     private readonly long _testUserId = 1000000000000001;
 
@@ -29,11 +30,13 @@ public class CollaborationsControllerTests : TestBase
         _mockCollaborationService = new Mock<ICollaborationService>();
         _mockAuthService = new Mock<IAuthService>();
         _mockLogService = new Mock<IOperationLogService>();
+        _mockAgentMessageRepository = new Mock<IAgentMessageRepository>();
 
         _controller = new CollaborationsController(
             _mockCollaborationService.Object,
             _mockAuthService.Object,
-            _mockLogService.Object
+            _mockLogService.Object,
+            _mockAgentMessageRepository.Object
         );
 
         var user = new ClaimsPrincipal(new ClaimsIdentity(new Claim[]
@@ -169,7 +172,7 @@ public class CollaborationsControllerTests : TestBase
         };
 
         _mockCollaborationService
-            .Setup(s => s.AddAgentAsync(collaboration.Id, request.AgentId, request.Role, _testUserId))
+            .Setup(s => s.AddAgentAsync(collaboration.Id, request.AgentId, request.Role, null, _testUserId))
             .ReturnsAsync(true);
 
         var result = await _controller.AddAgentToCollaboration(collaboration.Id, request);

@@ -26,6 +26,8 @@ public static class DependencyInjection
         services.AddScoped<ICollaborationWorkflowService, CollaborationWorkflowService>();
         services.AddScoped<IWorkflowTemplateService, WorkflowTemplateService>();
         
+        services.AddSingleton<IWorkflowExecutionService, WorkflowExecutionService>();
+        
         services.AddSingleton<SkillLoader>();
         services.AddScoped<SkillExecutor>();
         

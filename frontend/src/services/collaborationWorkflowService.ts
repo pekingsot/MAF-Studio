@@ -27,6 +27,16 @@ export interface ReviewIterativeParameters {
   saveVersions?: boolean;
 }
 
+export interface GroupChatParameters {
+  orchestrationMode: 'roundRobin' | 'manager' | 'intelligent';
+  maxIterations?: number;
+}
+
+export interface GroupChatWorkflowRequest {
+  input: string;
+  parameters?: GroupChatParameters;
+}
+
 export interface ConcurrentWorkflowRequest {
   input: string;
   executorAgentIds?: number[];
@@ -67,7 +77,12 @@ export const collaborationWorkflowService = {
     return response.data;
   },
 
-  executeGroupChat: async (collaborationId: number, input: string): Promise<void> => {
+  executeGroupChat: async (
+    collaborationId: number, 
+    input: string,
+    parameters?: GroupChatParameters,
+    onMessage?: (message: ChatMessageDto) => void
+  ): Promise<void> => {
     const response = await fetch(
       `${api.defaults.baseURL}/collaborationworkflow/${collaborationId}/groupchat`,
       {
@@ -76,7 +91,7 @@ export const collaborationWorkflowService = {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${localStorage.getItem('token')}`,
         },
-        body: JSON.stringify({ input }),
+        body: JSON.stringify({ input, parameters }),
       }
     );
 
@@ -103,8 +118,11 @@ export const collaborationWorkflowService = {
           const data = line.substring(6);
           if (data.trim()) {
             try {
-              const message = JSON.parse(data);
+              const message = JSON.parse(data) as ChatMessageDto;
               console.log('Group chat message:', message);
+              if (onMessage) {
+                onMessage(message);
+              }
             } catch (e) {
               console.error('Failed to parse message:', data);
             }

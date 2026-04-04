@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { Table, Button, Modal, Form, Input, Tag, Space, message, Tabs, Select, Popconfirm, Divider, Row, Col, Alert, Radio, InputNumber, Typography, Card, Tooltip } from 'antd';
-import { PlusOutlined, EditOutlined, DeleteOutlined, TeamOutlined, UserOutlined, FolderOutlined, GithubOutlined, BranchesOutlined, PlayCircleOutlined, EyeOutlined, MessageOutlined, SettingOutlined } from '@ant-design/icons';
+import type { RadioChangeEvent } from 'antd';
+import { PlusOutlined, EditOutlined, DeleteOutlined, TeamOutlined, UserOutlined, FolderOutlined, GithubOutlined, BranchesOutlined, PlayCircleOutlined, EyeOutlined, MessageOutlined, SettingOutlined, SwapOutlined, CrownOutlined, BulbOutlined } from '@ant-design/icons';
 import { collaborationService, Collaboration } from '../services/collaborationService';
 import { agentService, Agent } from '../services/agentService';
 import { useNavigate } from 'react-router-dom';
@@ -8,6 +9,27 @@ import ChatHistory from './collaboration-detail/ChatHistory';
 
 const { Option } = Select;
 const { Title, Text } = Typography;
+
+const orchestrationModeConfig = {
+  roundRobin: {
+    label: '轮询模式',
+    icon: <SwapOutlined />,
+    color: 'blue',
+    description: '所有Agent轮流发言，平等参与讨论',
+  },
+  manager: {
+    label: '主Agent协调',
+    icon: <CrownOutlined />,
+    color: 'gold',
+    description: 'Manager Agent引导Worker Agents发言',
+  },
+  intelligent: {
+    label: 'AI智能选择',
+    icon: <BulbOutlined />,
+    color: 'purple',
+    description: '使用AI智能选择下一个发言的Agent',
+  }
+};
 
 const Collaborations: React.FC = () => {
   const navigate = useNavigate();
@@ -20,6 +42,9 @@ const Collaborations: React.FC = () => {
   const [editAgentModalVisible, setEditAgentModalVisible] = useState(false);
   const [chatHistoryModalVisible, setChatHistoryModalVisible] = useState(false);
   const [executeTaskModalVisible, setExecuteTaskModalVisible] = useState(false);
+  const [executionModalVisible, setExecutionModalVisible] = useState(false);
+  const [executionMessages, setExecutionMessages] = useState<any[]>([]);
+  const [isExecuting, setIsExecuting] = useState(false);
   const [selectedTask, setSelectedTask] = useState<any>(null);
   const [selectedCollaboration, setSelectedCollaboration] = useState<Collaboration | null>(null);
   const [executeForm] = Form.useForm();
@@ -55,6 +80,7 @@ const Collaborations: React.FC = () => {
   };
 
   const handleCreate = () => {
+    setSelectedCollaboration(null);
     form.resetFields();
     setModalVisible(true);
   };
@@ -62,12 +88,22 @@ const Collaborations: React.FC = () => {
   const handleSubmit = async () => {
     try {
       const values = await form.validateFields();
-      await collaborationService.createCollaboration(values);
-      message.success('创建成功');
+      
+      if (selectedCollaboration) {
+        // 编辑模式
+        await collaborationService.updateCollaboration(selectedCollaboration.id, values);
+        message.success('更新成功');
+      } else {
+        // 创建模式
+        await collaborationService.createCollaboration(values);
+        message.success('创建成功');
+      }
+      
       setModalVisible(false);
+      setSelectedCollaboration(null);
       loadData();
     } catch (error) {
-      message.error('创建失败');
+      message.error(selectedCollaboration ? '更新失败' : '创建失败');
     }
   };
 
@@ -202,7 +238,8 @@ const Collaborations: React.FC = () => {
     setSelectedTask(task);
     executeForm.setFieldsValue({
       workflowType: 'magentic',
-      maxIterations: 10
+      maxIterations: 10,
+      orchestrationMode: 'manager'
     });
     setExecuteTaskModalVisible(true);
   };
@@ -211,28 +248,105 @@ const Collaborations: React.FC = () => {
     try {
       const values = await executeForm.validateFields();
       
-      message.loading({ content: '正在启动任务...', key: 'executeTask' });
+      setExecutionMessages([]);
+      setExecutionModalVisible(true);
+      setExecuteTaskModalVisible(false);
+      setIsExecuting(true);
       
       const input = selectedTask.description || selectedTask.title;
+      const token = localStorage.getItem('token');
       
-      let result;
       if (values.workflowType === 'magentic') {
-        result = await collaborationService.executeSequentialWorkflow(
-          selectedTask.collaborationId,
-          input
-        );
+        const url = `http://localhost:5000/api/collaborationworkflow/${selectedTask.collaborationId}/review-iterative`;
+        
+        const response = await fetch(url, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify({ input })
+        });
+        
+        if (!response.ok) {
+          const errorData = await response.json();
+          message.error(errorData.error || '执行失败');
+          setIsExecuting(false);
+          return;
+        }
+        
+        const result = await response.json();
+        
+        if (result.success) {
+          if (result.messages && result.messages.length > 0) {
+            setExecutionMessages(result.messages.map((msg: any) => ({
+              sender: msg.sender,
+              content: msg.content,
+              timestamp: msg.timestamp
+            })));
+          }
+          message.success('任务执行完成！');
+        } else {
+          message.error(result.error || '任务执行失败');
+        }
+        
+        setIsExecuting(false);
+        loadData();
       } else {
-        result = await collaborationService.executeGroupChatWorkflow(
-          selectedTask.collaborationId,
-          input
-        );
+        const url = `http://localhost:5000/api/collaborationworkflow/${selectedTask.collaborationId}/groupchat`;
+        
+        const parameters = {
+          orchestrationMode: values.orchestrationMode || 'manager',
+          maxIterations: values.maxIterations || 10
+        };
+        
+        const response = await fetch(url, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify({ input, parameters })
+        });
+        
+        const reader = response.body?.getReader();
+        const decoder = new TextDecoder();
+        
+        if (!reader) {
+          message.error('无法获取响应流');
+          setIsExecuting(false);
+          return;
+        }
+        
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          
+          const chunk = decoder.decode(value, { stream: true });
+          const lines = chunk.split('\n');
+          
+          for (const line of lines) {
+            if (line.startsWith('data:')) {
+              const jsonStr = line.substring(5).trim();
+              if (jsonStr) {
+                try {
+                  const message = JSON.parse(jsonStr);
+                  setExecutionMessages(prev => [...prev, message]);
+                } catch (e) {
+                  console.error('解析消息失败:', e);
+                }
+              }
+            }
+          }
+        }
+        
+        message.success('任务执行完成！');
+        setIsExecuting(false);
+        loadData();
       }
-      
-      message.success({ content: '任务已启动！', key: 'executeTask' });
-      setExecuteTaskModalVisible(false);
-      loadData();
     } catch (error) {
-      message.error({ content: '启动任务失败', key: 'executeTask' });
+      message.error('启动任务失败');
+      setIsExecuting(false);
     }
   };
 
@@ -627,7 +741,11 @@ const Collaborations: React.FC = () => {
         title={selectedCollaboration ? '编辑协作项目' : '创建协作项目'}
         open={modalVisible}
         onOk={handleSubmit}
-        onCancel={() => setModalVisible(false)}
+        onCancel={() => {
+          setModalVisible(false);
+          setSelectedCollaboration(null);
+          form.resetFields();
+        }}
         width={700}
       >
         <Form form={form} layout="vertical">
@@ -1164,12 +1282,110 @@ const Collaborations: React.FC = () => {
                     );
                   }
                   
+                  if (workflowType === 'groupchat') {
+                    return (
+                      <div>
+                        <Title level={5}>
+                          <MessageOutlined /> 群聊配置
+                        </Title>
+                        <Form.Item
+                          label="协调模式"
+                          name="orchestrationMode"
+                          tooltip="选择Agent发言的协调方式"
+                        >
+                          <Radio.Group style={{ width: '100%' }}>
+                            <Space direction="vertical" style={{ width: '100%' }}>
+                              {(Object.keys(orchestrationModeConfig) as Array<keyof typeof orchestrationModeConfig>).map((key) => {
+                                const config = orchestrationModeConfig[key];
+                                return (
+                                  <Radio key={key} value={key}>
+                                    <Space>
+                                      <Tag color={config.color} icon={config.icon}>
+                                        {config.label}
+                                      </Tag>
+                                      <Text type="secondary">{config.description}</Text>
+                                    </Space>
+                                  </Radio>
+                                );
+                              })}
+                            </Space>
+                          </Radio.Group>
+                        </Form.Item>
+                        <Form.Item
+                          label="最大迭代次数"
+                          name="maxIterations"
+                          tooltip="群聊最多进行多少轮对话"
+                        >
+                          <InputNumber
+                            min={1}
+                            max={50}
+                            style={{ width: '100%' }}
+                            placeholder="默认10次"
+                          />
+                        </Form.Item>
+                      </div>
+                    );
+                  }
+                  
                   return null;
                 }}
               </Form.Item>
             </Form>
           </div>
         )}
+      </Modal>
+
+      <Modal
+        title="执行过程"
+        open={executionModalVisible}
+        onCancel={() => {
+          if (!isExecuting) {
+            setExecutionModalVisible(false);
+          }
+        }}
+        footer={isExecuting ? [
+          <Button key="stop" danger onClick={() => {
+            setIsExecuting(false);
+            setExecutionModalVisible(false);
+            message.info('任务已停止');
+          }}>
+            停止执行
+          </Button>
+        ] : [
+          <Button key="close" onClick={() => setExecutionModalVisible(false)}>
+            关闭
+          </Button>
+        ]}
+        width={900}
+      >
+        <div style={{ maxHeight: 600, overflowY: 'auto' }}>
+          {executionMessages.length === 0 && isExecuting && (
+            <div style={{ textAlign: 'center', padding: '50px' }}>
+              <Text>正在启动任务...</Text>
+            </div>
+          )}
+          
+          {executionMessages.map((msg, index) => (
+            <div key={index} style={{ 
+              marginBottom: 16, 
+              padding: 12, 
+              backgroundColor: '#f5f5f5', 
+              borderRadius: 8 
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                <Tag color={msg.role === 'system' ? 'purple' : 'blue'}>
+                  {msg.sender || 'Agent'}
+                </Tag>
+                <Text type="secondary" style={{ fontSize: 12 }}>
+                  {msg.timestamp ? new Date(msg.timestamp).toLocaleString('zh-CN') : ''}
+                </Text>
+              </div>
+              <div style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
+                {msg.content}
+              </div>
+            </div>
+          ))}
+        </div>
       </Modal>
     </div>
   );
