@@ -1,5 +1,42 @@
 namespace MAFStudio.Application.DTOs;
 
+/// <summary>
+/// 群聊协调模式
+/// </summary>
+public enum GroupChatOrchestrationMode
+{
+    /// <summary>
+    /// 轮询模式：所有 Agent 轮流发言
+    /// </summary>
+    RoundRobin = 0,
+    
+    /// <summary>
+    /// 主Agent协调模式：Manager 引导 Worker 发言
+    /// </summary>
+    Manager = 1,
+    
+    /// <summary>
+    /// AI智能选择模式：使用 LLM 智能选择下一个发言者
+    /// </summary>
+    Intelligent = 2
+}
+
+/// <summary>
+/// 群聊工作流参数
+/// </summary>
+public class GroupChatParameters
+{
+    /// <summary>
+    /// 协调模式（默认 Manager）
+    /// </summary>
+    public GroupChatOrchestrationMode OrchestrationMode { get; set; } = GroupChatOrchestrationMode.Manager;
+    
+    /// <summary>
+    /// 最大迭代次数（默认10次）
+    /// </summary>
+    public int MaxIterations { get; set; } = 10;
+}
+
 public class CollaborationResult
 {
     public bool Success { get; set; }

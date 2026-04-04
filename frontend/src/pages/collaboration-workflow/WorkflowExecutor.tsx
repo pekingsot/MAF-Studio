@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
-import { Card, Button, Input, message, Spin, Divider, List, Tag, Space, Typography, InputNumber, Alert, Select } from 'antd';
-import { PlayCircleOutlined, TeamOutlined, SettingOutlined, MessageOutlined } from '@ant-design/icons';
-import { collaborationWorkflowService, CollaborationResult } from '../../services/collaborationWorkflowService';
+import React, { useState, useRef, useEffect } from 'react';
+import { Card, Button, Input, message, Spin, Divider, List, Tag, Space, Typography, InputNumber, Alert, Select, Avatar, Radio, RadioChangeEvent } from 'antd';
+import { PlayCircleOutlined, TeamOutlined, SettingOutlined, MessageOutlined, UserOutlined, RobotOutlined, SwapOutlined, CrownOutlined, BulbOutlined } from '@ant-design/icons';
+import { collaborationWorkflowService, CollaborationResult, ChatMessageDto, GroupChatParameters } from '../../services/collaborationWorkflowService';
 import { CollaborationAgent } from '../../services/collaborationService';
 
 const { TextArea } = Input;
@@ -14,12 +14,77 @@ interface WorkflowExecutorProps {
   agents: CollaborationAgent[];
 }
 
+const orchestrationModeConfig = {
+  roundRobin: {
+    label: '轮询模式',
+    icon: <SwapOutlined />,
+    color: 'blue',
+    description: '所有Agent轮流发言，平等参与讨论',
+    details: [
+      '✅ 每个Agent依次发言',
+      '✅ 平等参与，无主次之分',
+      '✅ 适合需要收集各方意见的场景'
+    ]
+  },
+  manager: {
+    label: '主Agent协调',
+    icon: <CrownOutlined />,
+    color: 'gold',
+    description: 'Manager Agent引导Worker Agents发言',
+    details: [
+      '✅ Manager首先发言，开启讨论',
+      '✅ Manager引导Worker发言',
+      '✅ 适合有明确主持人/领导者的场景'
+    ]
+  },
+  intelligent: {
+    label: 'AI智能选择',
+    icon: <BulbOutlined />,
+    color: 'purple',
+    description: '使用AI智能选择下一个发言的Agent',
+    details: [
+      '✅ 根据对话上下文智能选择',
+      '✅ 动态调整发言顺序',
+      '✅ 适合需要灵活协调的复杂讨论'
+    ]
+  }
+};
+
 const WorkflowExecutor: React.FC<WorkflowExecutorProps> = ({ collaborationId, collaborationName, agents }) => {
   const [workflowType, setWorkflowType] = useState<'magentic' | 'groupchat'>('magentic');
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<CollaborationResult | null>(null);
   const [maxIterations, setMaxIterations] = useState(10);
+  const [orchestrationMode, setOrchestrationMode] = useState<'roundRobin' | 'manager' | 'intelligent'>('manager');
+  const [chatMessages, setChatMessages] = useState<ChatMessageDto[]>([]);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  };
+
+  useEffect(() => {
+    scrollToBottom();
+  }, [chatMessages]);
+
+  const getAgentInfo = (sender: string) => {
+    const agent = agents.find(a => a.agentName === sender || `_${a.agentId}` === sender);
+    return agent;
+  };
+
+  const getAgentAvatar = (sender: string) => {
+    const agent = getAgentInfo(sender);
+    if (agent?.agentAvatar) {
+      return <Avatar src={agent.agentAvatar} />;
+    }
+    return <Avatar icon={<RobotOutlined />} style={{ backgroundColor: '#1890ff' }} />;
+  };
+
+  const getAgentDisplayName = (sender: string) => {
+    const agent = getAgentInfo(sender);
+    return agent?.agentName || sender;
+  };
 
   const handleExecute = async () => {
     if (!input.trim()) {
@@ -29,33 +94,37 @@ const WorkflowExecutor: React.FC<WorkflowExecutorProps> = ({ collaborationId, co
 
     setLoading(true);
     setResult(null);
+    setChatMessages([]);
 
     try {
       let response: CollaborationResult;
 
       if (workflowType === 'magentic') {
-        // Magentic智能工作流
         response = await collaborationWorkflowService.executeReviewIterative(
           collaborationId,
           input,
           { maxIterations }
         );
+        setResult(response);
+        if (response.success) {
+          message.success('工作流执行成功');
+        } else {
+          message.error(`工作流执行失败: ${response.error}`);
+        }
       } else {
-        // 群聊协作
-        await collaborationWorkflowService.executeGroupChat(collaborationId, input);
-        response = {
-          success: true,
-          output: '群聊工作流已启动，请查看实时消息流',
-          messages: [],
+        const parameters: GroupChatParameters = {
+          orchestrationMode,
+          maxIterations
         };
-      }
-
-      setResult(response);
-
-      if (response.success) {
-        message.success('工作流执行成功');
-      } else {
-        message.error(`工作流执行失败: ${response.error}`);
+        await collaborationWorkflowService.executeGroupChat(
+          collaborationId, 
+          input,
+          parameters,
+          (msg) => {
+            setChatMessages(prev => [...prev, msg]);
+          }
+        );
+        message.success('群聊工作流执行完成');
       }
     } catch (error: any) {
       message.error(`执行失败: ${error.message}`);
@@ -176,17 +245,66 @@ const WorkflowExecutor: React.FC<WorkflowExecutorProps> = ({ collaborationId, co
               </Title>
               <Space direction="vertical" style={{ width: '100%' }} size="middle">
                 <div>
+                  <Text>协调模式</Text>
+                  <Radio.Group 
+                    value={orchestrationMode} 
+                    onChange={(e: RadioChangeEvent) => setOrchestrationMode(e.target.value)}
+                    style={{ width: '100%', marginTop: 8 }}
+                  >
+                    <Space direction="vertical" style={{ width: '100%' }}>
+                      {(Object.keys(orchestrationModeConfig) as Array<keyof typeof orchestrationModeConfig>).map((key) => {
+                        const config = orchestrationModeConfig[key];
+                        return (
+                          <Radio key={key} value={key}>
+                            <Space>
+                              <Tag color={config.color} icon={config.icon}>
+                                {config.label}
+                              </Tag>
+                              <Text type="secondary">{config.description}</Text>
+                            </Space>
+                          </Radio>
+                        );
+                      })}
+                    </Space>
+                  </Radio.Group>
+                  <Card 
+                    size="small" 
+                    style={{ marginTop: 12, backgroundColor: '#fafafa' }}
+                  >
+                    <Space direction="vertical" size={0}>
+                      {orchestrationModeConfig[orchestrationMode].details.map((detail, index) => (
+                        <Text key={index} style={{ fontSize: 12 }}>{detail}</Text>
+                      ))}
+                    </Space>
+                  </Card>
+                </div>
+                
+                <div>
+                  <Text>最大迭代次数</Text>
+                  <InputNumber
+                    value={maxIterations}
+                    onChange={(value) => setMaxIterations(value || 10)}
+                    min={1}
+                    max={50}
+                    style={{ width: '100%', marginTop: 8 }}
+                    placeholder="默认10次"
+                  />
+                </div>
+                
+                <div>
                   <Text>参与Agent（共 {agents.length} 个）</Text>
                   <div style={{ marginTop: 8 }}>
                     {agents.map((agent) => (
-                      <Tag key={agent.agentId} color="blue" style={{ marginBottom: 4 }}>
+                      <Tag key={agent.agentId} color={agent.role === 'Manager' ? 'gold' : 'blue'} style={{ marginBottom: 4 }}>
                         {agent.agentName}
                         {agent.role && ` (${agent.role})`}
                       </Tag>
                     ))}
                   </div>
                   <Text type="secondary" style={{ fontSize: 12 }}>
-                    所有Agent将参与群聊讨论
+                    {orchestrationMode === 'manager' || orchestrationMode === 'intelligent'
+                      ? '标记为 Manager 角色的Agent将作为协调者'
+                      : '所有Agent将轮流发言'}
                   </Text>
                 </div>
               </Space>
@@ -231,6 +349,61 @@ const WorkflowExecutor: React.FC<WorkflowExecutorProps> = ({ collaborationId, co
                 </Text>
               </div>
             </div>
+          )}
+
+          {workflowType === 'groupchat' && chatMessages.length > 0 && (
+            <>
+              <Divider />
+              <div>
+                <Title level={5}>
+                  <MessageOutlined /> 协作对话
+                </Title>
+                <Card 
+                  size="small" 
+                  style={{ 
+                    maxHeight: '500px', 
+                    overflowY: 'auto',
+                    backgroundColor: '#f5f5f5'
+                  }}
+                >
+                  <List
+                    dataSource={chatMessages}
+                    renderItem={(msg, index) => (
+                      <List.Item key={index} style={{ border: 'none', padding: '8px 0' }}>
+                        <div style={{ display: 'flex', width: '100%', gap: '12px' }}>
+                          <div style={{ flexShrink: 0 }}>
+                            {getAgentAvatar(msg.sender)}
+                          </div>
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div style={{ marginBottom: 4 }}>
+                              <Text strong style={{ marginRight: 8 }}>
+                                {getAgentDisplayName(msg.sender)}
+                              </Text>
+                              <Text type="secondary" style={{ fontSize: 12 }}>
+                                {new Date(msg.timestamp).toLocaleTimeString()}
+                              </Text>
+                            </div>
+                            <div 
+                              style={{ 
+                                backgroundColor: '#fff', 
+                                padding: '8px 12px', 
+                                borderRadius: 8,
+                                display: 'inline-block',
+                                maxWidth: '100%',
+                                wordBreak: 'break-word'
+                              }}
+                            >
+                              <Text style={{ whiteSpace: 'pre-wrap' }}>{msg.content}</Text>
+                            </div>
+                          </div>
+                        </div>
+                      </List.Item>
+                    )}
+                  />
+                  <div ref={messagesEndRef} />
+                </Card>
+              </div>
+            </>
           )}
 
           {result && !loading && (

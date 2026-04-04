@@ -5,27 +5,9 @@ using MAFStudio.Application.DTOs;
 public interface ICollaborationWorkflowService
 {
     /// <summary>
-    /// 执行顺序工作流
-    /// </summary>
-    Task<CollaborationResult> ExecuteSequentialAsync(long collaborationId, string input, CancellationToken cancellationToken = default);
-
-    /// <summary>
     /// 执行并发工作流
     /// </summary>
-    /// <param name="collaborationId">协作ID</param>
-    /// <param name="input">输入内容</param>
-    /// <param name="executorAgentIds">参与并发执行的Agent ID列表（可选）</param>
-    /// <param name="aggregatorAgentId">聚合Agent ID（可选）</param>
-    /// <param name="aggregationStrategy">聚合策略：simple或intelligent</param>
-    /// <param name="cancellationToken">取消令牌</param>
-    /// <returns>协作结果</returns>
-    Task<CollaborationResult> ExecuteConcurrentAsync(
-        long collaborationId, 
-        string input, 
-        List<long>? executorAgentIds = null,
-        long? aggregatorAgentId = null,
-        string aggregationStrategy = "simple",
-        CancellationToken cancellationToken = default);
+    Task<CollaborationResult> ExecuteConcurrentAsync(long collaborationId, string input, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// 执行任务移交工作流
@@ -35,7 +17,11 @@ public interface ICollaborationWorkflowService
     /// <summary>
     /// 执行群聊工作流
     /// </summary>
-    IAsyncEnumerable<ChatMessageDto> ExecuteGroupChatAsync(long collaborationId, string input, CancellationToken cancellationToken = default);
+    IAsyncEnumerable<ChatMessageDto> ExecuteGroupChatAsync(
+        long collaborationId, 
+        string input, 
+        GroupChatParameters? parameters = null,
+        CancellationToken cancellationToken = default);
 
     /// <summary>
     /// 执行审阅迭代工作流
@@ -47,6 +33,36 @@ public interface ICollaborationWorkflowService
     /// 生成Magentic计划
     /// </summary>
     Task<WorkflowDefinitionDto> GenerateMagenticPlanAsync(long collaborationId, string task, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// 生成并保存工作流计划
+    /// </summary>
+    Task<WorkflowPlanDto> GenerateAndSavePlanAsync(long collaborationId, string task, long userId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// 获取工作流计划
+    /// </summary>
+    Task<WorkflowPlanDto?> GetPlanAsync(long planId);
+
+    /// <summary>
+    /// 获取协作的所有工作流计划
+    /// </summary>
+    Task<List<WorkflowPlanDto>> GetPlansByCollaborationAsync(long collaborationId);
+
+    /// <summary>
+    /// 更新工作流计划
+    /// </summary>
+    Task<WorkflowPlanDto> UpdatePlanAsync(long planId, WorkflowDefinitionDto workflow);
+
+    /// <summary>
+    /// 执行工作流计划
+    /// </summary>
+    Task<CollaborationResult> ExecutePlanAsync(long planId, string input, long userId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// 删除工作流计划
+    /// </summary>
+    Task<bool> DeletePlanAsync(long planId);
 
     /// <summary>
     /// 执行自定义工作流

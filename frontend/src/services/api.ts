@@ -121,6 +121,10 @@ api.interceptors.response.use(
       window.location.href = '/login';
     }
 
+    if (error.response?.status === 403) {
+      console.error('权限不足:', error.response?.data);
+    }
+
     console.error('API Error:', error);
     return Promise.reject(error);
   }

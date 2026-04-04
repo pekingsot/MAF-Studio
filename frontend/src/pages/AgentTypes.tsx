@@ -93,18 +93,33 @@ const AgentTypes: React.FC = () => {
   const handleSubmit = async () => {
     try {
       const values = await form.validateFields();
+      console.log('[DEBUG] 提交数据:', JSON.stringify(values, null, 2));
       
       if (editingType) {
-        await api.put(`/agenttypes/${editingType.id}`, values);
+        const response = await api.put(`/agenttypes/${editingType.id}`, values);
+        console.log('[DEBUG] 更新响应:', response);
         message.success('更新成功');
       } else {
-        await api.post('/agenttypes', values);
+        console.log('[DEBUG] 发送 POST 请求到 /agenttypes');
+        const response = await api.post('/agenttypes', values);
+        console.log('[DEBUG] 创建响应:', response);
         message.success('创建成功');
       }
       setModalVisible(false);
       loadTypes();
-    } catch (error) {
-      message.error('操作失败');
+    } catch (error: any) {
+      console.error('[DEBUG] 错误:', error);
+      console.error('[DEBUG] 错误响应:', error.response);
+      
+      if (error.response?.status === 403) {
+        message.error('权限不足：需要管理员权限');
+      } else if (error.response?.status === 400) {
+        message.error(error.response?.data?.message || '请求参数错误');
+      } else if (error.response?.status === 401) {
+        message.error('未登录或登录已过期');
+      } else {
+        message.error(error.response?.data?.message || error.message || '操作失败');
+      }
     }
   };
 

@@ -112,3 +112,5 @@ app.MapControllers();
 app.MapHub<MAFStudio.Api.Hubs.AgentHub>("/hubs/agent");
 
 app.Run();
+
+public partial class Program { }

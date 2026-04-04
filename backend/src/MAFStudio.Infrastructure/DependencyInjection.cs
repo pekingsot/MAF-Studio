@@ -28,6 +28,11 @@ public static class DependencyInjection
         services.AddScoped<IRoleRepository, RoleRepository>();
         services.AddScoped<IPermissionRepository, PermissionRepository>();
         services.AddScoped<IWorkflowTemplateRepository, WorkflowTemplateRepository>();
+        services.AddScoped<IWorkflowPlanRepository, WorkflowPlanRepository>();
+        services.AddScoped<IWorkflowExecutionRepository, WorkflowExecutionRepository>();
+        services.AddScoped<ICoordinationSessionRepository, CoordinationSessionRepository>();
+        services.AddScoped<ICoordinationRoundRepository, CoordinationRoundRepository>();
+        services.AddScoped<ICoordinationParticipantRepository, CoordinationParticipantRepository>();
         
         return services;
     }

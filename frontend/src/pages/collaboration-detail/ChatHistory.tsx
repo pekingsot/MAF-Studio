@@ -4,12 +4,12 @@ import { UserOutlined, RobotOutlined, TeamOutlined } from '@ant-design/icons';
 import { collaborationService } from '../../services/collaborationService';
 
 interface ChatMessage {
-  id: string;
-  fromAgentId?: string;
-  toAgentId?: string;
-  collaborationId: string;
+  id: number;
+  fromAgentId?: number;
+  toAgentId?: number;
+  collaborationId: number;
   content: string;
-  senderType: number;
+  senderType: string | number;
   senderName?: string;
   userId?: string;
   isStreaming: boolean;
@@ -40,43 +40,43 @@ const ChatHistory: React.FC<ChatHistoryProps> = ({ collaborationId }) => {
     }
   };
 
-  const getSenderIcon = (senderType: number) => {
-    switch (senderType) {
-      case 0:
-        return <UserOutlined />;
-      case 1:
-        return <RobotOutlined />;
-      case 2:
-        return <TeamOutlined />;
-      default:
-        return <UserOutlined />;
+  const getSenderIcon = (senderType: string | number) => {
+    const type = typeof senderType === 'string' ? senderType.toLowerCase() : senderType;
+    
+    if (type === 'user' || type === 0) {
+      return <UserOutlined />;
+    } else if (type === 'agent' || type === 1) {
+      return <RobotOutlined />;
+    } else if (type === 'system' || type === 2) {
+      return <TeamOutlined />;
     }
+    return <UserOutlined />;
   };
 
-  const getSenderColor = (senderType: number) => {
-    switch (senderType) {
-      case 0:
-        return '#1890ff';
-      case 1:
-        return '#52c41a';
-      case 2:
-        return '#722ed1';
-      default:
-        return '#1890ff';
+  const getSenderColor = (senderType: string | number) => {
+    const type = typeof senderType === 'string' ? senderType.toLowerCase() : senderType;
+    
+    if (type === 'user' || type === 0) {
+      return '#1890ff';
+    } else if (type === 'agent' || type === 1) {
+      return '#52c41a';
+    } else if (type === 'system' || type === 2) {
+      return '#722ed1';
     }
+    return '#1890ff';
   };
 
-  const getSenderLabel = (senderType: number) => {
-    switch (senderType) {
-      case 0:
-        return '用户';
-      case 1:
-        return '智能体';
-      case 2:
-        return '系统';
-      default:
-        return '未知';
+  const getSenderLabel = (senderType: string | number) => {
+    const type = typeof senderType === 'string' ? senderType.toLowerCase() : senderType;
+    
+    if (type === 'user' || type === 0) {
+      return '用户';
+    } else if (type === 'agent' || type === 1) {
+      return '智能体';
+    } else if (type === 'system' || type === 2) {
+      return '系统';
     }
+    return '未知';
   };
 
   if (loading) {

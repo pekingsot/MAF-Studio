@@ -2,6 +2,7 @@ using MAFStudio.Application.DTOs;
 using MAFStudio.Application.Interfaces;
 using Microsoft.AspNetCore.Mvc;
 using System.Runtime.CompilerServices;
+using System.Text.Json;
 
 namespace MAFStudio.Api.Controllers;
 
@@ -11,6 +12,12 @@ public class CollaborationWorkflowController : ControllerBase
 {
     private readonly ICollaborationWorkflowService _workflowService;
     private readonly ILogger<CollaborationWorkflowController> _logger;
+    
+    private static readonly JsonSerializerOptions JsonOptions = new()
+    {
+        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+        DictionaryKeyPolicy = JsonNamingPolicy.CamelCase
+    };
 
     public CollaborationWorkflowController(
         ICollaborationWorkflowService workflowService,
@@ -20,39 +27,16 @@ public class CollaborationWorkflowController : ControllerBase
         _logger = logger;
     }
 
-    [HttpPost("{collaborationId}/sequential")]
-    public async Task<ActionResult<CollaborationResult>> ExecuteSequential(
+    [HttpPost("{collaborationId}/concurrent")]
+    public async Task<ActionResult<CollaborationResult>> ExecuteConcurrent(
         long collaborationId,
         [FromBody] WorkflowRequest request)
     {
         try
         {
-            var result = await _workflowService.ExecuteSequentialAsync(
-                collaborationId,
-                request.Input);
-
-            return Ok(result);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "执行顺序工作流失败");
-            return BadRequest(new { error = ex.Message });
-        }
-    }
-
-    [HttpPost("{collaborationId}/concurrent")]
-    public async Task<ActionResult<CollaborationResult>> ExecuteConcurrent(
-        long collaborationId,
-        [FromBody] ConcurrentWorkflowRequest request)
-    {
-        try
-        {
             var result = await _workflowService.ExecuteConcurrentAsync(
                 collaborationId,
-                request.Input,
-                request.ExecutorAgentIds,
-                request.AggregatorAgentId,
-                request.AggregationStrategy);
+                request.Input);
 
             return Ok(result);
         }
@@ -84,17 +68,35 @@ public class CollaborationWorkflowController : ControllerBase
     }
 
     [HttpPost("{collaborationId}/groupchat")]
-    public async IAsyncEnumerable<ChatMessageDto> ExecuteGroupChat(
+    public async Task ExecuteGroupChat(
         long collaborationId,
-        [FromBody] WorkflowRequest request,
-        [EnumeratorCancellation] CancellationToken cancellationToken)
+        [FromBody] GroupChatWorkflowRequest request,
+        CancellationToken cancellationToken)
     {
-        await foreach (var message in _workflowService.ExecuteGroupChatAsync(
-            collaborationId,
-            request.Input,
-            cancellationToken))
+        Response.ContentType = "text/event-stream";
+        Response.Headers.CacheControl = "no-cache";
+        Response.Headers.Connection = "keep-alive";
+
+        try
         {
-            yield return message;
+            await foreach (var message in _workflowService.ExecuteGroupChatAsync(
+                collaborationId,
+                request.Input,
+                request.Parameters,
+                cancellationToken))
+            {
+                var json = JsonSerializer.Serialize(message, JsonOptions);
+                _logger.LogInformation("发送SSE消息: {Json}", json);
+                await Response.WriteAsync($"data: {json}\n\n");
+                await Response.Body.FlushAsync(cancellationToken);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "执行群聊工作流失败");
+            var errorJson = System.Text.Json.JsonSerializer.Serialize(new { error = ex.Message });
+            await Response.WriteAsync($"data: {errorJson}\n\n");
+            await Response.Body.FlushAsync(cancellationToken);
         }
     }
 
@@ -125,24 +127,10 @@ public class WorkflowRequest
     public string Input { get; set; } = string.Empty;
 }
 
-public class ConcurrentWorkflowRequest
+public class GroupChatWorkflowRequest
 {
     public string Input { get; set; } = string.Empty;
-    
-    /// <summary>
-    /// 参与并发执行的Agent ID列表（如果不指定，则使用协作中的所有Agent）
-    /// </summary>
-    public List<long>? ExecutorAgentIds { get; set; }
-    
-    /// <summary>
-    /// 聚合Agent ID（如果指定，则使用该Agent智能合并结果）
-    /// </summary>
-    public long? AggregatorAgentId { get; set; }
-    
-    /// <summary>
-    /// 聚合策略：simple（简单拼接）或 intelligent（智能合并）
-    /// </summary>
-    public string AggregationStrategy { get; set; } = "simple";
+    public GroupChatParameters? Parameters { get; set; }
 }
 
 public class ReviewIterativeRequest
