@@ -313,12 +313,10 @@ public class CollaborationsController : ControllerBase
     [HttpGet("{id}/messages")]
     public async Task<ActionResult<List<Core.Entities.AgentMessage>>> GetCollaborationMessages(long id)
     {
-        var userId = User.GetUserId();
-        
-        var collaboration = await _collaborationService.GetByIdAsync(id, userId);
+        var collaboration = await _collaborationService.GetByIdAsync(id);
         if (collaboration == null)
         {
-            return NotFound();
+            return NotFound(new { error = "团队不存在" });
         }
 
         var messages = await _agentMessageRepository.GetByCollaborationIdAsync(collaboration.Id);

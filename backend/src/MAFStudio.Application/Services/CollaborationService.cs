@@ -33,6 +33,11 @@ public class CollaborationService : ICollaborationService
         return collaboration;
     }
 
+    public async Task<Collaboration?> GetByIdAsync(long id)
+    {
+        return await _collaborationRepository.GetByIdAsync(id);
+    }
+
     public async Task<Collaboration> CreateAsync(
         string name, 
         string? description, 

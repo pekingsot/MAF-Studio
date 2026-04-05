@@ -35,12 +35,20 @@ public class CoordinationSessionRepository : ICoordinationSessionRepository
         return result.ToList();
     }
 
+    public async Task<List<CoordinationSession>> GetByTaskIdAsync(long taskId, int limit = 20)
+    {
+        using var connection = _context.CreateConnection();
+        const string sql = "SELECT * FROM coordination_sessions WHERE task_id = @TaskId ORDER BY start_time DESC LIMIT @Limit";
+        var result = await connection.QueryAsync<CoordinationSession>(sql, new { TaskId = taskId, Limit = limit });
+        return result.ToList();
+    }
+
     public async Task<CoordinationSession> CreateAsync(CoordinationSession session)
     {
         using var connection = _context.CreateConnection();
         const string sql = @"
-            INSERT INTO coordination_sessions (collaboration_id, workflow_execution_id, orchestration_mode, status, topic, start_time)
-            VALUES (@CollaborationId, @WorkflowExecutionId, @OrchestrationMode, @Status, @Topic, @StartTime)
+            INSERT INTO coordination_sessions (collaboration_id, task_id, workflow_execution_id, orchestration_mode, status, topic, metadata, start_time)
+            VALUES (@CollaborationId, @TaskId, @WorkflowExecutionId, @OrchestrationMode, @Status, @Topic, @Metadata, @StartTime)
             RETURNING *";
         return await connection.QueryFirstAsync<CoordinationSession>(sql, session);
     }

@@ -9,8 +9,19 @@ using MAFStudio.Application;
 using MAFStudio.Api.Services;
 using MAFStudio.Api.Middleware;
 using MAFStudio.Api.Converters;
+using Serilog;
 
 var builder = WebApplication.CreateBuilder(args);
+
+Log.Logger = new LoggerConfiguration()
+    .MinimumLevel.Information()
+    .WriteTo.Console()
+    .WriteTo.File("logs/maf-studio-.log", rollingInterval: RollingInterval.Day, outputTemplate: "{Timestamp:yyyy-MM-dd HH:mm:ss} [{Level:u3}] {Message:lj}{NewLine}{Exception}")
+    .CreateLogger();
+
+builder.Host.UseSerilog();
+
+Log.Information("========== MAF Studio API 启动 ==========");
 
 builder.Services.AddControllers(options =>
 {

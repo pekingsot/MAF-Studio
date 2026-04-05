@@ -1,6 +1,6 @@
 import React from 'react';
-import { Card, Button, Tabs } from 'antd';
-import { ArrowLeftOutlined } from '@ant-design/icons';
+import { Card, Button, Tabs, Space } from 'antd';
+import { ArrowLeftOutlined, HistoryOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import { useCollaborationDetail } from './useCollaborationDetail';
 import CollaborationInfo from './CollaborationInfo';
@@ -18,13 +18,21 @@ const CollaborationDetail: React.FC = () => {
 
   return (
     <div>
-      <Button
-        icon={<ArrowLeftOutlined />}
-        onClick={() => navigate('/collaborations')}
-        style={{ marginBottom: 16 }}
-      >
-        返回列表
-      </Button>
+      <Space style={{ marginBottom: 16 }}>
+        <Button
+          icon={<ArrowLeftOutlined />}
+          onClick={() => navigate('/collaborations')}
+        >
+          返回列表
+        </Button>
+        <Button
+          type="primary"
+          icon={<HistoryOutlined />}
+          onClick={() => navigate(`/collaborations/${id}/coordination`)}
+        >
+          查看协调记录
+        </Button>
+      </Space>
 
       <Card title={collaboration.name} loading={loading}>
         <CollaborationInfo collaboration={collaboration} />

@@ -1,5 +1,6 @@
 using MAFStudio.Application.DTOs;
 using MAFStudio.Application.Interfaces;
+using MAFStudio.Core.Entities;
 using MAFStudio.Core.Enums;
 using MAFStudio.Core.Interfaces.Repositories;
 using MAFStudio.Core.Interfaces.Services;
@@ -16,10 +17,10 @@ public partial class CollaborationWorkflowService : ICollaborationWorkflowServic
     private readonly IAgentFactoryService _agentFactory;
     private readonly IMessageService _messageService;
     private readonly IWorkflowPlanRepository _workflowPlanRepository;
-    private readonly ICoordinationSessionRepository _coordinationSessionRepository;
-    private readonly ICoordinationRoundRepository _coordinationRoundRepository;
-    private readonly ICoordinationParticipantRepository _coordinationParticipantRepository;
+    private readonly IWorkflowSessionRepository _workflowSessionRepository;
+    private readonly IMessageRepository _messageRepository;
     private readonly ILogger<CollaborationWorkflowService> _logger;
+    private readonly ILoggerFactory _loggerFactory;
 
     public CollaborationWorkflowService(
         ICollaborationRepository collaborationRepository,
@@ -28,10 +29,10 @@ public partial class CollaborationWorkflowService : ICollaborationWorkflowServic
         IAgentFactoryService agentFactory,
         IMessageService messageService,
         IWorkflowPlanRepository workflowPlanRepository,
-        ICoordinationSessionRepository coordinationSessionRepository,
-        ICoordinationRoundRepository coordinationRoundRepository,
-        ICoordinationParticipantRepository coordinationParticipantRepository,
-        ILogger<CollaborationWorkflowService> logger)
+        IWorkflowSessionRepository workflowSessionRepository,
+        IMessageRepository messageRepository,
+        ILogger<CollaborationWorkflowService> logger,
+        ILoggerFactory loggerFactory)
     {
         _collaborationRepository = collaborationRepository;
         _collaborationAgentRepository = collaborationAgentRepository;
@@ -39,10 +40,10 @@ public partial class CollaborationWorkflowService : ICollaborationWorkflowServic
         _agentFactory = agentFactory;
         _messageService = messageService;
         _workflowPlanRepository = workflowPlanRepository;
-        _coordinationSessionRepository = coordinationSessionRepository;
-        _coordinationRoundRepository = coordinationRoundRepository;
-        _coordinationParticipantRepository = coordinationParticipantRepository;
+        _workflowSessionRepository = workflowSessionRepository;
+        _messageRepository = messageRepository;
         _logger = logger;
+        _loggerFactory = loggerFactory;
     }
 
     public async Task<CollaborationResult> ExecuteConcurrentAsync(

@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { Table, Button, Modal, Form, Input, Tag, Space, message, Tabs, Select, Popconfirm, Divider, Row, Col, Alert, Radio, InputNumber, Typography, Card, Tooltip } from 'antd';
 import type { RadioChangeEvent } from 'antd';
-import { PlusOutlined, EditOutlined, DeleteOutlined, TeamOutlined, UserOutlined, FolderOutlined, GithubOutlined, BranchesOutlined, PlayCircleOutlined, EyeOutlined, MessageOutlined, SettingOutlined, SwapOutlined, CrownOutlined, BulbOutlined } from '@ant-design/icons';
+import { PlusOutlined, EditOutlined, DeleteOutlined, TeamOutlined, UserOutlined, FolderOutlined, GithubOutlined, BranchesOutlined, PlayCircleOutlined, EyeOutlined, MessageOutlined, SettingOutlined, SwapOutlined, CrownOutlined, BulbOutlined, InfoCircleOutlined } from '@ant-design/icons';
 import { collaborationService, Collaboration } from '../services/collaborationService';
 import { agentService, Agent } from '../services/agentService';
 import { useNavigate } from 'react-router-dom';
@@ -193,15 +193,15 @@ const Collaborations: React.FC = () => {
   };
 
   const handleExecuteTask = (task: any) => {
-    // 找到任务对应的协作
+    // 找到任务对应的团队
     const collaboration = collaborations.find(c => c.id === task.collaborationId);
     
     if (!collaboration) {
-      message.error('找不到对应的协作');
+      message.error('找不到对应的团队');
       return;
     }
 
-    // 检查协作中的Agent角色配置
+    // 检查团队中的Agent角色配置
     const agents = collaboration.agents || [];
     const hasManager = agents.some(agent => agent.role === 'Manager');
     const hasWorker = agents.some(agent => agent.role === 'Worker');
@@ -219,7 +219,7 @@ const Collaborations: React.FC = () => {
               {!hasWorker && <li>❌ 缺少Worker（执行者）</li>}
               {hasWorker && <li>✅ 已有Worker（执行者）</li>}
             </ul>
-            <p style={{ marginTop: 16 }}>请先在协作中添加必要的Agent角色。</p>
+            <p style={{ marginTop: 16 }}>请先在团队中添加必要的Agent角色。</p>
           </div>
         ),
         okText: '去添加',
@@ -306,7 +306,7 @@ const Collaborations: React.FC = () => {
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${token}`
           },
-          body: JSON.stringify({ input, parameters })
+          body: JSON.stringify({ input, parameters, taskId: selectedTask.id })
         });
         
         const reader = response.body?.getReader();
@@ -385,14 +385,14 @@ const Collaborations: React.FC = () => {
 
   const columns = [
     {
-      title: '名称',
+      title: '团队名称',
       dataIndex: 'name',
       key: 'name',
       width: '15%',
       ellipsis: true,
     },
     {
-      title: '路径',
+      title: '团队工作目录',
       dataIndex: 'path',
       key: 'path',
       width: '15%',
@@ -469,7 +469,7 @@ const Collaborations: React.FC = () => {
             编辑
           </Button>
           <Popconfirm
-            title="确定要删除这个协作项目吗？"
+            title="确定要删除这个团队吗？"
             onConfirm={() => handleDeleteCollaboration(record.id)}
             okText="确定"
             cancelText="取消"
@@ -546,7 +546,7 @@ const Collaborations: React.FC = () => {
             icon={<MessageOutlined />}
             onClick={() => handleViewChatHistory(record)}
           >
-            协作过程
+            团队协作过程
           </Button>
           <Popconfirm
             title="确定要删除这个任务吗？"
@@ -720,9 +720,9 @@ const Collaborations: React.FC = () => {
   return (
     <div>
       <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <h2>协作管理</h2>
+        <h2>团队管理</h2>
         <Button type="primary" icon={<PlusOutlined />} onClick={handleCreate}>
-          创建协作项目
+          创建团队
         </Button>
       </div>
 
@@ -738,7 +738,7 @@ const Collaborations: React.FC = () => {
       />
 
       <Modal
-        title={selectedCollaboration ? '编辑协作项目' : '创建协作项目'}
+        title={selectedCollaboration ? '编辑团队' : '创建团队'}
         open={modalVisible}
         onOk={handleSubmit}
         onCancel={() => {
@@ -750,16 +750,16 @@ const Collaborations: React.FC = () => {
       >
         <Form form={form} layout="vertical">
           <Form.Item
-            label="名称"
+            label="团队名称"
             name="name"
-            rules={[{ required: true, message: '请输入项目名称' }]}
+            rules={[{ required: true, message: '请输入团队名称' }]}
           >
-            <Input placeholder="请输入项目名称" />
+            <Input placeholder="请输入团队名称" />
           </Form.Item>
           <Form.Item 
-            label="工作目录" 
+            label="团队工作目录" 
             name="path"
-            tooltip="项目的代码目录路径，用于智能体执行任务"
+            tooltip="团队的代码目录路径，用于智能体执行任务"
           >
             <Input 
               placeholder="例如: /home/user/projects/myapp" 
@@ -863,7 +863,7 @@ const Collaborations: React.FC = () => {
             >
               {agents
                 .filter(agent => {
-                  // 过滤掉已经在协作中的智能体
+                  // 过滤掉已经在团队中的智能体
                   const isInCollaboration = selectedCollaboration?.agents?.some(
                     (ca: any) => ca.agentId === agent.id
                   );
@@ -885,8 +885,8 @@ const Collaborations: React.FC = () => {
             return !isInCollaboration;
           }).length === 0 && (
             <Alert
-              message="所有智能体都已在协作中"
-              description="该协作已经添加了所有可用的智能体，请先创建新的智能体或移除现有智能体。"
+              message="所有智能体都已在团队中"
+              description="该团队已经添加了所有可用的智能体，请先创建新的智能体或移除现有智能体。"
               type="info"
               showIcon
               style={{ marginBottom: 16 }}
@@ -968,18 +968,43 @@ const Collaborations: React.FC = () => {
             </Select>
           </Form.Item>
 
-          <Form.Item
-            label="自定义提示词"
-            name="customPrompt"
-            tooltip="自动填充系统提示词，您可以根据项目需求修改此提示词"
-          >
-            <Input.TextArea 
-              rows={6} 
-              placeholder="自动填充系统提示词，您可以根据项目需求修改..." 
-              showCount
-              maxLength={2000}
-            />
-          </Form.Item>
+          <div style={{ marginBottom: 16 }}>
+            <div style={{ marginBottom: 4, fontWeight: 500 }}>
+              自定义提示词
+              <Tooltip title="自动填充系统提示词，您可以根据项目需求修改此提示词">
+                <InfoCircleOutlined style={{ marginLeft: 4, color: '#999', fontSize: 12 }} />
+              </Tooltip>
+            </div>
+            <div style={{ marginBottom: 8, padding: 8, backgroundColor: '#e6f7ff', borderRadius: 4, fontSize: 12 }}>
+              <div style={{ marginBottom: 4, fontWeight: 500, color: '#1890ff' }}>
+                <InfoCircleOutlined style={{ marginRight: 4 }} />提示词变量说明
+              </div>
+              <div style={{ marginTop: 8 }}>
+                <code style={{ backgroundColor: '#f0f0f0', padding: '2px 6px', borderRadius: 2 }}>{"{{agent_name}}"}</code>
+                <span style={{ marginLeft: 8, color: '#666' }}>当前智能体名称</span>
+              </div>
+              <div style={{ marginTop: 4 }}>
+                <code style={{ backgroundColor: '#f0f0f0', padding: '2px 6px', borderRadius: 2 }}>{"{{agent_role}}"}</code>
+                <span style={{ marginLeft: 8, color: '#666' }}>当前智能体角色（Manager/Worker）</span>
+              </div>
+              <div style={{ marginTop: 4 }}>
+                <code style={{ backgroundColor: '#f0f0f0', padding: '2px 6px', borderRadius: 2 }}>{"{{agent_type}}"}</code>
+                <span style={{ marginLeft: 8, color: '#666' }}>当前智能体类型（如：架构师）</span>
+              </div>
+              <div style={{ marginTop: 4 }}>
+                <code style={{ backgroundColor: '#f0f0f0', padding: '2px 6px', borderRadius: 2 }}>{"{{members}}"}</code>
+                <span style={{ marginLeft: 8, color: '#666' }}>团队成员列表（名称+类型）</span>
+              </div>
+            </div>
+            <Form.Item name="customPrompt" noStyle>
+              <Input.TextArea 
+                rows={6} 
+                placeholder="自动填充系统提示词，您可以根据项目需求修改..." 
+                showCount
+                maxLength={2000}
+              />
+            </Form.Item>
+          </div>
         </Form>
       </Modal>
 
@@ -1074,27 +1099,53 @@ const Collaborations: React.FC = () => {
             </Select>
           </Form.Item>
 
-          <Form.Item
-            label="自定义提示词"
-            name="customPrompt"
-            tooltip="自定义提示词用于覆盖系统提示词，Manager会根据自定义提示词分配任务"
-          >
-            <Input.TextArea 
-              rows={6} 
-              placeholder="自定义提示词（默认使用系统提示词）" 
-              showCount
-              maxLength={2000}
-            />
-          </Form.Item>
+          <div style={{ marginBottom: 16 }}>
+            <div style={{ marginBottom: 4, fontWeight: 500 }}>
+              自定义提示词
+              <Tooltip title="自定义提示词用于覆盖系统提示词，Manager会根据自定义提示词分配任务">
+                <InfoCircleOutlined style={{ marginLeft: 4, color: '#999', fontSize: 12 }} />
+              </Tooltip>
+            </div>
+            <div style={{ marginBottom: 8, padding: 8, backgroundColor: '#e6f7ff', borderRadius: 4, fontSize: 12 }}>
+              <div style={{ marginBottom: 4, fontWeight: 500, color: '#1890ff' }}>
+                <InfoCircleOutlined style={{ marginRight: 4 }} />提示词变量说明
+              </div>
+              <div style={{ marginTop: 8 }}>
+                <code style={{ backgroundColor: '#f0f0f0', padding: '2px 6px', borderRadius: 2 }}>{"{{agent_name}}"}</code>
+                <span style={{ marginLeft: 8, color: '#666' }}>当前智能体名称</span>
+              </div>
+              <div style={{ marginTop: 4 }}>
+                <code style={{ backgroundColor: '#f0f0f0', padding: '2px 6px', borderRadius: 2 }}>{"{{agent_role}}"}</code>
+                <span style={{ marginLeft: 8, color: '#666' }}>当前智能体角色（Manager/Worker）</span>
+              </div>
+              <div style={{ marginTop: 4 }}>
+                <code style={{ backgroundColor: '#f0f0f0', padding: '2px 6px', borderRadius: 2 }}>{"{{agent_type}}"}</code>
+                <span style={{ marginLeft: 8, color: '#666' }}>当前智能体类型（如：架构师）</span>
+              </div>
+              <div style={{ marginTop: 4 }}>
+                <code style={{ backgroundColor: '#f0f0f0', padding: '2px 6px', borderRadius: 2 }}>{"{{members}}"}</code>
+                <span style={{ marginLeft: 8, color: '#666' }}>团队成员列表（名称+类型）</span>
+              </div>
+            </div>
+            <Form.Item name="customPrompt" noStyle>
+              <Input.TextArea 
+                rows={6} 
+                placeholder="自定义提示词（默认使用系统提示词）" 
+                showCount
+                maxLength={2000}
+              />
+            </Form.Item>
+          </div>
         </Form>
       </Modal>
 
       <Modal
-        title="协作过程"
+        title="团队协作过程"
         open={chatHistoryModalVisible}
         onCancel={() => setChatHistoryModalVisible(false)}
         footer={null}
         width={800}
+        destroyOnClose
       >
         {selectedTask && (
           <div>
@@ -1105,7 +1156,7 @@ const Collaborations: React.FC = () => {
               showIcon
               style={{ marginBottom: 16 }}
             />
-            <ChatHistory collaborationId={selectedTask.collaborationId} />
+            <ChatHistory taskId={String(selectedTask.id)} />
           </div>
         )}
       </Modal>

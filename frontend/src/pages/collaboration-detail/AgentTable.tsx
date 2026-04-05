@@ -103,14 +103,37 @@ const AgentTable: React.FC<AgentTableProps> = ({ agents, collaborationId, onRemo
       render: (customPrompt: string, record: CollaborationAgent) => {
         if (editingAgentId === record.agentId) {
           return (
-            <TextArea
-              value={editingCustomPrompt}
-              onChange={(e) => setEditingCustomPrompt(e.target.value)}
-              placeholder="自定义提示词（默认使用系统提示词）"
-              rows={4}
-              showCount
-              maxLength={2000}
-            />
+            <div>
+              <div style={{ marginBottom: 8, padding: 8, backgroundColor: '#e6f7ff', borderRadius: 4, fontSize: 12 }}>
+                <div style={{ marginBottom: 4, fontWeight: 500, color: '#1890ff' }}>
+                  <InfoCircleOutlined style={{ marginRight: 4 }} />提示词变量说明
+                </div>
+                <div style={{ marginTop: 8 }}>
+                  <code style={{ backgroundColor: '#f0f0f0', padding: '2px 6px', borderRadius: 2 }}>{"{{agent_name}}"}</code>
+                  <span style={{ marginLeft: 8, color: '#666' }}>当前智能体名称</span>
+                </div>
+                <div style={{ marginTop: 4 }}>
+                  <code style={{ backgroundColor: '#f0f0f0', padding: '2px 6px', borderRadius: 2 }}>{"{{agent_role}}"}</code>
+                  <span style={{ marginLeft: 8, color: '#666' }}>当前智能体角色（Manager/Worker）</span>
+                </div>
+                <div style={{ marginTop: 4 }}>
+                  <code style={{ backgroundColor: '#f0f0f0', padding: '2px 6px', borderRadius: 2 }}>{"{{agent_type}}"}</code>
+                  <span style={{ marginLeft: 8, color: '#666' }}>当前智能体类型（如：架构师）</span>
+                </div>
+                <div style={{ marginTop: 4 }}>
+                  <code style={{ backgroundColor: '#f0f0f0', padding: '2px 6px', borderRadius: 2 }}>{"{{members}}"}</code>
+                  <span style={{ marginLeft: 8, color: '#666' }}>团队成员列表（名称+类型）</span>
+                </div>
+              </div>
+              <TextArea
+                value={editingCustomPrompt}
+                onChange={(e) => setEditingCustomPrompt(e.target.value)}
+                placeholder="自定义提示词（默认使用系统提示词）"
+                rows={4}
+                showCount
+                maxLength={2000}
+              />
+            </div>
           );
         }
         
@@ -227,13 +250,22 @@ const AgentTable: React.FC<AgentTableProps> = ({ agents, collaborationId, onRemo
           执行Manager分配的具体任务
         </span>
       </div>
-      <div style={{ marginBottom: 16, padding: 12, backgroundColor: '#f0f2f5', borderRadius: 4 }}>
-        <Space>
-          <InfoCircleOutlined style={{ color: '#1890ff' }} />
-          <span style={{ fontSize: 12, color: '#666' }}>
-            自定义提示词默认使用系统提示词，点击"编辑角色"可以修改。Manager会根据自定义提示词分配任务。
-          </span>
-        </Space>
+      <div style={{ marginBottom: 16, padding: 12, backgroundColor: '#f6ffed', border: '1px solid #b7eb8f', borderRadius: 4 }}>
+        <div style={{ marginBottom: 8, fontWeight: 500, color: '#52c41a' }}>
+          <InfoCircleOutlined style={{ marginRight: 4 }} /> 提示词变量说明
+        </div>
+        <div style={{ fontSize: 12, color: '#666', marginBottom: 8 }}>
+          在自定义提示词中可使用以下变量，系统会自动替换：
+        </div>
+        <div style={{ fontSize: 12, backgroundColor: '#fff', padding: 8, borderRadius: 4, border: '1px solid #d9d9d9' }}>
+          <code style={{ color: '#1890ff', fontWeight: 'bold' }}>{"{{members}}"}</code>
+          <span style={{ marginLeft: 8, color: '#666' }}>→ 团队成员列表（名称+类型）</span>
+        </div>
+        <div style={{ fontSize: 11, color: '#999', marginTop: 8 }}>
+          示例输出：<br/>
+          <span style={{ marginLeft: 56 }}>- abc（项目经理）</span><br/>
+          <span style={{ marginLeft: 56 }}>- 123（架构师）</span>
+        </div>
       </div>
       <Table
         dataSource={agents}

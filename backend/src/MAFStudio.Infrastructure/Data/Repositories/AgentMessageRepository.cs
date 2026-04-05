@@ -48,7 +48,6 @@ namespace MAFStudio.Infrastructure.Data.Repositories
                     content,
                     sender_type,
                     sender_name,
-                    user_id,
                     is_streaming,
                     created_at
                 ) VALUES (
@@ -58,7 +57,6 @@ namespace MAFStudio.Infrastructure.Data.Repositories
                     @Content,
                     @SenderType,
                     @SenderName,
-                    @UserId,
                     @IsStreaming,
                     @CreatedAt
                 )

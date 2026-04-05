@@ -83,6 +83,7 @@ public class CollaborationWorkflowController : ControllerBase
                 collaborationId,
                 request.Input,
                 request.Parameters,
+                request.TaskId,
                 cancellationToken))
             {
                 var json = JsonSerializer.Serialize(message, JsonOptions);
@@ -131,6 +132,7 @@ public class GroupChatWorkflowRequest
 {
     public string Input { get; set; } = string.Empty;
     public GroupChatParameters? Parameters { get; set; }
+    public long? TaskId { get; set; }
 }
 
 public class ReviewIterativeRequest

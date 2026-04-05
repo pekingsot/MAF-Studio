@@ -21,13 +21,19 @@ public interface ICollaborationWorkflowService
         long collaborationId, 
         string input, 
         GroupChatParameters? parameters = null,
+        long? taskId = null,
         CancellationToken cancellationToken = default);
 
     /// <summary>
     /// 执行审阅迭代工作流
     /// 适用场景：A写文档 → B审阅 → 不满意 → 打回去 → A修改 → 循环直到满意
     /// </summary>
-    Task<CollaborationResult> ExecuteReviewIterativeAsync(long collaborationId, string input, ReviewIterativeParameters? parameters = null, CancellationToken cancellationToken = default);
+    Task<CollaborationResult> ExecuteReviewIterativeAsync(
+        long collaborationId, 
+        string input, 
+        ReviewIterativeParameters? parameters = null, 
+        long? taskId = null,
+        CancellationToken cancellationToken = default);
 
     /// <summary>
     /// 生成Magentic计划

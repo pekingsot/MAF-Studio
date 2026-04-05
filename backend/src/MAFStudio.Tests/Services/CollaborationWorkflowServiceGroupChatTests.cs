@@ -1,6 +1,7 @@
 using MAFStudio.Application.DTOs;
 using MAFStudio.Application.Interfaces;
 using MAFStudio.Application.Services;
+using MAFStudio.Core.Entities;
 using MAFStudio.Core.Enums;
 using MAFStudio.Core.Interfaces.Repositories;
 using MAFStudio.Core.Interfaces.Services;
@@ -67,9 +68,25 @@ public class CollaborationWorkflowServiceGroupChatTests
 
         var messageServiceMock = new Mock<IMessageService>();
         var workflowPlanRepoMock = new Mock<IWorkflowPlanRepository>();
-        var coordinationSessionRepoMock = new Mock<ICoordinationSessionRepository>();
-        var coordinationRoundRepoMock = new Mock<ICoordinationRoundRepository>();
-        var coordinationParticipantRepoMock = new Mock<ICoordinationParticipantRepository>();
+        var workflowSessionRepoMock = new Mock<IWorkflowSessionRepository>();
+        workflowSessionRepoMock.Setup(x => x.CreateAsync(It.IsAny<WorkflowSession>()))
+            .ReturnsAsync((WorkflowSession s) => 
+            {
+                s.Id = 9999;
+                return s;
+            });
+        workflowSessionRepoMock.Setup(x => x.IncrementMessageCountAsync(It.IsAny<long>()))
+            .ReturnsAsync(true);
+        workflowSessionRepoMock.Setup(x => x.EndSessionAsync(It.IsAny<long>(), It.IsAny<string>(), It.IsAny<string>()))
+            .ReturnsAsync(true);
+        
+        var messageRepoMock = new Mock<IMessageRepository>();
+        messageRepoMock.Setup(x => x.CreateAsync(It.IsAny<Message>()))
+            .ReturnsAsync((Message m) => 
+            {
+                m.Id = 1;
+                return m;
+            });
 
         var service = new CollaborationWorkflowService(
             collaborationRepository,
@@ -78,10 +95,10 @@ public class CollaborationWorkflowServiceGroupChatTests
             agentFactory,
             messageServiceMock.Object,
             workflowPlanRepoMock.Object,
-            coordinationSessionRepoMock.Object,
-            coordinationRoundRepoMock.Object,
-            coordinationParticipantRepoMock.Object,
-            workflowServiceLogger);
+            workflowSessionRepoMock.Object,
+            messageRepoMock.Object,
+            workflowServiceLogger,
+            loggerFactory);
 
         using var connection = new NpgsqlConnection(_connectionString);
         await connection.OpenAsync();

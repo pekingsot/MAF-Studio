@@ -35,7 +35,7 @@ public class CollaborationAgentRepository : ICollaborationAgentRepository
                 ca.collaboration_id,
                 ca.agent_id,
                 ca.role,
-                ca.custom_prompt,
+                ca.custom_prompt as CustomPrompt,
                 ca.joined_at,
                 a.name as agent_name,
                 a.type_name as agent_type,

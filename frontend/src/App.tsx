@@ -43,6 +43,8 @@ const SystemLogs = lazy(() => import('./pages/SystemLogs'));
 const Users = lazy(() => import('./pages/Users'));
 const Roles = lazy(() => import('./pages/Roles'));
 const Permissions = lazy(() => import('./pages/Permissions'));
+const CoordinationSessions = lazy(() => import('./pages/coordination-sessions'));
+const CoordinationSessionDetail = lazy(() => import('./pages/coordination-session-detail'));
 
 function App() {
   const { isAuthenticated, loading } = useAuth();
@@ -89,6 +91,8 @@ function App() {
           <Route path="/agent-types" element={lazyLoad(AgentTypes)} />
           <Route path="/collaborations" element={lazyLoad(Collaborations)} />
           <Route path="/collaborations/:id" element={lazyLoad(CollaborationDetail)} />
+          <Route path="/collaborations/:id/coordination" element={lazyLoad(CoordinationSessions)} />
+          <Route path="/collaborations/:collaborationId/coordination/:sessionId" element={lazyLoad(CoordinationSessionDetail)} />
           <Route path="/collaboration-workflow" element={lazyLoad(CollaborationWorkflow)} />
           <Route path="/skill-management" element={lazyLoad(SkillManagement)} />
           <Route path="/workflow-templates" element={lazyLoad(WorkflowTemplateManagement)} />
