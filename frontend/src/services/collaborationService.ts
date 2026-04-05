@@ -173,4 +173,24 @@ export const collaborationService = {
     const response = await api.get<any[]>(`/collaborations/${collaborationId}/messages`);
     return response.data;
   },
+
+  getCoordinationSessions: async (collaborationId: string, limit: number = 20): Promise<any[]> => {
+    const response = await api.get<any[]>(`/coordination/collaboration/${collaborationId}/sessions?limit=${limit}`);
+    return response.data;
+  },
+
+  getTaskSessions: async (taskId: string, limit: number = 20): Promise<any[]> => {
+    const response = await api.get<any[]>(`/coordination/task/${taskId}/sessions?limit=${limit}`);
+    return response.data;
+  },
+
+  getSessionRounds: async (sessionId: string): Promise<any[]> => {
+    const response = await api.get<any[]>(`/coordination/sessions/${sessionId}/rounds`);
+    return response.data;
+  },
+
+  getSessionMessages: async (sessionId: string): Promise<any[]> => {
+    const response = await api.get<any[]>(`/coordination/sessions/${sessionId}/messages`);
+    return response.data;
+  },
 };

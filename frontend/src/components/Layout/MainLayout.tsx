@@ -114,7 +114,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
             </Menu.Item>
           </SubMenu>
           <Menu.Item key="/collaborations" icon={<TeamOutlined />}>
-            <Link to="/collaborations">协作管理</Link>
+            <Link to="/collaborations">团队管理</Link>
           </Menu.Item>
           <Menu.Item key="/collaboration-workflow" icon={<TeamOutlined />}>
             <Link to="/collaboration-workflow">协作工作流</Link>

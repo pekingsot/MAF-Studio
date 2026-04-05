@@ -295,7 +295,7 @@ const Dashboard: React.FC = () => {
         <Col span={6}>
           <Card>
             <Statistic
-              title="协作项目"
+              title="团队总数"
               value={collaborations.length}
               prefix={<TeamOutlined />}
               loading={loading}
@@ -475,7 +475,7 @@ const Dashboard: React.FC = () => {
           </Card>
         </Col>
         <Col span={12}>
-          <Card title="协作项目" loading={loading} style={{ height: 380 }}>
+          <Card title="团队列表" loading={loading} style={{ height: 380 }}>
             <Table
               dataSource={collaborations}
               columns={collaborationColumns}

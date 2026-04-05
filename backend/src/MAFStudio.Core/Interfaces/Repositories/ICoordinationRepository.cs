@@ -7,6 +7,7 @@ public interface ICoordinationSessionRepository
     Task<CoordinationSession?> GetByIdAsync(long id);
     Task<CoordinationSession?> GetActiveByCollaborationIdAsync(long collaborationId);
     Task<List<CoordinationSession>> GetByCollaborationIdAsync(long collaborationId, int limit = 20);
+    Task<List<CoordinationSession>> GetByTaskIdAsync(long taskId, int limit = 20);
     Task<CoordinationSession> CreateAsync(CoordinationSession session);
     Task<CoordinationSession> UpdateAsync(CoordinationSession session);
     Task<bool> EndSessionAsync(long id, string? conclusion = null);

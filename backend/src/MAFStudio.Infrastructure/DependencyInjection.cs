@@ -34,6 +34,9 @@ public static class DependencyInjection
         services.AddScoped<ICoordinationRoundRepository, CoordinationRoundRepository>();
         services.AddScoped<ICoordinationParticipantRepository, CoordinationParticipantRepository>();
         
+        services.AddScoped<IWorkflowSessionRepository, WorkflowSessionRepository>();
+        services.AddScoped<IMessageRepository, MessageRepository>();
+        
         return services;
     }
 }

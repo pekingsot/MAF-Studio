@@ -9,20 +9,17 @@ namespace MAFStudio.Api.Controllers;
 [Authorize]
 public class CoordinationController : ControllerBase
 {
-    private readonly ICoordinationSessionRepository _sessionRepository;
-    private readonly ICoordinationRoundRepository _roundRepository;
-    private readonly ICoordinationParticipantRepository _participantRepository;
+    private readonly IWorkflowSessionRepository _sessionRepository;
+    private readonly IMessageRepository _messageRepository;
     private readonly ILogger<CoordinationController> _logger;
 
     public CoordinationController(
-        ICoordinationSessionRepository sessionRepository,
-        ICoordinationRoundRepository roundRepository,
-        ICoordinationParticipantRepository participantRepository,
+        IWorkflowSessionRepository sessionRepository,
+        IMessageRepository messageRepository,
         ILogger<CoordinationController> logger)
     {
         _sessionRepository = sessionRepository;
-        _roundRepository = roundRepository;
-        _participantRepository = participantRepository;
+        _messageRepository = messageRepository;
         _logger = logger;
     }
 
@@ -37,8 +34,24 @@ public class CoordinationController : ControllerBase
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "获取协调会话列表失败: {CollaborationId}", collaborationId);
-            return StatusCode(500, new { message = "获取协调会话列表失败" });
+            _logger.LogError(ex, "获取工作流会话列表失败: {CollaborationId}", collaborationId);
+            return StatusCode(500, new { message = "获取工作流会话列表失败" });
+        }
+    }
+
+    [HttpGet("task/{taskId}/sessions")]
+    [AllowAnonymous]
+    public async Task<ActionResult> GetSessionsByTaskId(long taskId, [FromQuery] int limit = 20)
+    {
+        try
+        {
+            var sessions = await _sessionRepository.GetByTaskIdAsync(taskId, limit);
+            return Ok(sessions);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "获取任务执行记录列表失败: {TaskId}", taskId);
+            return StatusCode(500, new { message = "获取任务执行记录列表失败" });
         }
     }
 
@@ -51,46 +64,30 @@ public class CoordinationController : ControllerBase
             var session = await _sessionRepository.GetByIdAsync(id);
             if (session == null)
             {
-                return NotFound(new { message = "协调会话不存在" });
+                return NotFound(new { message = "工作流会话不存在" });
             }
             return Ok(session);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "获取协调会话失败: {Id}", id);
-            return StatusCode(500, new { message = "获取协调会话失败" });
+            _logger.LogError(ex, "获取工作流会话失败: {Id}", id);
+            return StatusCode(500, new { message = "获取工作流会话失败" });
         }
     }
 
-    [HttpGet("sessions/{sessionId}/rounds")]
+    [HttpGet("sessions/{sessionId}/messages")]
     [AllowAnonymous]
-    public async Task<ActionResult> GetRounds(long sessionId)
+    public async Task<ActionResult> GetMessages(long sessionId)
     {
         try
         {
-            var rounds = await _roundRepository.GetBySessionIdAsync(sessionId);
-            return Ok(rounds);
+            var messages = await _messageRepository.GetBySessionIdAsync(sessionId);
+            return Ok(messages);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "获取协调轮次列表失败: {SessionId}", sessionId);
-            return StatusCode(500, new { message = "获取协调轮次列表失败" });
-        }
-    }
-
-    [HttpGet("sessions/{sessionId}/participants")]
-    [AllowAnonymous]
-    public async Task<ActionResult> GetParticipants(long sessionId)
-    {
-        try
-        {
-            var participants = await _participantRepository.GetBySessionIdAsync(sessionId);
-            return Ok(participants);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "获取协调参与者列表失败: {SessionId}", sessionId);
-            return StatusCode(500, new { message = "获取协调参与者列表失败" });
+            _logger.LogError(ex, "获取会话消息列表失败: {SessionId}", sessionId);
+            return StatusCode(500, new { message = "获取会话消息列表失败" });
         }
     }
 
@@ -103,23 +100,21 @@ public class CoordinationController : ControllerBase
             var session = await _sessionRepository.GetByIdAsync(sessionId);
             if (session == null)
             {
-                return NotFound(new { message = "协调会话不存在" });
+                return NotFound(new { message = "工作流会话不存在" });
             }
 
-            var rounds = await _roundRepository.GetBySessionIdAsync(sessionId);
-            var participants = await _participantRepository.GetBySessionIdAsync(sessionId);
+            var messages = await _messageRepository.GetBySessionIdAsync(sessionId);
 
             return Ok(new
             {
                 session,
-                rounds,
-                participants
+                messages
             });
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "获取协调会话详情失败: {SessionId}", sessionId);
-            return StatusCode(500, new { message = "获取协调会话详情失败" });
+            _logger.LogError(ex, "获取工作流会话详情失败: {SessionId}", sessionId);
+            return StatusCode(500, new { message = "获取工作流会话详情失败" });
         }
     }
 }
