@@ -105,10 +105,26 @@ public partial class CollaborationWorkflowService
 
             var membersInfo = BuildMembersInfo(agentEntities);
 
+            string? gitUrl = null;
+            string? gitBranch = null;
+            string? gitToken = null;
+            if (taskId.HasValue && taskId.Value > 0)
+            {
+                var task = await _taskRepository.GetByIdAsync(taskId.Value);
+                if (task != null)
+                {
+                    gitUrl = task.GitUrl;
+                    gitBranch = task.GitBranch ?? "main";
+                    gitToken = task.GitCredentials;
+                    _logger.LogInformation("任务Git配置: URL={Url}, Branch={Branch}, HasToken={HasToken}", gitUrl, gitBranch, !string.IsNullOrEmpty(gitToken));
+                }
+            }
+
             var mafAgents = new List<ChatClientAgent>();
             var agentIdToNameMap = new Dictionary<string, string>();
             ChatClientAgent? managerAgent = null;
             IChatClient? orchestratorChatClient = null;
+            long managerAgentId = 0;
 
             foreach (var (member, agentEntity) in agentEntities)
             {
@@ -116,23 +132,20 @@ public partial class CollaborationWorkflowService
                 
                 var basePrompt = member.CustomPrompt ?? agentEntity.SystemPrompt ?? "You are a helpful assistant.";
                 
-                _logger.LogInformation("========== Agent配置开始 ==========");
-                _logger.LogInformation("Agent名称: {Name}", agentEntity.Name);
-                _logger.LogInformation("Agent类型: {Type}", agentEntity.TypeName);
-                _logger.LogInformation("协作角色: {Role}", member.Role);
-                _logger.LogInformation("是否使用自定义提示词: {IsCustom}", !string.IsNullOrEmpty(member.CustomPrompt));
-                _logger.LogInformation("原始提示词: {Prompt}", basePrompt);
-                
+                var agentId = member.AgentId;
                 var systemPrompt = ReplacePromptVariables(
                     basePrompt,
                     agentEntity.Name,
                     member.Role ?? "Worker",
                     agentEntity.TypeName ?? "",
                     membersInfo,
-                    parameters.OrchestrationMode);
-                
-                _logger.LogInformation("替换后提示词: {Prompt}", systemPrompt);
-                _logger.LogInformation("========== Agent配置结束 ==========");
+                    parameters.OrchestrationMode,
+                    collaborationId,
+                    taskId,
+                    agentId,
+                    gitUrl,
+                    gitBranch,
+                    gitToken);
                 
                 var isManager = member.Role?.Equals("Manager", StringComparison.OrdinalIgnoreCase) == true;
                 
@@ -144,6 +157,7 @@ public partial class CollaborationWorkflowService
                     agentEntity.Name,
                     agentDescription
                 );
+                
                 mafAgents.Add(agent);
                 
                 agentIdToNameMap[agent.Id] = agentEntity.Name;
@@ -152,8 +166,9 @@ public partial class CollaborationWorkflowService
                 if (isManager)
                 {
                     managerAgent = agent;
+                    managerAgentId = member.AgentId;
                     orchestratorChatClient = chatClient;
-                    _logger.LogInformation("识别主Agent: Id={Id}, Name={Name}", agent.Id, agentEntity.Name);
+                    _logger.LogInformation("识别主Agent: Id={Id}, Name={Name}, DBId={DBId}", agent.Id, agentEntity.Name, member.AgentId);
                 }
             }
 
@@ -314,6 +329,65 @@ public partial class CollaborationWorkflowService
                 await _workflowSessionRepository.EndSessionAsync(session.Id, conclusion: "工作流完成");
                 _logger.LogInformation("工作流会话结束: {SessionId}, 总轮次: {Rounds}", session.Id, roundNumber);
             }
+
+            if (taskId.HasValue && taskId.Value > 0 && session != null && managerAgentId > 0 && orchestratorChatClient != null)
+            {
+                _logger.LogInformation("开始让协调者Agent生成群聊总结文档...");
+                
+                yield return new ChatMessageDto
+                {
+                    Sender = "System",
+                    Content = "📝 正在让协调者Agent生成讨论总结文档...",
+                    Timestamp = DateTime.UtcNow,
+                    Role = "system"
+                };
+
+                string? conclusionResult = null;
+                string? errorMessage = null;
+                
+                try
+                {
+                    var sessionMessages = await _messageRepository.GetBySessionIdAsync(session.Id);
+                    
+                    conclusionResult = await _conclusionService.GenerateAndCommitConclusionAsync(
+                        taskId.Value,
+                        collaborationId,
+                        input,
+                        sessionMessages.ToList(),
+                        managerAgentId,
+                        managerAgent?.Name ?? "协调者",
+                        orchestratorChatClient,
+                        cancellationToken);
+                        
+                    _logger.LogInformation("总结文档结果: {Result}", conclusionResult);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "生成总结文档失败");
+                    errorMessage = ex.Message;
+                }
+
+                if (!string.IsNullOrEmpty(conclusionResult))
+                {
+                    yield return new ChatMessageDto
+                    {
+                        Sender = "System",
+                        Content = $"📄 {conclusionResult}",
+                        Timestamp = DateTime.UtcNow,
+                        Role = "system"
+                    };
+                }
+                else if (!string.IsNullOrEmpty(errorMessage))
+                {
+                    yield return new ChatMessageDto
+                    {
+                        Sender = "System",
+                        Content = $"⚠️ 总结文档生成失败: {errorMessage}",
+                        Timestamp = DateTime.UtcNow,
+                        Role = "system"
+                    };
+                }
+            }
         }
         finally
         {
@@ -376,7 +450,13 @@ public partial class CollaborationWorkflowService
         string agentRole,
         string agentType,
         string membersInfo,
-        GroupChatOrchestrationMode orchestrationMode)
+        GroupChatOrchestrationMode orchestrationMode,
+        long collaborationId,
+        long? taskId,
+        long agentId,
+        string? gitUrl,
+        string? gitBranch,
+        string? gitToken)
     {
         var basePrompt = prompt
             .Replace("{{agent_name}}", agentName)
@@ -407,6 +487,16 @@ public partial class CollaborationWorkflowService
             _ => ""
         };
 
+        var gitToolInstruction = "";
+        if (!string.IsNullOrEmpty(gitUrl) && taskId.HasValue)
+        {
+            var authUrl = !string.IsNullOrEmpty(gitToken) 
+                ? gitUrl.Replace("https://", $"https://oauth2:{gitToken}@")
+                : gitUrl;
+            
+            gitToolInstruction = $"\n【Git工具使用指南 - 重要！】\n你拥有Git工具，可以提交文档到仓库。当你需要提交文档时，请按以下步骤操作：\n\n1. **克隆仓库**: 使用 CloneRepository 工具\n   - repositoryUrl: {authUrl}\n   - localPath: D:/workspace/{collaborationId}/{taskId}/agents/{agentId}/repo\n\n2. **写文档**: 使用 WriteMarkdown 工具\n   - 在 docs/ 目录下创建你的文档\n   - 文件路径示例: D:/workspace/{collaborationId}/{taskId}/agents/{agentId}/repo/docs/你的文档名.md\n\n3. **提交到Git**: 按顺序执行以下工具\n   - AddFiles: 添加文件到暂存区\n   - Commit: 提交更改（提交信息格式: docs: 添加xxx文档）\n   - Push: 推送到远程仓库\n\n**重要**: \n- 提交文档时必须真实调用工具，不要只是说\"已提交\"\n- 必须按顺序执行: AddFiles -> Commit -> Push\n- Git提交时使用你的名称「{agentName}」作为提交者\n";
+        }
+
         var identityPrompt = $@"【重要身份规则 - 必须严格遵守】
 1. 你的名字是「{agentName}」，你的角色是「{agentType}」
 2. 无论别人@谁，你始终是「{agentName}」，绝对不会变成其他人
@@ -414,6 +504,7 @@ public partial class CollaborationWorkflowService
 4. 你的回复开头不要加【名字】，系统会自动显示你的名字
 5. 如果别人@了其他角色，那是在叫那个人，不是叫你
 {modeInstruction}
+{gitToolInstruction}
 {basePrompt}";
 
         return identityPrompt;

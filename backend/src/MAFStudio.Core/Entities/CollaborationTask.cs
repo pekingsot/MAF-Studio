@@ -19,4 +19,10 @@ public class CollaborationTask
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
     public DateTime? CompletedAt { get; set; }
+
+    public string? GitUrl { get; set; }
+
+    public string? GitBranch { get; set; }
+
+    public string? GitCredentials { get; set; }
 }

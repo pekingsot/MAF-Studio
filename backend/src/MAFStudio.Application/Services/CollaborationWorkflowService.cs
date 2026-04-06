@@ -19,6 +19,8 @@ public partial class CollaborationWorkflowService : ICollaborationWorkflowServic
     private readonly IWorkflowPlanRepository _workflowPlanRepository;
     private readonly IWorkflowSessionRepository _workflowSessionRepository;
     private readonly IMessageRepository _messageRepository;
+    private readonly ICollaborationTaskRepository _taskRepository;
+    private readonly IGroupChatConclusionService _conclusionService;
     private readonly ILogger<CollaborationWorkflowService> _logger;
     private readonly ILoggerFactory _loggerFactory;
 
@@ -31,6 +33,8 @@ public partial class CollaborationWorkflowService : ICollaborationWorkflowServic
         IWorkflowPlanRepository workflowPlanRepository,
         IWorkflowSessionRepository workflowSessionRepository,
         IMessageRepository messageRepository,
+        ICollaborationTaskRepository taskRepository,
+        IGroupChatConclusionService conclusionService,
         ILogger<CollaborationWorkflowService> logger,
         ILoggerFactory loggerFactory)
     {
@@ -42,6 +46,8 @@ public partial class CollaborationWorkflowService : ICollaborationWorkflowServic
         _workflowPlanRepository = workflowPlanRepository;
         _workflowSessionRepository = workflowSessionRepository;
         _messageRepository = messageRepository;
+        _taskRepository = taskRepository;
+        _conclusionService = conclusionService;
         _logger = logger;
         _loggerFactory = loggerFactory;
     }

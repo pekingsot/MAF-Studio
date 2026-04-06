@@ -58,10 +58,16 @@ public class GitCapability : ICapability
     }
 
     [Tool("提交更改")]
-    public string Commit(string repositoryPath, string message)
+    public string Commit(string repositoryPath, string message, string? authorName = null, string? authorEmail = null)
     {
         try
         {
+            var userName = authorName ?? "MAF Studio Agent";
+            var userEmail = authorEmail ?? "agent@maf-studio.local";
+            
+            ExecuteGitCommand($"config user.name \"{userName}\"", repositoryPath);
+            ExecuteGitCommand($"config user.email \"{userEmail}\"", repositoryPath);
+            
             return ExecuteGitCommand($"commit -m \"{message}\"", repositoryPath);
         }
         catch (Exception ex)

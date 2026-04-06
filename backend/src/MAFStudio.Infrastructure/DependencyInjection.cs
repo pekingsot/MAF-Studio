@@ -36,6 +36,7 @@ public static class DependencyInjection
         
         services.AddScoped<IWorkflowSessionRepository, WorkflowSessionRepository>();
         services.AddScoped<IMessageRepository, MessageRepository>();
+        services.AddScoped<ITaskAgentRepository, TaskAgentRepository>();
         
         return services;
     }

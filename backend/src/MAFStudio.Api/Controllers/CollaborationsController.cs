@@ -20,17 +20,20 @@ public class CollaborationsController : ControllerBase
     private readonly IAuthService _authService;
     private readonly IOperationLogService _logService;
     private readonly IAgentMessageRepository _agentMessageRepository;
+    private readonly ITaskAgentRepository _taskAgentRepository;
 
     public CollaborationsController(
         ICollaborationService collaborationService, 
         IAuthService authService, 
         IOperationLogService logService,
-        IAgentMessageRepository agentMessageRepository)
+        IAgentMessageRepository agentMessageRepository,
+        ITaskAgentRepository taskAgentRepository)
     {
         _collaborationService = collaborationService;
         _authService = authService;
         _logService = logService;
         _agentMessageRepository = agentMessageRepository;
+        _taskAgentRepository = taskAgentRepository;
     }
 
     [HttpGet]
@@ -66,6 +69,9 @@ public class CollaborationsController : ControllerBase
                 Description = t.Description,
                 Status = t.Status,
                 AssignedTo = t.AssignedTo,
+                GitUrl = t.GitUrl,
+                GitBranch = t.GitBranch,
+                HasGitToken = !string.IsNullOrEmpty(t.GitCredentials),
                 CompletedAt = t.CompletedAt,
                 CreatedAt = t.CreatedAt
             }).ToList() ?? new List<CollaborationTaskVo>();
@@ -251,9 +257,40 @@ public class CollaborationsController : ControllerBase
     {
         var userId = User.GetUserId();
         
-        var task = await _collaborationService.CreateTaskAsync(id, request.Title, request.Description, userId);
+        var task = await _collaborationService.CreateTaskAsync(
+            id, 
+            request.Title, 
+            request.Description, 
+            userId,
+            request.GitUrl,
+            request.GitBranch,
+            request.GitToken,
+            request.AgentIds);
         
         return CreatedAtAction(nameof(GetCollaboration), new { id }, task);
+    }
+
+    [HttpPut("tasks/{taskId}")]
+    public async Task<ActionResult<Core.Entities.CollaborationTask>> UpdateTask(long taskId, [FromBody] CreateTaskRequest request)
+    {
+        var task = await _collaborationService.UpdateTaskAsync(
+            taskId,
+            request.Title,
+            request.Description,
+            request.GitUrl,
+            request.GitBranch,
+            request.GitToken,
+            request.AgentIds);
+        
+        return Ok(task);
+    }
+
+    [HttpGet("tasks/{taskId}/agents")]
+    public async Task<ActionResult<List<long>>> GetTaskAgents(long taskId)
+    {
+        var taskAgents = await _taskAgentRepository.GetByTaskIdAsync(taskId);
+        var agentIds = taskAgents.Select(ta => ta.AgentId).ToList();
+        return Ok(agentIds);
     }
 
     [HttpPatch("tasks/{taskId}/status")]
@@ -269,20 +306,6 @@ public class CollaborationsController : ControllerBase
         var task = await _collaborationService.UpdateTaskStatusAsync(taskId, status, userId);
         
         return Ok(task);
-    }
-
-    [HttpDelete("tasks/{taskId}")]
-    public async Task<ActionResult> DeleteTask(long taskId)
-    {
-        var userId = User.GetUserId();
-        
-        var result = await _collaborationService.DeleteTaskAsync(taskId, userId);
-        if (!result)
-        {
-            return NotFound();
-        }
-        
-        return NoContent();
     }
 
     [HttpPost("tasks/{taskId}/execute")]

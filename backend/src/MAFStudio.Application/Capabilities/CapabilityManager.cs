@@ -17,6 +17,10 @@ public class CapabilityManager
         RegisterCapability(new FileCapability());
         RegisterCapability(new GitCapability());
         RegisterCapability(new DocumentCapability());
+        RegisterCapability(new WebCapability());
+        RegisterCapability(new CodeCapability());
+        RegisterCapability(new SearchCapability());
+        RegisterCapability(new ArchiveCapability());
     }
 
     public void RegisterCapability(ICapability capability)

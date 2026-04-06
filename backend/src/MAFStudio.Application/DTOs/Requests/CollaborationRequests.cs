@@ -36,6 +36,10 @@ public class CreateTaskRequest
 {
     public string Title { get; set; } = string.Empty;
     public string? Description { get; set; }
+    public string? GitUrl { get; set; }
+    public string? GitBranch { get; set; }
+    public string? GitToken { get; set; }
+    public List<long>? AgentIds { get; set; }
 }
 
 public class UpdateTaskStatusRequest
