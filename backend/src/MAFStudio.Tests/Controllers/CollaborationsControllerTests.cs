@@ -22,6 +22,7 @@ public class CollaborationsControllerTests : TestBase
     private readonly Mock<IAuthService> _mockAuthService;
     private readonly Mock<IOperationLogService> _mockLogService;
     private readonly Mock<IAgentMessageRepository> _mockAgentMessageRepository;
+    private readonly Mock<ITaskAgentRepository> _mockTaskAgentRepository;
     private readonly CollaborationsController _controller;
     private readonly long _testUserId = 1000000000000001;
 
@@ -31,12 +32,14 @@ public class CollaborationsControllerTests : TestBase
         _mockAuthService = new Mock<IAuthService>();
         _mockLogService = new Mock<IOperationLogService>();
         _mockAgentMessageRepository = new Mock<IAgentMessageRepository>();
+        _mockTaskAgentRepository = new Mock<ITaskAgentRepository>();
 
         _controller = new CollaborationsController(
             _mockCollaborationService.Object,
             _mockAuthService.Object,
             _mockLogService.Object,
-            _mockAgentMessageRepository.Object
+            _mockAgentMessageRepository.Object,
+            _mockTaskAgentRepository.Object
         );
 
         var user = new ClaimsPrincipal(new ClaimsIdentity(new Claim[]
@@ -255,37 +258,5 @@ public class CollaborationsControllerTests : TestBase
         var okResult = Assert.IsType<OkObjectResult>(result.Result);
         var returnedTask = Assert.IsType<CollaborationTask>(okResult.Value);
         Assert.Equal(CollaborationTaskStatus.InProgress, returnedTask.Status);
-    }
-
-    [Fact]
-    public async Task DeleteTask_ExistingId_ShouldReturnNoContent()
-    {
-        var collaboration = CreateTestCollaboration("Collaboration1", _testUserId);
-        collaboration.Id = 1007;
-        
-        var task = CreateTestTask(collaboration.Id, "Task1");
-        task.Id = 3002;
-
-        _mockCollaborationService
-            .Setup(s => s.DeleteTaskAsync(task.Id, _testUserId))
-            .ReturnsAsync(true);
-
-        var result = await _controller.DeleteTask(task.Id);
-
-        Assert.IsType<NoContentResult>(result);
-    }
-
-    [Fact]
-    public async Task DeleteTask_NonExistingId_ShouldReturnNotFound()
-    {
-        var nonExistingId = 999999L;
-
-        _mockCollaborationService
-            .Setup(s => s.DeleteTaskAsync(nonExistingId, _testUserId))
-            .ReturnsAsync(false);
-
-        var result = await _controller.DeleteTask(nonExistingId);
-
-        Assert.IsType<NotFoundResult>(result);
     }
 }

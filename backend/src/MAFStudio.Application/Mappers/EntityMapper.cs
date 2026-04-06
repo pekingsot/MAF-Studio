@@ -124,6 +124,8 @@ public static class EntityMapper
             Description = task.Description,
             Status = task.Status,
             AssignedTo = task.AssignedTo,
+            GitUrl = task.GitUrl,
+            GitBranch = task.GitBranch,
             CompletedAt = task.CompletedAt,
             CreatedAt = task.CreatedAt
         };

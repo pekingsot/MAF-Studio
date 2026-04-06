@@ -34,6 +34,9 @@ export interface CollaborationTask {
   title: string;
   description?: string;
   status: 'Pending' | 'InProgress' | 'Completed' | 'Failed';
+  gitUrl?: string;
+  gitBranch?: string;
+  hasGitToken?: boolean;
   createdAt: string;
   completedAt?: string;
 }
@@ -63,6 +66,10 @@ export interface UpdateAgentRoleRequest {
 export interface CreateTaskRequest {
   title: string;
   description?: string;
+  gitUrl?: string;
+  gitBranch?: string;
+  gitToken?: string;
+  agentIds?: number[];
 }
 
 export const collaborationService = {
@@ -108,13 +115,19 @@ export const collaborationService = {
     return response.data;
   },
 
-  updateTaskStatus: async (taskId: string, status: string): Promise<CollaborationTask> => {
-    const response = await api.patch<CollaborationTask>(`/collaborations/tasks/${taskId}/status`, { status });
+  updateTask: async (taskId: string, request: CreateTaskRequest): Promise<CollaborationTask> => {
+    const response = await api.put<CollaborationTask>(`/collaborations/tasks/${taskId}`, request);
     return response.data;
   },
 
-  deleteTask: async (taskId: string): Promise<void> => {
-    await api.delete(`/collaborations/tasks/${taskId}`);
+  getTaskAgents: async (taskId: string): Promise<number[]> => {
+    const response = await api.get<number[]>(`/collaborations/tasks/${taskId}/agents`);
+    return response.data;
+  },
+
+  updateTaskStatus: async (taskId: string, status: string): Promise<CollaborationTask> => {
+    const response = await api.patch<CollaborationTask>(`/collaborations/tasks/${taskId}/status`, { status });
+    return response.data;
   },
 
   executeTask: async (taskId: string): Promise<any> => {

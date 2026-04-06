@@ -38,6 +38,9 @@ public class CollaborationTaskVo
     public string? Description { get; set; }
     public CollaborationTaskStatus Status { get; set; }
     public long? AssignedTo { get; set; }
+    public string? GitUrl { get; set; }
+    public string? GitBranch { get; set; }
+    public bool HasGitToken { get; set; }
     public DateTime? CompletedAt { get; set; }
     public DateTime CreatedAt { get; set; }
 }

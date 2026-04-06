@@ -10,15 +10,18 @@ public class CollaborationService : ICollaborationService
     private readonly ICollaborationRepository _collaborationRepository;
     private readonly ICollaborationAgentRepository _collaborationAgentRepository;
     private readonly ICollaborationTaskRepository _collaborationTaskRepository;
+    private readonly ITaskAgentRepository _taskAgentRepository;
 
     public CollaborationService(
         ICollaborationRepository collaborationRepository,
         ICollaborationAgentRepository collaborationAgentRepository,
-        ICollaborationTaskRepository collaborationTaskRepository)
+        ICollaborationTaskRepository collaborationTaskRepository,
+        ITaskAgentRepository taskAgentRepository)
     {
         _collaborationRepository = collaborationRepository;
         _collaborationAgentRepository = collaborationAgentRepository;
         _collaborationTaskRepository = collaborationTaskRepository;
+        _taskAgentRepository = taskAgentRepository;
     }
 
     public async Task<List<Collaboration>> GetByUserIdAsync(long userId)
@@ -121,7 +124,7 @@ public class CollaborationService : ICollaborationService
         return await _collaborationTaskRepository.GetByCollaborationIdAsync(collaborationId);
     }
 
-    public async Task<CollaborationTask> CreateTaskAsync(long collaborationId, string title, string? description, long userId)
+    public async Task<CollaborationTask> CreateTaskAsync(long collaborationId, string title, string? description, long userId, string? gitUrl = null, string? gitBranch = null, string? gitToken = null, List<long>? agentIds = null)
     {
         var collaboration = await GetByIdAsync(collaborationId, userId);
         if (collaboration == null)
@@ -133,10 +136,63 @@ public class CollaborationService : ICollaborationService
             Title = title,
             Description = description,
             Status = CollaborationTaskStatus.Pending,
-            CreatedAt = DateTime.UtcNow
+            CreatedAt = DateTime.UtcNow,
+            GitUrl = gitUrl,
+            GitBranch = gitBranch,
+            GitCredentials = gitToken
         };
 
-        return await _collaborationTaskRepository.CreateAsync(task);
+        var createdTask = await _collaborationTaskRepository.CreateAsync(task);
+
+        if (agentIds != null && agentIds.Count > 0)
+        {
+            var taskAgents = agentIds.Select(agentId => new TaskAgent
+            {
+                TaskId = createdTask.Id,
+                AgentId = agentId,
+                CreatedAt = DateTime.UtcNow
+            }).ToList();
+
+            await _taskAgentRepository.CreateBatchAsync(taskAgents);
+        }
+
+        return createdTask;
+    }
+
+    public async Task<CollaborationTask> UpdateTaskAsync(long taskId, string title, string? description, string? gitUrl = null, string? gitBranch = null, string? gitToken = null, List<long>? agentIds = null)
+    {
+        var task = await _collaborationTaskRepository.GetByIdAsync(taskId);
+        if (task == null)
+            throw new NotFoundException($"任务 {taskId} 不存在");
+
+        task.Title = title;
+        task.Description = description;
+        task.GitUrl = gitUrl;
+        task.GitBranch = gitBranch;
+        if (!string.IsNullOrEmpty(gitToken))
+        {
+            task.GitCredentials = gitToken;
+        }
+
+        var updatedTask = await _collaborationTaskRepository.UpdateAsync(task);
+
+        if (agentIds != null)
+        {
+            await _taskAgentRepository.DeleteByTaskIdAsync(taskId);
+            if (agentIds.Count > 0)
+            {
+                var taskAgents = agentIds.Select(agentId => new TaskAgent
+                {
+                    TaskId = taskId,
+                    AgentId = agentId,
+                    CreatedAt = DateTime.UtcNow
+                }).ToList();
+
+                await _taskAgentRepository.CreateBatchAsync(taskAgents);
+            }
+        }
+
+        return updatedTask;
     }
 
     public async Task<CollaborationTask> UpdateTaskStatusAsync(long taskId, CollaborationTaskStatus status, long userId)

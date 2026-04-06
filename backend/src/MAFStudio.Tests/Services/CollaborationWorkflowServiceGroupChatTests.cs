@@ -1,6 +1,8 @@
 using MAFStudio.Application.DTOs;
 using MAFStudio.Application.Interfaces;
 using MAFStudio.Application.Services;
+using MAFStudio.Application.Capabilities;
+using MAFStudio.Application.Clients;
 using MAFStudio.Core.Entities;
 using MAFStudio.Core.Enums;
 using MAFStudio.Core.Interfaces.Repositories;
@@ -61,10 +63,15 @@ public class CollaborationWorkflowServiceGroupChatTests
             llmConfigRepository,
             modelConfigRepository,
             chatClientFactoryLogger);
+
+        var capabilityManager = new CapabilityManager();
+        var toolCallingLogger = loggerFactory.CreateLogger<ToolCallingChatClient>();
         
         var agentFactory = new AgentFactoryService(
             agentRepository,
-            chatClientFactory);
+            chatClientFactory,
+            capabilityManager,
+            toolCallingLogger);
 
         var messageServiceMock = new Mock<IMessageService>();
         var workflowPlanRepoMock = new Mock<IWorkflowPlanRepository>();
@@ -87,6 +94,9 @@ public class CollaborationWorkflowServiceGroupChatTests
                 m.Id = 1;
                 return m;
             });
+        
+        var taskRepoMock = new Mock<ICollaborationTaskRepository>();
+        var conclusionServiceMock = new Mock<IGroupChatConclusionService>();
 
         var service = new CollaborationWorkflowService(
             collaborationRepository,
@@ -97,6 +107,8 @@ public class CollaborationWorkflowServiceGroupChatTests
             workflowPlanRepoMock.Object,
             workflowSessionRepoMock.Object,
             messageRepoMock.Object,
+            taskRepoMock.Object,
+            conclusionServiceMock.Object,
             workflowServiceLogger,
             loggerFactory);
 

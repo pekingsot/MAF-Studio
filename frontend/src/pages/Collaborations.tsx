@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { Table, Button, Modal, Form, Input, Tag, Space, message, Tabs, Select, Popconfirm, Divider, Row, Col, Alert, Radio, InputNumber, Typography, Card, Tooltip } from 'antd';
+import { Table, Button, Modal, Form, Input, Tag, Space, message, Tabs, Select, Popconfirm, Divider, Row, Col, Alert, Radio, InputNumber, Typography, Card, Tooltip, Transfer } from 'antd';
 import type { RadioChangeEvent } from 'antd';
+import type { TransferProps } from 'antd';
 import { PlusOutlined, EditOutlined, DeleteOutlined, TeamOutlined, UserOutlined, FolderOutlined, GithubOutlined, BranchesOutlined, PlayCircleOutlined, EyeOutlined, MessageOutlined, SettingOutlined, SwapOutlined, CrownOutlined, BulbOutlined, InfoCircleOutlined } from '@ant-design/icons';
 import { collaborationService, Collaboration } from '../services/collaborationService';
 import { agentService, Agent } from '../services/agentService';
@@ -39,6 +40,7 @@ const Collaborations: React.FC = () => {
   const [modalVisible, setModalVisible] = useState(false);
   const [addAgentModalVisible, setAddAgentModalVisible] = useState(false);
   const [createTaskModalVisible, setCreateTaskModalVisible] = useState(false);
+  const [editTaskModalVisible, setEditTaskModalVisible] = useState(false);
   const [editAgentModalVisible, setEditAgentModalVisible] = useState(false);
   const [chatHistoryModalVisible, setChatHistoryModalVisible] = useState(false);
   const [executeTaskModalVisible, setExecuteTaskModalVisible] = useState(false);
@@ -46,14 +48,18 @@ const Collaborations: React.FC = () => {
   const [executionMessages, setExecutionMessages] = useState<any[]>([]);
   const [isExecuting, setIsExecuting] = useState(false);
   const [selectedTask, setSelectedTask] = useState<any>(null);
+  const [editingTask, setEditingTask] = useState<any>(null);
   const [selectedCollaboration, setSelectedCollaboration] = useState<Collaboration | null>(null);
   const [executeForm] = Form.useForm();
   const [editingAgent, setEditingAgent] = useState<any>(null);
   const [form] = Form.useForm();
   const [addAgentForm] = Form.useForm();
   const [createTaskForm] = Form.useForm();
+  const [editTaskForm] = Form.useForm();
   const [editAgentForm] = Form.useForm();
   const [selectedAgentId, setSelectedAgentId] = useState<number | null>(null);
+  const [selectedTaskAgents, setSelectedTaskAgents] = useState<string[]>([]);
+  const [editTaskAgents, setEditTaskAgents] = useState<string[]>([]);
   const initializedRef = useRef(false);
 
   useEffect(() => {
@@ -145,16 +151,24 @@ const Collaborations: React.FC = () => {
   const handleCreateTask = (collaboration: Collaboration) => {
     setSelectedCollaboration(collaboration);
     createTaskForm.resetFields();
+    setSelectedTaskAgents([]);
     setCreateTaskModalVisible(true);
+  };
+
+  const handleCloseCreateTask = () => {
+    createTaskForm.resetFields();
+    setSelectedTaskAgents([]);
+    setCreateTaskModalVisible(false);
   };
 
   const handleSubmitCreateTask = async () => {
     try {
       const values = await createTaskForm.validateFields();
+      values.agentIds = selectedTaskAgents.map(key => Number(key));
       if (selectedCollaboration) {
         await collaborationService.createTask(selectedCollaboration.id, values);
         message.success('创建成功');
-        setCreateTaskModalVisible(false);
+        handleCloseCreateTask();
         loadData();
       }
     } catch (error) {
@@ -182,13 +196,51 @@ const Collaborations: React.FC = () => {
     }
   };
 
-  const handleDeleteTask = async (taskId: string) => {
+  const handleEditTask = async (task: any) => {
+    const collaboration = collaborations.find(c => c.id === task.collaborationId);
+    if (!collaboration) {
+      message.error('找不到对应的团队');
+      return;
+    }
+    
+    setSelectedCollaboration(collaboration);
+    setEditingTask(task);
+    editTaskForm.setFieldsValue({
+      title: task.title,
+      description: task.description,
+      gitUrl: task.gitUrl,
+      gitBranch: task.gitBranch,
+      gitToken: '',
+    });
+    
     try {
-      await collaborationService.deleteTask(taskId);
-      message.success('删除成功');
+      const agentIds = await collaborationService.getTaskAgents(task.id);
+      setEditTaskAgents(agentIds.map(id => id.toString()));
+    } catch (error) {
+      setEditTaskAgents([]);
+    }
+    
+    setEditTaskModalVisible(true);
+  };
+
+  const handleCloseEditTask = () => {
+    editTaskForm.resetFields();
+    setEditTaskAgents([]);
+    setEditingTask(null);
+    setEditTaskModalVisible(false);
+  };
+
+  const handleSubmitEditTask = async () => {
+    try {
+      const values = await editTaskForm.validateFields();
+      values.agentIds = editTaskAgents.map(key => Number(key));
+      
+      await collaborationService.updateTask(editingTask.id, values);
+      message.success('任务更新成功');
+      handleCloseEditTask();
       loadData();
     } catch (error) {
-      message.error('删除失败');
+      message.error('更新任务失败');
     }
   };
 
@@ -543,21 +595,19 @@ const Collaborations: React.FC = () => {
           <Button 
             type="link" 
             size="small"
+            icon={<EditOutlined />}
+            onClick={() => handleEditTask(record)}
+          >
+            编辑
+          </Button>
+          <Button 
+            type="link" 
+            size="small"
             icon={<MessageOutlined />}
             onClick={() => handleViewChatHistory(record)}
           >
             团队协作过程
           </Button>
-          <Popconfirm
-            title="确定要删除这个任务吗？"
-            onConfirm={() => handleDeleteTask(record.id)}
-            okText="确定"
-            cancelText="取消"
-          >
-            <Button type="link" size="small" danger icon={<DeleteOutlined />}>
-              删除
-            </Button>
-          </Popconfirm>
         </Space>
       ),
     },
@@ -1012,8 +1062,9 @@ const Collaborations: React.FC = () => {
         title="创建任务"
         open={createTaskModalVisible}
         onOk={handleSubmitCreateTask}
-        onCancel={() => setCreateTaskModalVisible(false)}
-        width={600}
+        onCancel={handleCloseCreateTask}
+        destroyOnClose
+        width={750}
       >
         <Form form={createTaskForm} layout="vertical">
           <Form.Item
@@ -1023,8 +1074,129 @@ const Collaborations: React.FC = () => {
           >
             <Input placeholder="请输入任务标题" />
           </Form.Item>
+          
           <Form.Item label="描述" name="description">
-            <Input.TextArea rows={4} placeholder="请输入任务描述" />
+            <Input.TextArea rows={2} placeholder="请输入任务描述" />
+          </Form.Item>
+          
+          <Form.Item 
+            label={<span>选择队员 <span style={{color: '#999', fontSize: 12}}>(不选择则使用团队所有成员)</span></span>}
+          >
+            <Transfer
+              dataSource={selectedCollaboration?.agents?.map(agent => ({
+                key: agent.agentId.toString(),
+                title: agent.agentName,
+              })) || []}
+              titles={['可选队员', '已选队员']}
+              targetKeys={selectedTaskAgents}
+              onChange={(targetKeys) => {
+                setSelectedTaskAgents(targetKeys as string[]);
+              }}
+              render={item => item.title}
+              listStyle={{ width: 280, height: 180 }}
+              selectAllLabels={['全选', '全选']}
+            />
+          </Form.Item>
+          
+          <Divider style={{ margin: '12px 0' }}>Git配置</Divider>
+          
+          <Row gutter={16}>
+            <Col span={18}>
+              <Form.Item 
+                label={<span>Git仓库地址 <span style={{color: '#999', fontSize: 12}}>(支持 GitHub、GitLab、Gitea)</span></span>}
+                name="gitUrl"
+              >
+                <Input placeholder="https://github.com/user/repo.git" />
+              </Form.Item>
+            </Col>
+            <Col span={6}>
+              <Form.Item label={<span>目标分支 <span style={{color: '#999', fontSize: 12}}>(默认main)</span></span>} name="gitBranch">
+                <Input placeholder="main" />
+              </Form.Item>
+            </Col>
+          </Row>
+          
+          <Form.Item 
+            label={<span>访问令牌 <span style={{color: '#999', fontSize: 12}}>(安全存储)</span></span>}
+            name="gitToken"
+          >
+            <Input.Password placeholder="ghp_xxx" />
+          </Form.Item>
+        </Form>
+      </Modal>
+
+      <Modal
+        title="编辑任务"
+        open={editTaskModalVisible}
+        onOk={handleSubmitEditTask}
+        onCancel={handleCloseEditTask}
+        destroyOnClose
+        width={750}
+      >
+        <Form form={editTaskForm} layout="vertical">
+          <Form.Item
+            label="标题"
+            name="title"
+            rules={[{ required: true, message: '请输入任务标题' }]}
+          >
+            <Input placeholder="请输入任务标题" />
+          </Form.Item>
+          
+          <Form.Item label="描述" name="description">
+            <Input.TextArea rows={2} placeholder="请输入任务描述" />
+          </Form.Item>
+          
+          <Form.Item 
+            label={<span>选择队员 <span style={{color: '#999', fontSize: 12}}>(不选择则使用团队所有成员)</span></span>}
+          >
+            <Transfer
+              dataSource={selectedCollaboration?.agents?.map(agent => ({
+                key: agent.agentId.toString(),
+                title: agent.agentName,
+              })) || []}
+              titles={['可选队员', '已选队员']}
+              targetKeys={editTaskAgents}
+              onChange={(targetKeys) => {
+                setEditTaskAgents(targetKeys as string[]);
+              }}
+              render={item => item.title}
+              listStyle={{ width: 280, height: 180 }}
+              selectAllLabels={['全选', '全选']}
+            />
+          </Form.Item>
+          
+          <Divider style={{ margin: '12px 0' }}>Git配置</Divider>
+          
+          <Row gutter={16}>
+            <Col span={18}>
+              <Form.Item 
+                label={<span>Git仓库地址 <span style={{color: '#999', fontSize: 12}}>(支持 GitHub、GitLab、Gitea)</span></span>}
+                name="gitUrl"
+              >
+                <Input placeholder="https://github.com/user/repo.git" />
+              </Form.Item>
+            </Col>
+            <Col span={6}>
+              <Form.Item label={<span>目标分支 <span style={{color: '#999', fontSize: 12}}>(默认main)</span></span>} name="gitBranch">
+                <Input placeholder="main" />
+              </Form.Item>
+            </Col>
+          </Row>
+          
+          <Form.Item 
+            label={
+              <span>
+                访问令牌 
+                {editingTask?.hasGitToken ? (
+                  <span style={{color: '#52c41a', fontSize: 12}}> (已设置，留空保持不变，填写则更新)</span>
+                ) : (
+                  <span style={{color: '#999', fontSize: 12}}> (未设置)</span>
+                )}
+              </span>
+            }
+            name="gitToken"
+          >
+            <Input.Password placeholder={editingTask?.hasGitToken ? "留空保持原令牌不变" : "请输入访问令牌"} />
           </Form.Item>
         </Form>
       </Modal>
