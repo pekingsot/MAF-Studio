@@ -101,7 +101,6 @@ public class GroupChatConclusionService : IGroupChatConclusionService
 
 **工作目录**: {workDir}
 **仓库目录**: {repoDir}
-**提交者名称**: {managerAgentName}
 
 ## 用户任务要求
 
