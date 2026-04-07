@@ -3,6 +3,7 @@ using MAFStudio.Application.Interfaces;
 using MAFStudio.Application.Services;
 using MAFStudio.Application.Capabilities;
 using MAFStudio.Application.Clients;
+using MAFStudio.Application.Prompts;
 using MAFStudio.Core.Entities;
 using MAFStudio.Core.Enums;
 using MAFStudio.Core.Interfaces.Repositories;
@@ -72,13 +73,12 @@ public class GroupChatMentionIntegrationTests
             chatClientFactoryLogger);
 
         var capabilityManager = new CapabilityManager();
-        var toolCallingLogger = loggerFactory.CreateLogger<ToolCallingChatClient>();
         
         var agentFactory = new AgentFactoryService(
             agentRepository,
             chatClientFactory,
             capabilityManager,
-            toolCallingLogger);
+            loggerFactory);
 
         var messageServiceMock = new Mock<IMessageService>();
         var workflowPlanRepoMock = new Mock<IWorkflowPlanRepository>();
@@ -95,6 +95,7 @@ public class GroupChatMentionIntegrationTests
         
         var taskRepoMock = new Mock<ICollaborationTaskRepository>();
         var conclusionServiceMock = new Mock<IGroupChatConclusionService>();
+        var promptBuilderFactory = new SystemPromptBuilderFactory();
 
         var service = new CollaborationWorkflowService(
             collaborationRepository,
@@ -107,6 +108,7 @@ public class GroupChatMentionIntegrationTests
             messageRepoMock.Object,
             taskRepoMock.Object,
             conclusionServiceMock.Object,
+            promptBuilderFactory,
             workflowServiceLogger,
             loggerFactory);
 

@@ -124,7 +124,7 @@ public class CollaborationService : ICollaborationService
         return await _collaborationTaskRepository.GetByCollaborationIdAsync(collaborationId);
     }
 
-    public async Task<CollaborationTask> CreateTaskAsync(long collaborationId, string title, string? description, long userId, string? gitUrl = null, string? gitBranch = null, string? gitToken = null, List<long>? agentIds = null)
+    public async Task<CollaborationTask> CreateTaskAsync(long collaborationId, string title, string? description, long userId, string? prompt = null, string? gitUrl = null, string? gitBranch = null, string? gitToken = null, List<long>? agentIds = null)
     {
         var collaboration = await GetByIdAsync(collaborationId, userId);
         if (collaboration == null)
@@ -135,6 +135,7 @@ public class CollaborationService : ICollaborationService
             CollaborationId = collaborationId,
             Title = title,
             Description = description,
+            Prompt = prompt,
             Status = CollaborationTaskStatus.Pending,
             CreatedAt = DateTime.UtcNow,
             GitUrl = gitUrl,
@@ -159,7 +160,7 @@ public class CollaborationService : ICollaborationService
         return createdTask;
     }
 
-    public async Task<CollaborationTask> UpdateTaskAsync(long taskId, string title, string? description, string? gitUrl = null, string? gitBranch = null, string? gitToken = null, List<long>? agentIds = null)
+    public async Task<CollaborationTask> UpdateTaskAsync(long taskId, string title, string? description, string? prompt = null, string? gitUrl = null, string? gitBranch = null, string? gitToken = null, List<long>? agentIds = null)
     {
         var task = await _collaborationTaskRepository.GetByIdAsync(taskId);
         if (task == null)
@@ -167,6 +168,7 @@ public class CollaborationService : ICollaborationService
 
         task.Title = title;
         task.Description = description;
+        task.Prompt = prompt;
         task.GitUrl = gitUrl;
         task.GitBranch = gitBranch;
         if (!string.IsNullOrEmpty(gitToken))

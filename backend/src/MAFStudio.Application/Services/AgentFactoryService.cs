@@ -10,12 +10,16 @@ using System.Text.Json;
 
 namespace MAFStudio.Application.Services;
 
+/// <summary>
+/// Agent工厂服务
+/// 使用MAF的UseFunctionInvocation()中间件处理工具调用
+/// </summary>
 public class AgentFactoryService : IAgentFactoryService
 {
     private readonly IAgentRepository _agentRepository;
     private readonly IChatClientFactory _chatClientFactory;
     private readonly CapabilityManager _capabilityManager;
-    private readonly ILogger<ToolCallingChatClient>? _toolCallingLogger;
+    private readonly ILoggerFactory? _loggerFactory;
     private readonly ILogger<AgentFactoryService>? _logger;
 
     private static readonly JsonSerializerOptions JsonOptions = new()
@@ -27,13 +31,13 @@ public class AgentFactoryService : IAgentFactoryService
         IAgentRepository agentRepository,
         IChatClientFactory chatClientFactory,
         CapabilityManager capabilityManager,
-        ILogger<ToolCallingChatClient>? toolCallingLogger = null,
+        ILoggerFactory? loggerFactory = null,
         ILogger<AgentFactoryService>? logger = null)
     {
         _agentRepository = agentRepository;
         _chatClientFactory = chatClientFactory;
         _capabilityManager = capabilityManager;
-        _toolCallingLogger = toolCallingLogger;
+        _loggerFactory = loggerFactory;
         _logger = logger;
     }
 
@@ -60,15 +64,34 @@ public class AgentFactoryService : IAgentFactoryService
             agent.LlmConfigId.Value,
             agent.LlmModelConfigId,
             fallbackModels);
-        
-        return new ToolCallingChatClient(baseClient, _capabilityManager, _toolCallingLogger);
+
+        return BuildClientWithCapabilities(baseClient);
     }
 
     public async Task<IChatClient> CreateChatClientAsync(long llmConfigId, long llmModelConfigId)
     {
         var baseClient = await _chatClientFactory.CreateClientAsync(llmConfigId, llmModelConfigId);
         
-        return new ToolCallingChatClient(baseClient, _capabilityManager, _toolCallingLogger);
+        return BuildClientWithCapabilities(baseClient);
+    }
+
+    /// <summary>
+    /// 使用MAF中间件构建带工具调用能力的客户端
+    /// 管道顺序: CapabilitiesChatClient(注入工具) -> UseFunctionInvocation(处理工具调用) -> baseClient
+    /// </summary>
+    private IChatClient BuildClientWithCapabilities(IChatClient baseClient)
+    {
+        var builder = new ChatClientBuilder(baseClient);
+        
+        builder.UseFunctionInvocation(_loggerFactory, configure: options =>
+        {
+            options.MaximumIterationsPerRequest = 10;
+        });
+
+        var clientWithFunctionInvocation = builder.Build();
+        
+        var capabilitiesLogger = _loggerFactory?.CreateLogger<CapabilitiesChatClient>();
+        return new CapabilitiesChatClient(clientWithFunctionInvocation, _capabilityManager, capabilitiesLogger);
     }
 
     private List<FallbackModelConfig>? ParseFallbackModels(string? fallbackModelsJson)

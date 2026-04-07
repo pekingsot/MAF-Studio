@@ -2,7 +2,7 @@ import React, { useEffect, useState, useRef } from 'react';
 import { Table, Button, Modal, Form, Input, Tag, Space, message, Tabs, Select, Popconfirm, Divider, Row, Col, Alert, Radio, InputNumber, Typography, Card, Tooltip, Transfer } from 'antd';
 import type { RadioChangeEvent } from 'antd';
 import type { TransferProps } from 'antd';
-import { PlusOutlined, EditOutlined, DeleteOutlined, TeamOutlined, UserOutlined, FolderOutlined, GithubOutlined, BranchesOutlined, PlayCircleOutlined, EyeOutlined, MessageOutlined, SettingOutlined, SwapOutlined, CrownOutlined, BulbOutlined, InfoCircleOutlined } from '@ant-design/icons';
+import { PlusOutlined, EditOutlined, DeleteOutlined, TeamOutlined, UserOutlined, FolderOutlined, PlayCircleOutlined, EyeOutlined, MessageOutlined, SettingOutlined, SwapOutlined, CrownOutlined, BulbOutlined, InfoCircleOutlined } from '@ant-design/icons';
 import { collaborationService, Collaboration } from '../services/collaborationService';
 import { agentService, Agent } from '../services/agentService';
 import { useNavigate } from 'react-router-dom';
@@ -208,9 +208,7 @@ const Collaborations: React.FC = () => {
     editTaskForm.setFieldsValue({
       title: task.title,
       description: task.description,
-      gitUrl: task.gitUrl,
-      gitBranch: task.gitBranch,
-      gitToken: '',
+      prompt: task.prompt,
     });
     
     try {
@@ -819,74 +817,6 @@ const Collaborations: React.FC = () => {
           <Form.Item label="描述" name="description">
             <Input.TextArea rows={3} placeholder="请输入描述" />
           </Form.Item>
-          
-          <Divider orientation="left">
-            <GithubOutlined /> Git配置
-          </Divider>
-          
-          <Alert
-            message="Git配置说明"
-            description="配置Git仓库信息后，智能体可以进行代码提交操作。访问令牌将加密存储。"
-            type="info"
-            showIcon
-            style={{ marginBottom: 16 }}
-          />
-          
-          <Row gutter={16}>
-            <Col span={16}>
-              <Form.Item 
-                label="Git仓库地址" 
-                name="gitRepositoryUrl"
-                tooltip="支持HTTPS或SSH地址，例如: https://github.com/user/repo.git"
-              >
-                <Input 
-                  placeholder="https://github.com/user/repo.git" 
-                  prefix={<GithubOutlined />}
-                />
-              </Form.Item>
-            </Col>
-            <Col span={8}>
-              <Form.Item 
-                label="分支" 
-                name="gitBranch"
-                tooltip="默认为main分支"
-              >
-                <Input 
-                  placeholder="main" 
-                  prefix={<BranchesOutlined />}
-                />
-              </Form.Item>
-            </Col>
-          </Row>
-          
-          <Row gutter={16}>
-            <Col span={12}>
-              <Form.Item 
-                label="Git用户名" 
-                name="gitUsername"
-                tooltip="用于提交代码时的用户名"
-              >
-                <Input placeholder="请输入Git用户名" />
-              </Form.Item>
-            </Col>
-            <Col span={12}>
-              <Form.Item 
-                label="Git邮箱" 
-                name="gitEmail"
-                tooltip="用于提交代码时的邮箱"
-              >
-                <Input placeholder="请输入Git邮箱" type="email" />
-              </Form.Item>
-            </Col>
-          </Row>
-          
-          <Form.Item 
-            label="访问令牌" 
-            name="gitAccessToken"
-            tooltip="GitHub: Personal Access Token; GitLab: Access Token; Gitee: 私人令牌"
-          >
-            <Input.Password placeholder="请输入访问令牌" />
-          </Form.Item>
         </Form>
       </Modal>
 
@@ -1098,29 +1028,25 @@ const Collaborations: React.FC = () => {
             />
           </Form.Item>
           
-          <Divider style={{ margin: '12px 0' }}>Git配置</Divider>
-          
-          <Row gutter={16}>
-            <Col span={18}>
-              <Form.Item 
-                label={<span>Git仓库地址 <span style={{color: '#999', fontSize: 12}}>(支持 GitHub、GitLab、Gitea)</span></span>}
-                name="gitUrl"
-              >
-                <Input placeholder="https://github.com/user/repo.git" />
-              </Form.Item>
-            </Col>
-            <Col span={6}>
-              <Form.Item label={<span>目标分支 <span style={{color: '#999', fontSize: 12}}>(默认main)</span></span>} name="gitBranch">
-                <Input placeholder="main" />
-              </Form.Item>
-            </Col>
-          </Row>
+          <Divider style={{ margin: '12px 0' }}>任务提示词</Divider>
           
           <Form.Item 
-            label={<span>访问令牌 <span style={{color: '#999', fontSize: 12}}>(安全存储)</span></span>}
-            name="gitToken"
+            label={<span>任务提示词 <span style={{color: '#999', fontSize: 12}}>(会与Agent的提示词组合使用，支持变量: {`{{agent_name}}`}, {`{{agent_role}}`}, {`{{agent_type}}`}, {`{{members}}`})</span></span>}
+            name="prompt"
+            tooltip="任务级别的提示词，所有参与此任务的Agent都会收到这段提示词，与Agent自身的提示词组合使用"
           >
-            <Input.Password placeholder="ghp_xxx" />
+            <Input.TextArea 
+              rows={6} 
+              placeholder={`【任务要求】
+请各位团队成员根据任务描述，积极参与讨论并提交自己的专业观点。
+
+【Git提交要求】
+讨论结束后，每个成员必须将自己的观点文档提交到Git仓库。
+
+【注意事项】
+- 文档内容要体现专业见解
+- 必须真实调用Git工具提交`}
+            />
           </Form.Item>
         </Form>
       </Modal>
@@ -1165,38 +1091,25 @@ const Collaborations: React.FC = () => {
             />
           </Form.Item>
           
-          <Divider style={{ margin: '12px 0' }}>Git配置</Divider>
-          
-          <Row gutter={16}>
-            <Col span={18}>
-              <Form.Item 
-                label={<span>Git仓库地址 <span style={{color: '#999', fontSize: 12}}>(支持 GitHub、GitLab、Gitea)</span></span>}
-                name="gitUrl"
-              >
-                <Input placeholder="https://github.com/user/repo.git" />
-              </Form.Item>
-            </Col>
-            <Col span={6}>
-              <Form.Item label={<span>目标分支 <span style={{color: '#999', fontSize: 12}}>(默认main)</span></span>} name="gitBranch">
-                <Input placeholder="main" />
-              </Form.Item>
-            </Col>
-          </Row>
+          <Divider style={{ margin: '12px 0' }}>任务提示词</Divider>
           
           <Form.Item 
-            label={
-              <span>
-                访问令牌 
-                {editingTask?.hasGitToken ? (
-                  <span style={{color: '#52c41a', fontSize: 12}}> (已设置，留空保持不变，填写则更新)</span>
-                ) : (
-                  <span style={{color: '#999', fontSize: 12}}> (未设置)</span>
-                )}
-              </span>
-            }
-            name="gitToken"
+            label={<span>任务提示词 <span style={{color: '#999', fontSize: 12}}>(会与Agent的提示词组合使用，支持变量: {`{{agent_name}}`}, {`{{agent_role}}`}, {`{{agent_type}}`}, {`{{members}}`})</span></span>}
+            name="prompt"
+            tooltip="任务级别的提示词，所有参与此任务的Agent都会收到这段提示词，与Agent自身的提示词组合使用"
           >
-            <Input.Password placeholder={editingTask?.hasGitToken ? "留空保持原令牌不变" : "请输入访问令牌"} />
+            <Input.TextArea 
+              rows={6} 
+              placeholder={`【任务要求】
+请各位团队成员根据任务描述，积极参与讨论并提交自己的专业观点。
+
+【Git提交要求】
+讨论结束后，每个成员必须将自己的观点文档提交到Git仓库。
+
+【注意事项】
+- 文档内容要体现专业见解
+- 必须真实调用Git工具提交`}
+            />
           </Form.Item>
         </Form>
       </Modal>
@@ -1427,6 +1340,45 @@ const Collaborations: React.FC = () => {
                 {({ getFieldValue }) => {
                   const workflowType = getFieldValue('workflowType');
                   
+                  const orchestrationModeDescriptions = {
+                    roundRobin: {
+                      title: '群聊协作 - 轮询模式',
+                      icon: <SwapOutlined />,
+                      description: '所有Agent按顺序轮流发言，平等参与讨论',
+                      features: [
+                        '✅ 按固定顺序轮流发言',
+                        '✅ 每个Agent都有发言机会',
+                        '✅ 平等参与，无主次之分',
+                        '✅ 适合团队意见收集',
+                      ],
+                      useCases: '适合平等讨论场景，如：团队意见收集、轮流汇报、民主决策',
+                    },
+                    manager: {
+                      title: '群聊协作 - 主Agent协调',
+                      icon: <CrownOutlined />,
+                      description: '主持人Agent协调多个Agents进行对话讨论',
+                      features: [
+                        '✅ 主持人控制对话流程',
+                        '✅ 决定何时结束讨论',
+                        '✅ 总结和归纳观点',
+                        '✅ 多轮对话，达成共识',
+                      ],
+                      useCases: '适合开放性任务，如：头脑风暴、创意讨论、方案评审',
+                    },
+                    intelligent: {
+                      title: '群聊协作 - AI智能选择',
+                      icon: <BulbOutlined />,
+                      description: 'AI根据讨论内容智能选择最合适的发言者',
+                      features: [
+                        '✅ AI智能判断谁应该发言',
+                        '✅ 根据话题匹配专业能力',
+                        '✅ 动态调整发言顺序',
+                        '✅ 高效推进讨论进程',
+                      ],
+                      useCases: '适合专业讨论场景，如：技术方案评审、专家会诊、问题诊断',
+                    },
+                  };
+
                   const workflowDescriptions = {
                     magentic: {
                       title: 'Magentic智能工作流',
@@ -1440,21 +1392,15 @@ const Collaborations: React.FC = () => {
                       ],
                       useCases: '适合有明确目标的任务，如：开发功能、分析问题、设计方案',
                     },
-                    groupchat: {
-                      title: '群聊协作',
-                      icon: <MessageOutlined />,
-                      description: '主持人Agent协调多个Agents进行对话讨论',
-                      features: [
-                        '✅ 主持人控制对话流程',
-                        '✅ 决定何时结束讨论',
-                        '✅ 总结和归纳观点',
-                        '✅ 多轮对话，达成共识',
-                      ],
-                      useCases: '适合开放性任务，如：头脑风暴、创意讨论、方案评审',
-                    },
+                    groupchat: orchestrationModeDescriptions.manager,
                   };
 
-                  const currentWorkflow = workflowDescriptions[workflowType as keyof typeof workflowDescriptions];
+                  let currentWorkflow = workflowDescriptions[workflowType as keyof typeof workflowDescriptions];
+                  
+                  if (workflowType === 'groupchat') {
+                    const orchestrationMode = getFieldValue('orchestrationMode') || 'manager';
+                    currentWorkflow = orchestrationModeDescriptions[orchestrationMode as keyof typeof orchestrationModeDescriptions] || orchestrationModeDescriptions.manager;
+                  }
 
                   return currentWorkflow ? (
                     <Alert

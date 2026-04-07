@@ -1,5 +1,6 @@
 using MAFStudio.Application.DTOs;
 using MAFStudio.Application.Interfaces;
+using MAFStudio.Application.Prompts;
 using MAFStudio.Core.Entities;
 using MAFStudio.Core.Enums;
 using MAFStudio.Core.Interfaces.Repositories;
@@ -21,6 +22,7 @@ public partial class CollaborationWorkflowService : ICollaborationWorkflowServic
     private readonly IMessageRepository _messageRepository;
     private readonly ICollaborationTaskRepository _taskRepository;
     private readonly IGroupChatConclusionService _conclusionService;
+    private readonly ISystemPromptBuilderFactory _promptBuilderFactory;
     private readonly ILogger<CollaborationWorkflowService> _logger;
     private readonly ILoggerFactory _loggerFactory;
 
@@ -35,6 +37,7 @@ public partial class CollaborationWorkflowService : ICollaborationWorkflowServic
         IMessageRepository messageRepository,
         ICollaborationTaskRepository taskRepository,
         IGroupChatConclusionService conclusionService,
+        ISystemPromptBuilderFactory promptBuilderFactory,
         ILogger<CollaborationWorkflowService> logger,
         ILoggerFactory loggerFactory)
     {
@@ -48,6 +51,7 @@ public partial class CollaborationWorkflowService : ICollaborationWorkflowServic
         _messageRepository = messageRepository;
         _taskRepository = taskRepository;
         _conclusionService = conclusionService;
+        _promptBuilderFactory = promptBuilderFactory;
         _logger = logger;
         _loggerFactory = loggerFactory;
     }

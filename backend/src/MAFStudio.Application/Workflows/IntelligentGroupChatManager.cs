@@ -1,74 +1,41 @@
 using Microsoft.Agents.AI;
 using Microsoft.Agents.AI.Workflows;
 using Microsoft.Extensions.AI;
+using Microsoft.Extensions.Logging;
 
 namespace MAFStudio.Application.Workflows;
 
+/// <summary>
+/// AI智能选择模式的群聊管理器
+/// 使用AI模型选择下一个发言者
+/// </summary>
 public class IntelligentGroupChatManager : GroupChatManager
 {
     private readonly AIAgent _orchestratorAgent;
     private readonly List<AIAgent> _allAgents;
     private readonly IChatClient _chatClient;
     private readonly List<string> _validAgentNames;
+    private readonly ILogger<IntelligentGroupChatManager>? _logger;
     private int _lastAgentIndex = 0;
 
     public IntelligentGroupChatManager(
         AIAgent orchestratorAgent,
         IReadOnlyList<AIAgent> allAgents,
         IChatClient chatClient,
-        int maximumIterationCount = 10)
+        int maximumIterationCount = 10,
+        ILogger<IntelligentGroupChatManager>? logger = null)
     {
         _orchestratorAgent = orchestratorAgent;
         _allAgents = allAgents.ToList();
         _chatClient = chatClient;
+        _logger = logger;
         _validAgentNames = allAgents
             .Where(a => !string.IsNullOrEmpty(a.Name))
             .Select(a => a.Name!)
             .ToList();
         MaximumIterationCount = maximumIterationCount;
         
-        Console.WriteLine($"[IntelligentGroupChatManager] 可用Agent: {string.Join(", ", _validAgentNames)}");
-    }
-
-    private string? _lastSpeakerName;
-
-    protected override ValueTask<IEnumerable<ChatMessage>?> UpdateHistoryAsync(
-        IReadOnlyList<ChatMessage> history,
-        CancellationToken cancellationToken = default)
-    {
-        var updatedHistory = new List<ChatMessage>();
-        
-        Console.WriteLine($"[UpdateHistoryAsync] 原始消息历史，共 {history.Count} 条消息");
-        
-        foreach (var message in history)
-        {
-            var authorName = message.AuthorName;
-            var text = message.Text ?? "";
-            
-            Console.WriteLine($"[UpdateHistoryAsync] 消息: Role={message.Role}, AuthorName={authorName ?? "NULL"}, Text={text.Substring(0, Math.Min(50, text.Length))}...");
-            
-            if (!string.IsNullOrEmpty(authorName))
-            {
-                var prefix = $"【{authorName}】";
-                var updatedText = text.StartsWith(prefix) ? text : $"{prefix}{text}";
-                var updatedMessage = new ChatMessage(message.Role, updatedText)
-                {
-                    AuthorName = authorName
-                };
-                updatedHistory.Add(updatedMessage);
-            }
-            else
-            {
-                var updatedText = message.Role == ChatRole.Assistant 
-                    ? $"【未知发言者】{text}" 
-                    : text;
-                var updatedMessage = new ChatMessage(message.Role, updatedText);
-                updatedHistory.Add(updatedMessage);
-            }
-        }
-        
-        Console.WriteLine($"[UpdateHistoryAsync] 更新后消息历史，共 {updatedHistory.Count} 条消息");
-        return new ValueTask<IEnumerable<ChatMessage>>(updatedHistory);
+        _logger?.LogInformation("[IntelligentGroupChatManager] 可用Agent: {Agents}", string.Join(", ", _validAgentNames));
     }
 
     protected override async ValueTask<AIAgent?> SelectNextAgentAsync(
@@ -77,15 +44,8 @@ public class IntelligentGroupChatManager : GroupChatManager
     {
         if (IterationCount == 0)
         {
-            Console.WriteLine($"[IntelligentGroupChatManager] 第一轮，选择协调者: {_orchestratorAgent.Name}");
-            _lastSpeakerName = _orchestratorAgent.Name;
+            _logger?.LogInformation("[IntelligentGroupChatManager] 第一轮，选择协调者: {Orchestrator}", _orchestratorAgent.Name);
             return _orchestratorAgent;
-        }
-
-        var lastMessage = history.LastOrDefault();
-        if (lastMessage != null && !string.IsNullOrEmpty(lastMessage.AuthorName))
-        {
-            _lastSpeakerName = lastMessage.AuthorName;
         }
 
         var agentDescriptions = string.Join("\n", _allAgents
@@ -118,8 +78,6 @@ public class IntelligentGroupChatManager : GroupChatManager
 请从团队成员【{validNamesStr}】中选择最适合下一个发言的人。
 只返回名字，不要其他内容：";
 
-        Console.WriteLine($"[SelectNextAgentAsync] 选择提示词: {prompt}");
-
         try
         {
             var messages = new List<ChatMessage>
@@ -132,7 +90,7 @@ public class IntelligentGroupChatManager : GroupChatManager
                 cancellationToken: cancellationToken);
 
             var selectedName = response.Messages.LastOrDefault()?.Text?.Trim() ?? "";
-            Console.WriteLine($"[IntelligentGroupChatManager] AI选择: {selectedName}");
+            _logger?.LogInformation("[IntelligentGroupChatManager] AI选择: {SelectedName}", selectedName);
             
             var selectedAgent = _allAgents.FirstOrDefault(a => 
                 !string.IsNullOrEmpty(a.Name) && 
@@ -142,17 +100,17 @@ public class IntelligentGroupChatManager : GroupChatManager
 
             if (selectedAgent == null)
             {
-                Console.WriteLine($"[IntelligentGroupChatManager] AI返回的名字'{selectedName}'不在团队中，使用轮询方式选择");
+                _logger?.LogInformation("[IntelligentGroupChatManager] AI返回的名字'{SelectedName}'不在团队中，使用轮询方式选择", selectedName);
                 selectedAgent = _allAgents[_lastAgentIndex % _allAgents.Count];
                 _lastAgentIndex++;
             }
 
-            Console.WriteLine($"[IntelligentGroupChatManager] 最终选择: {selectedAgent?.Name}");
+            _logger?.LogInformation("[IntelligentGroupChatManager] 最终选择: {AgentName}", selectedAgent?.Name);
             return selectedAgent ?? _orchestratorAgent;
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"[IntelligentGroupChatManager] 选择失败: {ex.Message}，使用轮询方式");
+            _logger?.LogWarning(ex, "[IntelligentGroupChatManager] 选择失败，使用轮询方式");
             var fallbackAgent = _allAgents[_lastAgentIndex % _allAgents.Count];
             _lastAgentIndex++;
             return fallbackAgent;
@@ -165,7 +123,7 @@ public class IntelligentGroupChatManager : GroupChatManager
     {
         if (IterationCount >= MaximumIterationCount)
         {
-            Console.WriteLine($"[IntelligentGroupChatManager] 达到最大迭代次数: {IterationCount}");
+            _logger?.LogInformation("[IntelligentGroupChatManager] 达到最大迭代次数: {IterationCount}", IterationCount);
             return new ValueTask<bool>(true);
         }
 
@@ -177,7 +135,7 @@ public class IntelligentGroupChatManager : GroupChatManager
             var terminateKeywords = new[] { "任务完成", "会议结束", "讨论结束", "TASK_COMPLETE", "最终结论", "总结完毕" };
             if (terminateKeywords.Any(k => content.Contains(k, StringComparison.OrdinalIgnoreCase)))
             {
-                Console.WriteLine($"[IntelligentGroupChatManager] 检测到结束关键词");
+                _logger?.LogInformation("[IntelligentGroupChatManager] 检测到结束关键词");
                 return new ValueTask<bool>(true);
             }
         }

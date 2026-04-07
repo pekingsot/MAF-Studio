@@ -80,12 +80,13 @@ public abstract class TestBase : IDisposable
         };
     }
 
-    protected CollaborationTask CreateTestTask(long collaborationId, string title)
+    protected CollaborationTask CreateTestTask(long collaborationId, string title, string? prompt = null)
     {
         return new CollaborationTask
         {
             CollaborationId = collaborationId,
             Title = title,
+            Prompt = prompt,
             Status = CollaborationTaskStatus.Pending,
         };
     }

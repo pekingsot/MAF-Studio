@@ -12,6 +12,8 @@ public class CollaborationTask
 
     public string? Description { get; set; }
 
+    public string? Prompt { get; set; }
+
     public Enums.CollaborationTaskStatus Status { get; set; } = Enums.CollaborationTaskStatus.Pending;
 
     public long? AssignedTo { get; set; }

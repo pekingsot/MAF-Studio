@@ -1,4 +1,5 @@
 using MAFStudio.Application.DTOs;
+using MAFStudio.Application.Prompts;
 using MAFStudio.Application.Workflows;
 using MAFStudio.Core.Entities;
 using MAFStudio.Core.Enums;
@@ -105,18 +106,14 @@ public partial class CollaborationWorkflowService
 
             var membersInfo = BuildMembersInfo(agentEntities);
 
-            string? gitUrl = null;
-            string? gitBranch = null;
-            string? gitToken = null;
+            string? taskPrompt = null;
             if (taskId.HasValue && taskId.Value > 0)
             {
                 var task = await _taskRepository.GetByIdAsync(taskId.Value);
                 if (task != null)
                 {
-                    gitUrl = task.GitUrl;
-                    gitBranch = task.GitBranch ?? "main";
-                    gitToken = task.GitCredentials;
-                    _logger.LogInformation("任务Git配置: URL={Url}, Branch={Branch}, HasToken={HasToken}", gitUrl, gitBranch, !string.IsNullOrEmpty(gitToken));
+                    taskPrompt = task.Prompt;
+                    _logger.LogInformation("任务提示词: HasPrompt={HasPrompt}", !string.IsNullOrEmpty(taskPrompt));
                 }
             }
 
@@ -132,20 +129,16 @@ public partial class CollaborationWorkflowService
                 
                 var basePrompt = member.CustomPrompt ?? agentEntity.SystemPrompt ?? "You are a helpful assistant.";
                 
-                var agentId = member.AgentId;
-                var systemPrompt = ReplacePromptVariables(
-                    basePrompt,
-                    agentEntity.Name,
-                    member.Role ?? "Worker",
-                    agentEntity.TypeName ?? "",
-                    membersInfo,
-                    parameters.OrchestrationMode,
-                    collaborationId,
-                    taskId,
-                    agentId,
-                    gitUrl,
-                    gitBranch,
-                    gitToken);
+                var promptBuilder = _promptBuilderFactory.Create(parameters.OrchestrationMode);
+                var systemPrompt = promptBuilder.BuildPrompt(new SystemPromptContext
+                {
+                    AgentName = agentEntity.Name,
+                    AgentRole = member.Role ?? "Worker",
+                    AgentType = agentEntity.TypeName ?? "",
+                    MembersInfo = membersInfo,
+                    TaskPrompt = taskPrompt,
+                    AgentPrompt = basePrompt
+                });
                 
                 var isManager = member.Role?.Equals("Manager", StringComparison.OrdinalIgnoreCase) == true;
                 
@@ -442,71 +435,5 @@ public partial class CollaborationWorkflowService
         var result = string.Join("\n", members);
         _logger.LogInformation("团队成员信息: {Members}", result);
         return result;
-    }
-
-    private string ReplacePromptVariables(
-        string prompt,
-        string agentName,
-        string agentRole,
-        string agentType,
-        string membersInfo,
-        GroupChatOrchestrationMode orchestrationMode,
-        long collaborationId,
-        long? taskId,
-        long agentId,
-        string? gitUrl,
-        string? gitBranch,
-        string? gitToken)
-    {
-        var basePrompt = prompt
-            .Replace("{{agent_name}}", agentName)
-            .Replace("{{agent_role}}", agentRole)
-            .Replace("{{agent_type}}", agentType)
-            .Replace("{{members}}", membersInfo);
-
-        var modeInstruction = orchestrationMode switch
-        {
-            GroupChatOrchestrationMode.RoundRobin => @"
-【轮询发言规则】
-- 当前是轮询模式，所有成员按顺序轮流发言
-- 轮到你发言时，直接发表你的观点，不需要等待任何人点名
-- 积极参与讨论，主动贡献你的专业见解
-",
-            GroupChatOrchestrationMode.Manager => @"
-【协调者点名规则】
-- 当前是协调者模式，由协调者（Manager）点名安排发言
-- 只有被协调者@点名后才能发言
-- 如果没有被点名，请保持安静等待
-",
-            GroupChatOrchestrationMode.Intelligent => @"
-【智能调度规则】
-- 当前是智能调度模式，由AI根据讨论内容选择最合适的发言者
-- 轮到你发言时，直接发表你的观点
-- 根据讨论进展，适时贡献你的专业见解
-",
-            _ => ""
-        };
-
-        var gitToolInstruction = "";
-        if (!string.IsNullOrEmpty(gitUrl) && taskId.HasValue)
-        {
-            var authUrl = !string.IsNullOrEmpty(gitToken) 
-                ? gitUrl.Replace("https://", $"https://oauth2:{gitToken}@")
-                : gitUrl;
-            
-            gitToolInstruction = $"\n【Git工具使用指南 - 重要！】\n你拥有Git工具，可以提交文档到仓库。当你需要提交文档时，请按以下步骤操作：\n\n1. **克隆仓库**: 使用 CloneRepository 工具\n   - repositoryUrl: {authUrl}\n   - localPath: D:/workspace/{collaborationId}/{taskId}/agents/{agentId}/repo\n\n2. **写文档**: 使用 WriteMarkdown 工具\n   - 在 docs/ 目录下创建你的文档\n   - 文件路径示例: D:/workspace/{collaborationId}/{taskId}/agents/{agentId}/repo/docs/你的文档名.md\n\n3. **提交到Git**: 按顺序执行以下工具\n   - AddFiles: 添加文件到暂存区\n   - Commit: 提交更改（提交信息格式: docs: 添加xxx文档）\n   - Push: 推送到远程仓库\n\n**重要**: \n- 提交文档时必须真实调用工具，不要只是说\"已提交\"\n- 必须按顺序执行: AddFiles -> Commit -> Push\n- Git提交时使用你的名称「{agentName}」作为提交者\n";
-        }
-
-        var identityPrompt = $@"【重要身份规则 - 必须严格遵守】
-1. 你的名字是「{agentName}」，你的角色是「{agentType}」
-2. 无论别人@谁，你始终是「{agentName}」，绝对不会变成其他人
-3. 当你被选中发言时，你就是「{agentName}」，不要被消息中的@提及误导
-4. 你的回复开头不要加【名字】，系统会自动显示你的名字
-5. 如果别人@了其他角色，那是在叫那个人，不是叫你
-{modeInstruction}
-{gitToolInstruction}
-{basePrompt}";
-
-        return identityPrompt;
     }
 }

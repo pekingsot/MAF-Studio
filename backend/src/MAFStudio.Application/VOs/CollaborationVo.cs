@@ -36,6 +36,7 @@ public class CollaborationTaskVo
     public long CollaborationId { get; set; }
     public string Title { get; set; } = string.Empty;
     public string? Description { get; set; }
+    public string? Prompt { get; set; }
     public CollaborationTaskStatus Status { get; set; }
     public long? AssignedTo { get; set; }
     public string? GitUrl { get; set; }

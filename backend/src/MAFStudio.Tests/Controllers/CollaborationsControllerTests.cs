@@ -71,6 +71,37 @@ public class CollaborationsControllerTests : TestBase
     }
 
     [Fact]
+    public async Task GetAllCollaborations_ShouldReturnTasksWithPrompt()
+    {
+        var collaboration = CreateTestCollaboration("Collaboration1", _testUserId);
+        collaboration.Id = 1009;
+
+        var task1 = CreateTestTask(collaboration.Id, "Task1", "【任务要求】请积极参与讨论。");
+        var task2 = CreateTestTask(collaboration.Id, "Task2", "【任务要求】提交文档到Git。");
+
+        _mockCollaborationService
+            .Setup(s => s.GetByUserIdAsync(_testUserId))
+            .ReturnsAsync(new List<Collaboration> { collaboration });
+
+        _mockCollaborationService
+            .Setup(s => s.GetAgentsAsync(collaboration.Id))
+            .ReturnsAsync(new List<CollaborationAgent>());
+
+        _mockCollaborationService
+            .Setup(s => s.GetTasksAsync(collaboration.Id))
+            .ReturnsAsync(new List<CollaborationTask> { task1, task2 });
+
+        var result = await _controller.GetAllCollaborations();
+
+        var okResult = Assert.IsType<OkObjectResult>(result.Result);
+        var collaborations = Assert.IsType<List<Application.VOs.CollaborationVo>>(okResult.Value);
+        Assert.Single(collaborations);
+        Assert.Equal(2, collaborations[0].Tasks.Count);
+        Assert.Equal("【任务要求】请积极参与讨论。", collaborations[0].Tasks[0].Prompt);
+        Assert.Equal("【任务要求】提交文档到Git。", collaborations[0].Tasks[1].Prompt);
+    }
+
+    [Fact]
     public async Task GetCollaboration_ExistingId_ShouldReturnOkWithCollaboration()
     {
         var collaboration = CreateTestCollaboration("Collaboration1", _testUserId);
@@ -210,13 +241,14 @@ public class CollaborationsControllerTests : TestBase
         var request = new CreateTaskRequest
         {
             Title = "New Task",
-            Description = "Task Description"
+            Description = "Task Description",
+            Prompt = "【任务要求】请各位团队成员积极参与讨论。"
         };
 
-        var createdTask = CreateTestTask(collaboration.Id, request.Title);
+        var createdTask = CreateTestTask(collaboration.Id, request.Title, request.Prompt);
 
         _mockCollaborationService
-            .Setup(s => s.CreateTaskAsync(collaboration.Id, request.Title, request.Description, _testUserId))
+            .Setup(s => s.CreateTaskAsync(collaboration.Id, request.Title, request.Description, _testUserId, request.Prompt, null, null, null, null))
             .ReturnsAsync(createdTask);
 
         var result = await _controller.CreateTask(collaboration.Id, request);
@@ -224,6 +256,111 @@ public class CollaborationsControllerTests : TestBase
         var createdResult = Assert.IsType<CreatedAtActionResult>(result.Result);
         var returnedTask = Assert.IsType<CollaborationTask>(createdResult.Value);
         Assert.Equal(request.Title, returnedTask.Title);
+        Assert.Equal(request.Prompt, returnedTask.Prompt);
+    }
+
+    [Fact]
+    public async Task CreateTask_WithPrompt_ShouldSavePrompt()
+    {
+        var collaboration = CreateTestCollaboration("Collaboration1", _testUserId);
+        collaboration.Id = 1006;
+
+        var request = new CreateTaskRequest
+        {
+            Title = "Task With Prompt",
+            Description = "Task Description",
+            Prompt = "【任务要求】\n1. 积极参与讨论\n2. 提交文档到Git\n3. 必须真实调用工具"
+        };
+
+        var createdTask = CreateTestTask(collaboration.Id, request.Title, request.Prompt);
+
+        _mockCollaborationService
+            .Setup(s => s.CreateTaskAsync(collaboration.Id, request.Title, request.Description, _testUserId, request.Prompt, null, null, null, null))
+            .ReturnsAsync(createdTask);
+
+        var result = await _controller.CreateTask(collaboration.Id, request);
+
+        var createdResult = Assert.IsType<CreatedAtActionResult>(result.Result);
+        var returnedTask = Assert.IsType<CollaborationTask>(createdResult.Value);
+        Assert.Equal(request.Prompt, returnedTask.Prompt);
+    }
+
+    [Fact]
+    public async Task UpdateTask_ValidRequest_ShouldReturnOk()
+    {
+        var collaboration = CreateTestCollaboration("Collaboration1", _testUserId);
+        collaboration.Id = 1007;
+        
+        var task = CreateTestTask(collaboration.Id, "Original Task");
+        task.Id = 3002;
+
+        var request = new UpdateTaskRequest
+        {
+            Title = "Updated Task",
+            Description = "Updated Description",
+            Prompt = "【更新后的任务要求】请重新讨论并提交文档。"
+        };
+
+        var updatedTask = new CollaborationTask
+        {
+            Id = task.Id,
+            CollaborationId = task.CollaborationId,
+            Title = request.Title,
+            Description = request.Description,
+            Prompt = request.Prompt,
+            Status = CollaborationTaskStatus.Pending,
+            CreatedAt = task.CreatedAt
+        };
+
+        _mockCollaborationService
+            .Setup(s => s.UpdateTaskAsync(task.Id, request.Title, request.Description, request.Prompt, null, null, null, null))
+            .ReturnsAsync(updatedTask);
+
+        var result = await _controller.UpdateTask(task.Id, request);
+
+        var okResult = Assert.IsType<OkObjectResult>(result.Result);
+        var returnedTask = Assert.IsType<CollaborationTask>(okResult.Value);
+        Assert.Equal(request.Title, returnedTask.Title);
+        Assert.Equal(request.Prompt, returnedTask.Prompt);
+    }
+
+    [Fact]
+    public async Task UpdateTask_WithPrompt_ShouldUpdatePrompt()
+    {
+        var collaboration = CreateTestCollaboration("Collaboration1", _testUserId);
+        collaboration.Id = 1008;
+        
+        var task = CreateTestTask(collaboration.Id, "Task1", "Old Prompt");
+        task.Id = 3003;
+
+        var request = new UpdateTaskRequest
+        {
+            Title = "Task1",
+            Description = "Description",
+            Prompt = "【新的任务要求】\n- 必须提交文档\n- 必须调用Git工具"
+        };
+
+        var updatedTask = new CollaborationTask
+        {
+            Id = task.Id,
+            CollaborationId = task.CollaborationId,
+            Title = request.Title,
+            Description = request.Description,
+            Prompt = request.Prompt,
+            Status = CollaborationTaskStatus.Pending,
+            CreatedAt = task.CreatedAt
+        };
+
+        _mockCollaborationService
+            .Setup(s => s.UpdateTaskAsync(task.Id, request.Title, request.Description, request.Prompt, null, null, null, null))
+            .ReturnsAsync(updatedTask);
+
+        var result = await _controller.UpdateTask(task.Id, request);
+
+        var okResult = Assert.IsType<OkObjectResult>(result.Result);
+        var returnedTask = Assert.IsType<CollaborationTask>(okResult.Value);
+        Assert.Equal(request.Prompt, returnedTask.Prompt);
+        Assert.NotEqual("Old Prompt", returnedTask.Prompt);
     }
 
     [Fact]

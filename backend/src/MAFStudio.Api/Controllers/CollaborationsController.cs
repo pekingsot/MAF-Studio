@@ -67,6 +67,7 @@ public class CollaborationsController : ControllerBase
                 CollaborationId = t.CollaborationId,
                 Title = t.Title,
                 Description = t.Description,
+                Prompt = t.Prompt,
                 Status = t.Status,
                 AssignedTo = t.AssignedTo,
                 GitUrl = t.GitUrl,
@@ -114,8 +115,12 @@ public class CollaborationsController : ControllerBase
             CollaborationId = t.CollaborationId,
             Title = t.Title,
             Description = t.Description,
+            Prompt = t.Prompt,
             Status = t.Status,
             AssignedTo = t.AssignedTo,
+            GitUrl = t.GitUrl,
+            GitBranch = t.GitBranch,
+            HasGitToken = !string.IsNullOrEmpty(t.GitCredentials),
             CompletedAt = t.CompletedAt,
             CreatedAt = t.CreatedAt
         }).ToList() ?? new List<CollaborationTaskVo>();
@@ -262,6 +267,7 @@ public class CollaborationsController : ControllerBase
             request.Title, 
             request.Description, 
             userId,
+            request.Prompt,
             request.GitUrl,
             request.GitBranch,
             request.GitToken,
@@ -271,12 +277,13 @@ public class CollaborationsController : ControllerBase
     }
 
     [HttpPut("tasks/{taskId}")]
-    public async Task<ActionResult<Core.Entities.CollaborationTask>> UpdateTask(long taskId, [FromBody] CreateTaskRequest request)
+    public async Task<ActionResult<Core.Entities.CollaborationTask>> UpdateTask(long taskId, [FromBody] UpdateTaskRequest request)
     {
         var task = await _collaborationService.UpdateTaskAsync(
             taskId,
             request.Title,
             request.Description,
+            request.Prompt,
             request.GitUrl,
             request.GitBranch,
             request.GitToken,

@@ -116,7 +116,6 @@ public class Task1006IntegrationTests
         });
 
         var chatClientFactoryLogger = loggerFactory.CreateLogger<ChatClientFactory>();
-        var toolCallingLogger = loggerFactory.CreateLogger<ToolCallingChatClient>();
 
         var chatClientFactory = new ChatClientFactory(
             llmConfigRepository,
@@ -127,7 +126,7 @@ public class Task1006IntegrationTests
             agentRepository,
             chatClientFactory,
             capabilityManager,
-            toolCallingLogger);
+            loggerFactory);
 
         var firstAgent = agentList.First();
         Log($"\n========== 创建Agent: {firstAgent.name} ==========");

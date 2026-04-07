@@ -33,6 +33,7 @@ export interface CollaborationTask {
   collaborationId: string;
   title: string;
   description?: string;
+  prompt?: string;
   status: 'Pending' | 'InProgress' | 'Completed' | 'Failed';
   gitUrl?: string;
   gitBranch?: string;
@@ -66,6 +67,17 @@ export interface UpdateAgentRoleRequest {
 export interface CreateTaskRequest {
   title: string;
   description?: string;
+  prompt?: string;
+  gitUrl?: string;
+  gitBranch?: string;
+  gitToken?: string;
+  agentIds?: number[];
+}
+
+export interface UpdateTaskRequest {
+  title: string;
+  description?: string;
+  prompt?: string;
   gitUrl?: string;
   gitBranch?: string;
   gitToken?: string;
@@ -115,7 +127,7 @@ export const collaborationService = {
     return response.data;
   },
 
-  updateTask: async (taskId: string, request: CreateTaskRequest): Promise<CollaborationTask> => {
+  updateTask: async (taskId: string, request: UpdateTaskRequest): Promise<CollaborationTask> => {
     const response = await api.put<CollaborationTask>(`/collaborations/tasks/${taskId}`, request);
     return response.data;
   },

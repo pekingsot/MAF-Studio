@@ -4,6 +4,7 @@ using MAFStudio.Application.Services;
 using MAFStudio.Application.Interfaces;
 using MAFStudio.Application.Skills;
 using MAFStudio.Application.Capabilities;
+using MAFStudio.Application.Prompts;
 
 namespace MAFStudio.Application;
 
@@ -37,6 +38,8 @@ public static class DependencyInjection
         services.AddScoped<SkillExecutor>();
         
         services.AddScoped<IGroupChatConclusionService, GroupChatConclusionService>();
+        
+        services.AddScoped<ISystemPromptBuilderFactory, SystemPromptBuilderFactory>();
         
         return services;
     }

@@ -122,6 +122,7 @@ public static class EntityMapper
             CollaborationId = task.CollaborationId,
             Title = task.Title,
             Description = task.Description,
+            Prompt = task.Prompt,
             Status = task.Status,
             AssignedTo = task.AssignedTo,
             GitUrl = task.GitUrl,

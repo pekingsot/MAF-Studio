@@ -118,7 +118,6 @@ public class ToolCallingIntegrationTests
         });
 
         var chatClientFactoryLogger = loggerFactory.CreateLogger<ChatClientFactory>();
-        var toolCallingLogger = loggerFactory.CreateLogger<ToolCallingChatClient>();
 
         var chatClientFactory = new ChatClientFactory(
             llmConfigRepository,
@@ -142,7 +141,7 @@ public class ToolCallingIntegrationTests
             agentRepository,
             chatClientFactory,
             capabilityManager,
-            toolCallingLogger);
+            loggerFactory);
 
         if (agentList.Count == 0)
         {
@@ -214,7 +213,6 @@ public class ToolCallingIntegrationTests
         });
 
         var chatClientFactoryLogger = loggerFactory.CreateLogger<ChatClientFactory>();
-        var toolCallingLogger = loggerFactory.CreateLogger<ToolCallingChatClient>();
 
         var chatClientFactory = new ChatClientFactory(
             llmConfigRepository,
@@ -226,7 +224,7 @@ public class ToolCallingIntegrationTests
             agentRepository,
             chatClientFactory,
             capabilityManager,
-            toolCallingLogger);
+            loggerFactory);
 
         try
         {

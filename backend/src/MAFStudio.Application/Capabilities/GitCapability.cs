@@ -15,7 +15,7 @@ public class GitCapability : ICapability
             .Where(m => m.GetCustomAttribute<ToolAttribute>() != null);
     }
 
-    [Tool("克隆Git仓库")]
+    [Tool("克隆Git仓库到本地目录。参数: repositoryUrl(仓库地址，如果是私有仓库需要包含认证信息), localPath(本地存放路径)。返回: 克隆结果信息")]
     public string CloneRepository(string repositoryUrl, string localPath)
     {
         try
@@ -44,7 +44,7 @@ public class GitCapability : ICapability
         }
     }
 
-    [Tool("添加文件到暂存区")]
+    [Tool("添加文件到Git暂存区。参数: repositoryPath(仓库本地路径), filePattern(文件模式，默认'.'表示所有文件)。返回: 操作结果")]
     public string AddFiles(string repositoryPath, string filePattern = ".")
     {
         try
@@ -57,7 +57,7 @@ public class GitCapability : ICapability
         }
     }
 
-    [Tool("提交更改")]
+    [Tool("提交Git更改到本地仓库。参数: repositoryPath(仓库本地路径), message(提交信息), authorName(可选，提交者名称), authorEmail(可选，提交者邮箱)。返回: 提交结果")]
     public string Commit(string repositoryPath, string message, string? authorName = null, string? authorEmail = null)
     {
         try
@@ -76,7 +76,7 @@ public class GitCapability : ICapability
         }
     }
 
-    [Tool("推送到远程仓库")]
+    [Tool("推送Git提交到远程仓库。参数: repositoryPath(仓库本地路径), branch(可选，分支名), setUpstream(可选，是否设置上游分支)。返回: 推送结果。注意: 推送前必须先Commit")]
     public string Push(string repositoryPath, string branch = "", bool setUpstream = false)
     {
         try
@@ -90,7 +90,7 @@ public class GitCapability : ICapability
         }
     }
 
-    [Tool("拉取远程更改")]
+    [Tool("拉取远程仓库的最新更改。参数: repositoryPath(仓库本地路径)。返回: 拉取结果。注意: 当Push失败时，先调用此工具拉取最新代码，再Push")]
     public string Pull(string repositoryPath)
     {
         try
