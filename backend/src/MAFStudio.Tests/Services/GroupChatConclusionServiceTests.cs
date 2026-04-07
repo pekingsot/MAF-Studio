@@ -41,8 +41,9 @@ public class GroupChatConclusionServiceTests
             collaborationId: 100,
             topic: "测试主题",
             messages: new List<Message>(),
-            managerAgentId: 1,
-            managerAgentName: "测试Agent",
+            agentId: 1,
+            agentName: "测试Agent",
+            agentType: "协调者",
             agentPrompt: null,
             chatClient: _chatClientMock.Object);
 
@@ -65,8 +66,9 @@ public class GroupChatConclusionServiceTests
             collaborationId: 100,
             topic: "测试主题",
             messages: new List<Message>(),
-            managerAgentId: 1,
-            managerAgentName: "测试Agent",
+            agentId: 1,
+            agentName: "测试Agent",
+            agentType: "协调者",
             agentPrompt: null,
             chatClient: _chatClientMock.Object);
 
@@ -107,8 +109,9 @@ public class GroupChatConclusionServiceTests
             collaborationId: 100,
             topic: "测试主题",
             messages: messages,
-            managerAgentId: 1,
-            managerAgentName: "测试Agent",
+            agentId: 1,
+            agentName: "测试Agent",
+            agentType: "协调者",
             agentPrompt: "你是一个专业的任务执行者。",
             chatClient: _chatClientMock.Object);
 
@@ -130,7 +133,8 @@ public class GroupChatConclusionServiceTests
 - 仓库: http://192.168.1.250:5100/xxx/test.git
 - 分支: main
 - Token: ghp_xxxx
-- 文档路径: docs/discussions/summary.md";
+- 文档路径: docs/discussions/summary.md
+- 提交名称: {{agent_name}}-{{agent_type}}";
 
         var task = new CollaborationTask
         {
@@ -167,16 +171,18 @@ public class GroupChatConclusionServiceTests
             collaborationId: 100,
             topic: "测试主题",
             messages: messages,
-            managerAgentId: 1,
-            managerAgentName: "测试Agent",
+            agentId: 1,
+            agentName: "光哥",
+            agentType: "协调者",
             agentPrompt: "你是光哥，一个专业的协调者。",
             chatClient: _chatClientMock.Object);
 
         Assert.NotNull(result);
         Assert.NotNull(capturedPrompt);
-        Assert.Contains(gitPrompt, capturedPrompt);
         Assert.Contains("http://192.168.1.250:5100/xxx/test.git", capturedPrompt);
-        Assert.Contains("你是光哥，一个专业的协调者。", capturedPrompt);
+        Assert.Contains("提交名称: 光哥-协调者", capturedPrompt);
+        Assert.DoesNotContain("{{agent_name}}", capturedPrompt);
+        Assert.DoesNotContain("{{agent_type}}", capturedPrompt);
     }
 
     [Fact]
@@ -224,8 +230,9 @@ public class GroupChatConclusionServiceTests
             collaborationId: 100,
             topic: "测试主题",
             messages: messages,
-            managerAgentId: 1,
-            managerAgentName: "测试Agent",
+            agentId: 1,
+            agentName: "测试Agent",
+            agentType: "协调者",
             agentPrompt: null,
             chatClient: _chatClientMock.Object);
 
@@ -262,13 +269,66 @@ public class GroupChatConclusionServiceTests
             collaborationId: 100,
             topic: "测试主题",
             messages: new List<Message>(),
-            managerAgentId: 1,
-            managerAgentName: "测试Agent",
+            agentId: 1,
+            agentName: "测试Agent",
+            agentType: "协调者",
             agentPrompt: null,
             chatClient: _chatClientMock.Object);
 
         Assert.NotNull(result);
         Assert.Contains("任务执行失败", result);
         Assert.Contains("模型调用失败", result);
+    }
+
+    [Fact]
+    public async Task GenerateAndCommitConclusionAsync_ReplacesTemplateVariables()
+    {
+        var task = new CollaborationTask
+        {
+            Id = 1,
+            Prompt = @"团队成员: {{members}}
+执行者: {{agent_name}}-{{agent_type}}"
+        };
+        _taskRepositoryMock.Setup(r => r.GetByIdAsync(1))
+            .ReturnsAsync(task);
+        
+        _workspaceServiceMock.Setup(s => s.GetAgentDirById(100, 1, 1))
+            .Returns("D:/workspace/100/1/agents/1");
+        _workspaceServiceMock.Setup(s => s.GetAgentRepoDirById(100, 1, 1))
+            .Returns("D:/workspace/100/1/agents/1/repo");
+
+        var messages = new List<Message>
+        {
+            new() { FromAgentName = "小明", Content = "讨论内容1", RoundNumber = 1 },
+            new() { FromAgentName = "小红", Content = "讨论内容2", RoundNumber = 2 }
+        };
+
+        string? capturedPrompt = null;
+        var chatResponse = new ChatResponse(new ChatMessage(ChatRole.Assistant, "成功"));
+        _chatClientMock.Setup(c => c.GetResponseAsync(
+                It.IsAny<IEnumerable<ChatMessage>>(),
+                It.IsAny<ChatOptions>(),
+                It.IsAny<CancellationToken>()))
+            .Callback<IEnumerable<ChatMessage>, ChatOptions?, CancellationToken>((msgs, _, _) =>
+            {
+                capturedPrompt = msgs.First().Text;
+            })
+            .ReturnsAsync(chatResponse);
+
+        var result = await _service.GenerateAndCommitConclusionAsync(
+            taskId: 1,
+            collaborationId: 100,
+            topic: "测试主题",
+            messages: messages,
+            agentId: 1,
+            agentName: "光哥",
+            agentType: "协调者",
+            agentPrompt: null,
+            chatClient: _chatClientMock.Object);
+
+        Assert.NotNull(result);
+        Assert.NotNull(capturedPrompt);
+        Assert.Contains("团队成员: 小明, 小红", capturedPrompt);
+        Assert.Contains("执行者: 光哥-协调者", capturedPrompt);
     }
 }

@@ -121,8 +121,10 @@ public partial class CollaborationWorkflowService
             var agentIdToNameMap = new Dictionary<string, string>();
             ChatClientAgent? managerAgent = null;
             IChatClient? orchestratorChatClient = null;
-            string? managerAgentPrompt = null;
-            long managerAgentId = 0;
+            string? orchestratorAgentPrompt = null;
+            string? orchestratorAgentName = null;
+            string? orchestratorAgentType = null;
+            long orchestratorAgentId = 0;
 
             foreach (var (member, agentEntity) in agentEntities)
             {
@@ -160,10 +162,21 @@ public partial class CollaborationWorkflowService
                 if (isManager)
                 {
                     managerAgent = agent;
-                    managerAgentId = member.AgentId;
-                    managerAgentPrompt = systemPrompt;
+                    orchestratorAgentId = member.AgentId;
+                    orchestratorAgentPrompt = systemPrompt;
+                    orchestratorAgentName = agentEntity.Name;
+                    orchestratorAgentType = agentEntity.TypeName;
                     orchestratorChatClient = chatClient;
                     _logger.LogInformation("识别主Agent: Id={Id}, Name={Name}, DBId={DBId}", agent.Id, agentEntity.Name, member.AgentId);
+                }
+                else if (orchestratorChatClient == null)
+                {
+                    orchestratorAgentId = member.AgentId;
+                    orchestratorAgentPrompt = systemPrompt;
+                    orchestratorAgentName = agentEntity.Name;
+                    orchestratorAgentType = agentEntity.TypeName;
+                    orchestratorChatClient = chatClient;
+                    _logger.LogInformation("设置默认执行Agent: Id={Id}, Name={Name}, Type={Type}", agent.Id, agentEntity.Name, agentEntity.TypeName);
                 }
             }
 
@@ -325,14 +338,14 @@ public partial class CollaborationWorkflowService
                 _logger.LogInformation("工作流会话结束: {SessionId}, 总轮次: {Rounds}", session.Id, roundNumber);
             }
 
-            if (taskId.HasValue && taskId.Value > 0 && session != null && managerAgentId > 0 && orchestratorChatClient != null)
+            if (taskId.HasValue && taskId.Value > 0 && session != null && orchestratorAgentId > 0 && orchestratorChatClient != null)
             {
                 _logger.LogInformation("开始让协调者Agent生成群聊总结文档...");
                 
                 yield return new ChatMessageDto
                 {
                     Sender = "System",
-                    Content = "📝 正在让协调者Agent生成讨论总结文档...",
+                    Content = "📝 正在让Agent生成讨论总结文档...",
                     Timestamp = DateTime.UtcNow,
                     Role = "system"
                 };
@@ -349,9 +362,10 @@ public partial class CollaborationWorkflowService
                         collaborationId,
                         input,
                         sessionMessages.ToList(),
-                        managerAgentId,
-                        managerAgent?.Name ?? "协调者",
-                        managerAgentPrompt,
+                        orchestratorAgentId,
+                        orchestratorAgentName ?? "执行者",
+                        orchestratorAgentType,
+                        orchestratorAgentPrompt,
                         orchestratorChatClient,
                         cancellationToken);
                         

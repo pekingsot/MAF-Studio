@@ -4,6 +4,7 @@ using MAFStudio.Core.Interfaces.Services;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.Logging;
 using System.Text;
+using System.Text.RegularExpressions;
 
 namespace MAFStudio.Application.Services;
 
@@ -14,8 +15,9 @@ public interface IGroupChatConclusionService
         long collaborationId,
         string topic,
         List<Message> messages,
-        long managerAgentId,
-        string managerAgentName,
+        long agentId,
+        string agentName,
+        string? agentType,
         string? agentPrompt,
         IChatClient chatClient,
         CancellationToken cancellationToken = default);
@@ -42,15 +44,16 @@ public class GroupChatConclusionService : IGroupChatConclusionService
         long collaborationId,
         string topic,
         List<Message> messages,
-        long managerAgentId,
-        string managerAgentName,
+        long agentId,
+        string agentName,
+        string? agentType,
         string? agentPrompt,
         IChatClient chatClient,
         CancellationToken cancellationToken = default)
     {
         _logger.LogInformation("========== 开始让Agent执行任务后续操作 ==========");
-        _logger.LogInformation("任务ID: {TaskId}, 协作ID: {CollaborationId}, 协调者Agent: {AgentName} (ID: {ManagerAgentId})", 
-            taskId, collaborationId, managerAgentName, managerAgentId);
+        _logger.LogInformation("任务ID: {TaskId}, 协作ID: {CollaborationId}, 执行Agent: {AgentName} ({AgentType}) ID: {AgentId}", 
+            taskId, collaborationId, agentName, agentType ?? "未知", agentId);
 
         var task = await _taskRepository.GetByIdAsync(taskId);
         if (task == null)
@@ -68,8 +71,8 @@ public class GroupChatConclusionService : IGroupChatConclusionService
 
         _logger.LogInformation("任务提示词长度: {Length}", taskPrompt.Length);
 
-        var workDir = _workspaceService.GetAgentDirById(collaborationId, taskId, managerAgentId);
-        var repoDir = _workspaceService.GetAgentRepoDirById(collaborationId, taskId, managerAgentId);
+        var workDir = _workspaceService.GetAgentDirById(collaborationId, taskId, agentId);
+        var repoDir = _workspaceService.GetAgentRepoDirById(collaborationId, taskId, agentId);
         _workspaceService.EnsureDirectoryExists(workDir);
 
         _logger.LogInformation("工作目录: {WorkDir}", workDir);
@@ -83,8 +86,15 @@ public class GroupChatConclusionService : IGroupChatConclusionService
 
         var conversationContent = BuildConversationContent(messages);
 
+        taskPrompt = ReplaceTemplateVariables(taskPrompt, new TemplateVariables
+        {
+            AgentName = agentName,
+            AgentType = agentType ?? "专家",
+            Members = string.Join(", ", participants)
+        });
+
         var agentIdentity = string.IsNullOrEmpty(agentPrompt) 
-            ? $"你是 {managerAgentName}，一个任务执行专家。" 
+            ? $"你是 {agentName}，一个任务执行专家。" 
             : agentPrompt;
 
         var systemPrompt = $@"{agentIdentity}
@@ -142,5 +152,29 @@ public class GroupChatConclusionService : IGroupChatConclusionService
             sb.AppendLine();
         }
         return sb.ToString();
+    }
+
+    private string ReplaceTemplateVariables(string template, TemplateVariables variables)
+    {
+        if (string.IsNullOrEmpty(template))
+            return template;
+
+        var result = template;
+        
+        result = Regex.Replace(result, @"\{\{\s*agent_name\s*\}\}", variables.AgentName ?? "", RegexOptions.IgnoreCase);
+        result = Regex.Replace(result, @"\{\{\s*agent_type\s*\}\}", variables.AgentType ?? "", RegexOptions.IgnoreCase);
+        result = Regex.Replace(result, @"\{\{\s*members\s*\}\}", variables.Members ?? "", RegexOptions.IgnoreCase);
+
+        _logger.LogInformation("模板变量替换完成: agent_name={AgentName}, agent_type={AgentType}, members={Members}", 
+            variables.AgentName, variables.AgentType, variables.Members);
+
+        return result;
+    }
+
+    private class TemplateVariables
+    {
+        public string? AgentName { get; set; }
+        public string? AgentType { get; set; }
+        public string? Members { get; set; }
     }
 }
