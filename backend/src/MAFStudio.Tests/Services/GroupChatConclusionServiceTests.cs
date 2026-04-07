@@ -43,6 +43,7 @@ public class GroupChatConclusionServiceTests
             messages: new List<Message>(),
             managerAgentId: 1,
             managerAgentName: "测试Agent",
+            agentPrompt: null,
             chatClient: _chatClientMock.Object);
 
         Assert.Null(result);
@@ -66,6 +67,7 @@ public class GroupChatConclusionServiceTests
             messages: new List<Message>(),
             managerAgentId: 1,
             managerAgentName: "测试Agent",
+            agentPrompt: null,
             chatClient: _chatClientMock.Object);
 
         Assert.Null(result);
@@ -107,6 +109,7 @@ public class GroupChatConclusionServiceTests
             messages: messages,
             managerAgentId: 1,
             managerAgentName: "测试Agent",
+            agentPrompt: "你是一个专业的任务执行者。",
             chatClient: _chatClientMock.Object);
 
         Assert.NotNull(result);
@@ -166,12 +169,14 @@ public class GroupChatConclusionServiceTests
             messages: messages,
             managerAgentId: 1,
             managerAgentName: "测试Agent",
+            agentPrompt: "你是光哥，一个专业的协调者。",
             chatClient: _chatClientMock.Object);
 
         Assert.NotNull(result);
         Assert.NotNull(capturedPrompt);
         Assert.Contains(gitPrompt, capturedPrompt);
         Assert.Contains("http://192.168.1.250:5100/xxx/test.git", capturedPrompt);
+        Assert.Contains("你是光哥，一个专业的协调者。", capturedPrompt);
     }
 
     [Fact]
@@ -221,6 +226,7 @@ public class GroupChatConclusionServiceTests
             messages: messages,
             managerAgentId: 1,
             managerAgentName: "测试Agent",
+            agentPrompt: null,
             chatClient: _chatClientMock.Object);
 
         Assert.NotNull(result);
@@ -258,6 +264,7 @@ public class GroupChatConclusionServiceTests
             messages: new List<Message>(),
             managerAgentId: 1,
             managerAgentName: "测试Agent",
+            agentPrompt: null,
             chatClient: _chatClientMock.Object);
 
         Assert.NotNull(result);

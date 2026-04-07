@@ -121,6 +121,7 @@ public partial class CollaborationWorkflowService
             var agentIdToNameMap = new Dictionary<string, string>();
             ChatClientAgent? managerAgent = null;
             IChatClient? orchestratorChatClient = null;
+            string? managerAgentPrompt = null;
             long managerAgentId = 0;
 
             foreach (var (member, agentEntity) in agentEntities)
@@ -160,6 +161,7 @@ public partial class CollaborationWorkflowService
                 {
                     managerAgent = agent;
                     managerAgentId = member.AgentId;
+                    managerAgentPrompt = systemPrompt;
                     orchestratorChatClient = chatClient;
                     _logger.LogInformation("识别主Agent: Id={Id}, Name={Name}, DBId={DBId}", agent.Id, agentEntity.Name, member.AgentId);
                 }
@@ -349,6 +351,7 @@ public partial class CollaborationWorkflowService
                         sessionMessages.ToList(),
                         managerAgentId,
                         managerAgent?.Name ?? "协调者",
+                        managerAgentPrompt,
                         orchestratorChatClient,
                         cancellationToken);
                         

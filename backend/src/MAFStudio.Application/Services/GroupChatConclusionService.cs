@@ -16,6 +16,7 @@ public interface IGroupChatConclusionService
         List<Message> messages,
         long managerAgentId,
         string managerAgentName,
+        string? agentPrompt,
         IChatClient chatClient,
         CancellationToken cancellationToken = default);
 }
@@ -43,6 +44,7 @@ public class GroupChatConclusionService : IGroupChatConclusionService
         List<Message> messages,
         long managerAgentId,
         string managerAgentName,
+        string? agentPrompt,
         IChatClient chatClient,
         CancellationToken cancellationToken = default)
     {
@@ -81,7 +83,13 @@ public class GroupChatConclusionService : IGroupChatConclusionService
 
         var conversationContent = BuildConversationContent(messages);
 
-        var systemPrompt = $@"## 群聊讨论记录
+        var agentIdentity = string.IsNullOrEmpty(agentPrompt) 
+            ? $"你是 {managerAgentName}，一个任务执行专家。" 
+            : agentPrompt;
+
+        var systemPrompt = $@"{agentIdentity}
+
+## 群聊讨论记录
 
 **讨论主题**: {topic}
 **参与人员**: {string.Join(", ", participants)}
