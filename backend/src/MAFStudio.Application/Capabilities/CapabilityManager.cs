@@ -21,6 +21,8 @@ public class CapabilityManager
         RegisterCapability(new CodeCapability());
         RegisterCapability(new SearchCapability());
         RegisterCapability(new ArchiveCapability());
+        RegisterCapability(new TimeCapability());
+        RegisterCapability(new EmailCapability());
     }
 
     public void RegisterCapability(ICapability capability)
