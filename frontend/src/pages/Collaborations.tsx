@@ -1,8 +1,8 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { Table, Button, Modal, Form, Input, Tag, Space, message, Tabs, Select, Popconfirm, Divider, Row, Col, Alert, Radio, InputNumber, Typography, Card, Tooltip, Transfer } from 'antd';
+import { Table, Button, Modal, Form, Input, Tag, Space, message, Tabs, Select, Popconfirm, Divider, Row, Col, Alert, Radio, InputNumber, Typography, Card, Tooltip, Transfer, Collapse, Switch } from 'antd';
 import type { RadioChangeEvent } from 'antd';
 import type { TransferProps } from 'antd';
-import { PlusOutlined, EditOutlined, DeleteOutlined, TeamOutlined, UserOutlined, FolderOutlined, PlayCircleOutlined, EyeOutlined, MessageOutlined, SettingOutlined, SwapOutlined, CrownOutlined, BulbOutlined, InfoCircleOutlined } from '@ant-design/icons';
+import { PlusOutlined, EditOutlined, DeleteOutlined, TeamOutlined, UserOutlined, FolderOutlined, PlayCircleOutlined, EyeOutlined, MessageOutlined, SettingOutlined, SwapOutlined, CrownOutlined, BulbOutlined, InfoCircleOutlined, MailOutlined } from '@ant-design/icons';
 import { collaborationService, Collaboration } from '../services/collaborationService';
 import { agentService, Agent } from '../services/agentService';
 import { useNavigate } from 'react-router-dom';
@@ -94,6 +94,12 @@ const Collaborations: React.FC = () => {
   const handleSubmit = async () => {
     try {
       const values = await form.validateFields();
+      
+      // 将 SMTP 配置转换为 JSON 字符串
+      if (values.smtp && values.smtp.server) {
+        values.config = JSON.stringify({ smtp: values.smtp });
+      }
+      delete values.smtp;
       
       if (selectedCollaboration) {
         // 编辑模式
@@ -513,7 +519,18 @@ const Collaborations: React.FC = () => {
             onClick={() => {
               setSelectedCollaboration(record);
               setModalVisible(true);
-              form.setFieldsValue(record);
+              
+              // 解析配置 JSON 字符串
+              let formValues: any = { ...record };
+              if (record.config) {
+                try {
+                  const config = JSON.parse(record.config);
+                  formValues.smtp = config.smtp || {};
+                } catch (e) {
+                  console.error('解析配置失败:', e);
+                }
+              }
+              form.setFieldsValue(formValues);
             }}
           >
             编辑
@@ -817,6 +834,148 @@ const Collaborations: React.FC = () => {
           <Form.Item label="描述" name="description">
             <Input.TextArea rows={3} placeholder="请输入描述" />
           </Form.Item>
+          
+          <Collapse 
+            style={{ marginBottom: 16 }}
+            items={[
+              {
+                key: '1',
+                label: (
+                  <Space>
+                    <MailOutlined />
+                    <span>SMTP邮件配置</span>
+                  </Space>
+                ),
+                children: (
+                  <>
+                    <Alert
+                      message="配置SMTP后，智能体可以使用简化的邮件发送功能"
+                      description="配置后，智能体可以直接调用 SendEmail(toEmail, subject, body) 发送邮件，无需每次传递SMTP参数。"
+                      type="info"
+                      showIcon
+                      style={{ marginBottom: 16 }}
+                    />
+                    <Row gutter={16}>
+                      <Col span={12}>
+                        <Form.Item 
+                          label="SMTP服务器" 
+                          name={['smtp', 'server']}
+                          tooltip="例如: smtp.qq.com"
+                        >
+                          <Input placeholder="smtp.qq.com" />
+                        </Form.Item>
+                      </Col>
+                      <Col span={12}>
+                        <Form.Item 
+                          label="端口" 
+                          name={['smtp', 'port']}
+                          tooltip="SSL加密通常使用465或587端口"
+                        >
+                          <InputNumber 
+                            placeholder="587" 
+                            style={{ width: '100%' }}
+                            min={1}
+                            max={65535}
+                          />
+                        </Form.Item>
+                      </Col>
+                    </Row>
+                    <Row gutter={16}>
+                      <Col span={12}>
+                        <Form.Item 
+                          label="用户名" 
+                          name={['smtp', 'username']}
+                          tooltip="邮箱地址"
+                        >
+                          <Input placeholder="your@email.com" />
+                        </Form.Item>
+                      </Col>
+                      <Col span={12}>
+                        <Form.Item 
+                          label="密码/授权码" 
+                          name={['smtp', 'password']}
+                          tooltip="邮箱密码或授权码"
+                        >
+                          <Input.Password placeholder="授权码" />
+                        </Form.Item>
+                      </Col>
+                    </Row>
+                    <Row gutter={16}>
+                      <Col span={12}>
+                        <Form.Item 
+                          label="发件人邮箱" 
+                          name={['smtp', 'fromEmail']}
+                          tooltip="通常与用户名相同"
+                        >
+                          <Input placeholder="your@email.com" />
+                        </Form.Item>
+                      </Col>
+                      <Col span={12}>
+                        <Form.Item 
+                          label="启用SSL" 
+                          name={['smtp', 'enableSsl']}
+                          valuePropName="checked"
+                          tooltip="建议启用SSL加密"
+                          initialValue={true}
+                        >
+                          <Switch />
+                        </Form.Item>
+                      </Col>
+                    </Row>
+                    <Row>
+                      <Col span={24}>
+                        <Button 
+                          type="dashed" 
+                          icon={<MailOutlined />}
+                          onClick={async () => {
+                            try {
+                              const values = await form.validateFields();
+                              
+                              if (!values.smtp || !values.smtp.server) {
+                                message.warning('请先填写SMTP配置');
+                                return;
+                              }
+                              
+                              const config = JSON.stringify({ smtp: values.smtp });
+                              
+                              message.loading({ content: '正在发送测试邮件...', key: 'testEmail' });
+                              
+                              const token = localStorage.getItem('token');
+                              const response = await fetch(`/api/collaborations/test-email`, {
+                                method: 'POST',
+                                headers: {
+                                  'Content-Type': 'application/json',
+                                  'Authorization': `Bearer ${token}`
+                                },
+                                body: JSON.stringify({ smtp: values.smtp })
+                              });
+                              
+                              if (!response.ok) {
+                                const errorText = await response.text();
+                                throw new Error(errorText || `HTTP ${response.status}: ${response.statusText}`);
+                              }
+                              
+                              const result = await response.json();
+                              
+                              if (result.success) {
+                                message.success({ content: result.message, key: 'testEmail' });
+                              } else {
+                                message.error({ content: result.message, key: 'testEmail' });
+                              }
+                            } catch (error: any) {
+                              message.error({ content: error.message || '测试邮件发送失败', key: 'testEmail' });
+                            }
+                          }}
+                        >
+                          发送测试邮件
+                        </Button>
+                      </Col>
+                    </Row>
+                  </>
+                ),
+              },
+            ]}
+          />
         </Form>
       </Modal>
 

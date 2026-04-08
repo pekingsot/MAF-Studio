@@ -110,6 +110,7 @@ public static class EntityMapper
             UserId = collaboration.UserId,
             GitRepositoryUrl = collaboration.GitRepositoryUrl,
             GitBranch = collaboration.GitBranch,
+            Config = collaboration.Config,
             CreatedAt = collaboration.CreatedAt
         };
     }

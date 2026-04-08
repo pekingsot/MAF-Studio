@@ -28,5 +28,7 @@ public class Collaboration : BaseEntityWithUpdate
 
     public string? GitAccessToken { get; set; }
 
+    public string? Config { get; set; }
+
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 }

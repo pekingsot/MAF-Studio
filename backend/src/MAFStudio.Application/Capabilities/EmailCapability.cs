@@ -2,6 +2,9 @@ using System.Reflection;
 using System.Net;
 using System.Net.Mail;
 using System.Text;
+using MAFStudio.Application.Context;
+using System.Text.Json.Serialization;
+using System.Text.Json;
 
 namespace MAFStudio.Application.Capabilities;
 
@@ -16,7 +19,7 @@ public class EmailCapability : ICapability
             .Where(m => m.GetCustomAttribute<ToolAttribute>() != null);
     }
 
-    [Tool("发送简单邮件")]
+    [Tool("发送简单邮件。通过SMTP服务器发送纯文本邮件。需要提供SMTP服务器地址、端口、用户名、密码、发件人邮箱、收件人邮箱、主题和内容。")]
     public string SendSimpleEmail(
         string smtpServer,
         int smtpPort,
@@ -127,7 +130,7 @@ public class EmailCapability : ICapability
         }
     }
 
-    [Tool("发送带多个附件的邮件")]
+    [Tool("发送带多个附件的邮件。通过SMTP服务器发送带多个附件的邮件，多个附件路径用|或,或;分隔。")]
     public string SendEmailWithMultipleAttachments(
         string smtpServer,
         int smtpPort,
@@ -353,8 +356,8 @@ public class EmailCapability : ICapability
         }
     }
 
-    [Tool("发送带优先级的邮件")]
-    public string SendEmailWithPriority(
+    [Tool("发送带优先级的邮件。通过SMTP服务器发送带优先级的邮件，优先级可选：High、Normal、Low。")]
+    public string SendPriorityEmail(
         string smtpServer,
         int smtpPort,
         string username,
@@ -420,4 +423,125 @@ public class EmailCapability : ICapability
             return $"SMTP连接测试失败：{ex.Message}";
         }
     }
+    
+    [Tool("发送邮件（使用协作配置）。从协作配置中读取SMTP参数，只需提供收件人、主题和内容。如果协作未配置SMTP，需要先在协作设置中配置SMTP信息。")]
+    public string SendEmail(
+        string toEmail,
+        string subject,
+        string body)
+    {
+        var configContext = CollaborationConfigContext.Current;
+        if (configContext == null)
+        {
+            return "错误：未找到协作配置上下文，请确保在协作工作流中调用此方法";
+        }
+        
+        var smtpConfig = configContext.GetConfigValue<SmtpConfig>("smtp");
+        if (smtpConfig == null)
+        {
+            return "错误：协作未配置SMTP信息，请先在协作设置中配置SMTP服务器、端口、用户名、密码等信息";
+        }
+        
+        if (string.IsNullOrEmpty(smtpConfig.Server) || 
+            string.IsNullOrEmpty(smtpConfig.Username) || 
+            string.IsNullOrEmpty(smtpConfig.Password) ||
+            string.IsNullOrEmpty(smtpConfig.FromEmail))
+        {
+            return "错误：SMTP配置不完整，请检查服务器、用户名、密码、发件人邮箱是否已配置";
+        }
+        
+        try
+        {
+            using var client = new SmtpClient(smtpConfig.Server, smtpConfig.Port);
+            client.UseDefaultCredentials = false;
+            client.EnableSsl = smtpConfig.EnableSsl;
+            client.Credentials = new NetworkCredential(smtpConfig.Username, smtpConfig.Password);
+            client.Timeout = 30000;
+
+            using var message = new MailMessage(smtpConfig.FromEmail, toEmail);
+            message.Subject = subject;
+            message.Body = body;
+            message.BodyEncoding = Encoding.UTF8;
+            message.SubjectEncoding = Encoding.UTF8;
+
+            client.Send(message);
+            return $"成功发送邮件到 {toEmail}";
+        }
+        catch (Exception ex)
+        {
+            return $"发送邮件失败：{ex.Message}\n详细信息：{ex.InnerException?.Message}";
+        }
+    }
+    
+    [Tool("发送HTML邮件（使用协作配置）。从协作配置中读取SMTP参数，发送HTML格式邮件。")]
+    public string SendHtmlEmailWithConfig(
+        string toEmail,
+        string subject,
+        string htmlBody)
+    {
+        var configContext = CollaborationConfigContext.Current;
+        if (configContext == null)
+        {
+            return "错误：未找到协作配置上下文，请确保在协作工作流中调用此方法";
+        }
+        
+        var smtpConfig = configContext.GetConfigValue<SmtpConfig>("smtp");
+        if (smtpConfig == null)
+        {
+            return "错误：协作未配置SMTP信息，请先在协作设置中配置SMTP服务器、端口、用户名、密码等信息";
+        }
+        
+        if (string.IsNullOrEmpty(smtpConfig.Server) || 
+            string.IsNullOrEmpty(smtpConfig.Username) || 
+            string.IsNullOrEmpty(smtpConfig.Password) ||
+            string.IsNullOrEmpty(smtpConfig.FromEmail))
+        {
+            return "错误：SMTP配置不完整，请检查服务器、用户名、密码、发件人邮箱是否已配置";
+        }
+        
+        try
+        {
+            using var client = new SmtpClient(smtpConfig.Server, smtpConfig.Port);
+            client.EnableSsl = smtpConfig.EnableSsl;
+            client.Credentials = new NetworkCredential(smtpConfig.Username, smtpConfig.Password);
+
+            using var message = new MailMessage(smtpConfig.FromEmail, toEmail);
+            message.Subject = subject;
+            message.Body = htmlBody;
+            message.BodyEncoding = Encoding.UTF8;
+            message.SubjectEncoding = Encoding.UTF8;
+            message.IsBodyHtml = true;
+
+            client.Send(message);
+            return $"成功发送HTML邮件到 {toEmail}";
+        }
+        catch (Exception ex)
+        {
+            return $"发送HTML邮件失败：{ex.Message}";
+        }
+    }
+}
+
+/// <summary>
+/// SMTP配置类
+/// </summary>
+public class SmtpConfig
+{
+    [JsonPropertyName("server")]
+    public string Server { get; set; } = string.Empty;
+    
+    [JsonPropertyName("port")]
+    public int Port { get; set; } = 587;
+    
+    [JsonPropertyName("username")]
+    public string Username { get; set; } = string.Empty;
+    
+    [JsonPropertyName("password")]
+    public string Password { get; set; } = string.Empty;
+    
+    [JsonPropertyName("fromEmail")]
+    public string FromEmail { get; set; } = string.Empty;
+    
+    [JsonPropertyName("enableSsl")]
+    public bool EnableSsl { get; set; } = true;
 }

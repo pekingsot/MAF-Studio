@@ -12,6 +12,7 @@ public class CollaborationVo
     public long UserId { get; set; }
     public string? GitRepositoryUrl { get; set; }
     public string? GitBranch { get; set; }
+    public string? Config { get; set; }
     public List<CollaborationAgentVo> Agents { get; set; } = new();
     public List<CollaborationTaskVo> Tasks { get; set; } = new();
     public DateTime CreatedAt { get; set; }

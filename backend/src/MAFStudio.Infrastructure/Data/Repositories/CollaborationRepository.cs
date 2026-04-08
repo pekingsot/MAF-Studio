@@ -35,8 +35,8 @@ public class CollaborationRepository : ICollaborationRepository
         using var connection = _context.CreateConnection();
         collaboration.CreatedAt = DateTime.UtcNow;
         const string sql = @"
-            INSERT INTO collaborations (name, description, path, status, user_id, git_repository_url, git_branch, git_username, git_email, git_access_token, created_at, updated_at)
-            VALUES (@Name, @Description, @Path, @Status, @UserId, @GitRepositoryUrl, @GitBranch, @GitUsername, @GitEmail, @GitAccessToken, @CreatedAt, @UpdatedAt)
+            INSERT INTO collaborations (name, description, path, status, user_id, git_repository_url, git_branch, git_username, git_email, git_access_token, config, created_at, updated_at)
+            VALUES (@Name, @Description, @Path, @Status, @UserId, @GitRepositoryUrl, @GitBranch, @GitUsername, @GitEmail, @GitAccessToken, @Config::jsonb, @CreatedAt, @UpdatedAt)
             RETURNING *";
         return await connection.QueryFirstAsync<Collaboration>(sql, collaboration);
     }
@@ -56,6 +56,7 @@ public class CollaborationRepository : ICollaborationRepository
                 git_username = @GitUsername,
                 git_email = @GitEmail,
                 git_access_token = @GitAccessToken,
+                config = @Config::jsonb,
                 updated_at = @UpdatedAt
             WHERE id = @Id
             RETURNING *";

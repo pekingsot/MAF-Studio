@@ -151,7 +151,7 @@ public class CollaborationsControllerTests : TestBase
             .Setup(s => s.CreateAsync(
                 request.Name, request.Description, request.Path,
                 request.GitRepositoryUrl, request.GitBranch, request.GitUsername,
-                request.GitEmail, request.GitAccessToken, _testUserId))
+                request.GitEmail, request.GitAccessToken, request.Config, _testUserId))
             .ReturnsAsync(createdCollaboration);
 
         var result = await _controller.CreateCollaboration(request);
@@ -395,5 +395,77 @@ public class CollaborationsControllerTests : TestBase
         var okResult = Assert.IsType<OkObjectResult>(result.Result);
         var returnedTask = Assert.IsType<CollaborationTask>(okResult.Value);
         Assert.Equal(CollaborationTaskStatus.InProgress, returnedTask.Status);
+    }
+    
+    [Fact]
+    public async Task CreateCollaboration_WithConfig_ShouldSaveConfig()
+    {
+        var config = "{\"smtp\":{\"server\":\"smtp.qq.com\",\"port\":587,\"username\":\"test@qq.com\",\"password\":\"test123\",\"fromEmail\":\"test@qq.com\",\"enableSsl\":true}}";
+        
+        var request = new CreateCollaborationRequest
+        {
+            Name = "Test Collaboration with Config",
+            Description = "Test Description",
+            Config = config
+        };
+
+        var createdCollaboration = CreateTestCollaboration(request.Name, _testUserId);
+        createdCollaboration.Config = config;
+
+        _mockCollaborationService
+            .Setup(s => s.CreateAsync(
+                request.Name, request.Description, request.Path,
+                request.GitRepositoryUrl, request.GitBranch, request.GitUsername,
+                request.GitEmail, request.GitAccessToken, request.Config, _testUserId))
+            .ReturnsAsync(createdCollaboration);
+
+        var result = await _controller.CreateCollaboration(request);
+
+        var createdResult = Assert.IsType<CreatedAtActionResult>(result.Result);
+        var returnedCollaboration = Assert.IsType<Collaboration>(createdResult.Value);
+        Assert.Equal(request.Name, returnedCollaboration.Name);
+        Assert.Equal(config, returnedCollaboration.Config);
+        
+        _mockCollaborationService.Verify(s => s.CreateAsync(
+            request.Name, request.Description, request.Path,
+            request.GitRepositoryUrl, request.GitBranch, request.GitUsername,
+            request.GitEmail, request.GitAccessToken, request.Config, _testUserId), Times.Once);
+    }
+    
+    [Fact]
+    public async Task UpdateCollaboration_WithConfig_ShouldUpdateConfig()
+    {
+        var collaborationId = 1003L;
+        var config = "{\"smtp\":{\"server\":\"smtp.test.com\",\"port\":587,\"username\":\"user@test.com\",\"password\":\"pass123\",\"fromEmail\":\"user@test.com\",\"enableSsl\":true}}";
+        
+        var request = new CreateCollaborationRequest
+        {
+            Name = "Updated Collaboration",
+            Description = "Updated Description",
+            Config = config
+        };
+
+        var existingCollaboration = CreateTestCollaboration("Old Name", _testUserId);
+        existingCollaboration.Id = collaborationId;
+
+        var updatedCollaboration = CreateTestCollaboration(request.Name, _testUserId);
+        updatedCollaboration.Id = collaborationId;
+        updatedCollaboration.Description = request.Description;
+        updatedCollaboration.Config = config;
+
+        _mockCollaborationService
+            .Setup(s => s.GetByIdAsync(collaborationId, _testUserId))
+            .ReturnsAsync(existingCollaboration);
+        
+        _mockCollaborationService
+            .Setup(s => s.UpdateAsync(It.IsAny<Collaboration>()))
+            .ReturnsAsync(updatedCollaboration);
+
+        var result = await _controller.UpdateCollaboration(collaborationId, request);
+
+        var okResult = Assert.IsType<OkObjectResult>(result.Result);
+        var returnedCollaboration = Assert.IsType<Collaboration>(okResult.Value);
+        Assert.Equal(request.Name, returnedCollaboration.Name);
+        Assert.Equal(config, returnedCollaboration.Config);
     }
 }

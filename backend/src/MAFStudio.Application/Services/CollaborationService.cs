@@ -50,6 +50,7 @@ public class CollaborationService : ICollaborationService
         string? gitUsername, 
         string? gitEmail, 
         string? gitAccessToken, 
+        string? config,
         long userId)
     {
         var collaboration = new Collaboration
@@ -62,6 +63,7 @@ public class CollaborationService : ICollaborationService
             GitUsername = gitUsername,
             GitEmail = gitEmail,
             GitAccessToken = gitAccessToken,
+            Config = config,
             UserId = userId,
             CreatedAt = DateTime.UtcNow,
             UpdatedAt = DateTime.UtcNow

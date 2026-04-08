@@ -21,19 +21,22 @@ public class CollaborationsController : ControllerBase
     private readonly IOperationLogService _logService;
     private readonly IAgentMessageRepository _agentMessageRepository;
     private readonly ITaskAgentRepository _taskAgentRepository;
+    private readonly ILogger<CollaborationsController> _logger;
 
     public CollaborationsController(
         ICollaborationService collaborationService, 
         IAuthService authService, 
         IOperationLogService logService,
         IAgentMessageRepository agentMessageRepository,
-        ITaskAgentRepository taskAgentRepository)
+        ITaskAgentRepository taskAgentRepository,
+        ILogger<CollaborationsController> logger)
     {
         _collaborationService = collaborationService;
         _authService = authService;
         _logService = logService;
         _agentMessageRepository = agentMessageRepository;
         _taskAgentRepository = taskAgentRepository;
+        _logger = logger;
     }
 
     [HttpGet]
@@ -142,6 +145,7 @@ public class CollaborationsController : ControllerBase
             request.GitUsername,
             request.GitEmail,
             request.GitAccessToken,
+            request.Config,
             userId
         );
         
@@ -185,6 +189,7 @@ public class CollaborationsController : ControllerBase
         collaboration.GitUsername = request.GitUsername;
         collaboration.GitEmail = request.GitEmail;
         collaboration.GitAccessToken = request.GitAccessToken;
+        collaboration.Config = request.Config;
         
         var updatedCollaboration = await _collaborationService.UpdateAsync(collaboration);
         
@@ -353,4 +358,158 @@ public class CollaborationsController : ControllerBase
         
         return Ok(messages);
     }
+    
+    [HttpPost("test-email")]
+    public async Task<ActionResult> TestEmailConfiguration([FromBody] TestEmailRequest request)
+    {
+        var userId = User.GetUserId();
+        
+        try
+        {
+            _logger.LogInformation($"测试邮件 - SMTP配置: Server={request.Smtp?.Server}, Port={request.Smtp?.Port}, Username={request.Smtp?.Username}");
+            
+            if (request.Smtp == null || string.IsNullOrEmpty(request.Smtp.Server))
+            {
+                return BadRequest(new { success = false, message = "SMTP配置不完整，请检查服务器地址是否填写" });
+            }
+            
+            if (string.IsNullOrEmpty(request.Smtp.Username) || string.IsNullOrEmpty(request.Smtp.Password))
+            {
+                return BadRequest(new { success = false, message = "SMTP配置不完整，请检查用户名和密码是否填写" });
+            }
+            
+            if (string.IsNullOrEmpty(request.Smtp.FromEmail))
+            {
+                return BadRequest(new { success = false, message = "SMTP配置不完整，请检查发件人邮箱是否填写" });
+            }
+            
+            var emailCapability = new Application.Capabilities.EmailCapability();
+            
+            var subject = $"MAF Studio 测试邮件 - {DateTime.Now:yyyy-MM-dd HH:mm:ss}";
+            var body = $"这是一封测试邮件。\n\n发送时间: {DateTime.Now:yyyy-MM-dd HH:mm:ss}\n\n如果您收到这封邮件，说明SMTP配置正确。";
+            
+            var result = emailCapability.SendSimpleEmail(
+                request.Smtp.Server,
+                request.Smtp.Port,
+                request.Smtp.Username,
+                request.Smtp.Password,
+                request.Smtp.FromEmail,
+                request.Smtp.FromEmail,
+                subject,
+                body,
+                request.Smtp.EnableSsl
+            );
+            
+            if (result.Contains("成功"))
+            {
+                await _logService.LogAsync(userId, "测试", "SMTP配置", "测试邮件发送成功", null);
+                return Ok(new { success = true, message = result });
+            }
+            else
+            {
+                return BadRequest(new { success = false, message = result });
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "测试邮件发送失败");
+            return BadRequest(new { success = false, message = $"测试邮件发送失败: {ex.Message}" });
+        }
+    }
+    
+    [HttpPost("{id}/test-email")]
+    public async Task<ActionResult> TestEmailConfigurationFromDb(long id)
+    {
+        var userId = User.GetUserId();
+        
+        try
+        {
+            var collaboration = await _collaborationService.GetByIdAsync(id, userId);
+            if (collaboration == null)
+            {
+                return NotFound(new { success = false, message = "协作不存在" });
+            }
+            
+            _logger.LogInformation($"测试邮件 - 协作ID: {id}, Config内容: {collaboration.Config ?? "NULL"}");
+            
+            if (string.IsNullOrEmpty(collaboration.Config))
+            {
+                return BadRequest(new { success = false, message = "协作未配置SMTP信息，请先在编辑模式下配置并保存SMTP信息" });
+            }
+            
+            System.Collections.Generic.Dictionary<string, object>? config;
+            try
+            {
+                config = System.Text.Json.JsonSerializer.Deserialize<System.Collections.Generic.Dictionary<string, object>>(collaboration.Config);
+            }
+            catch (System.Text.Json.JsonException ex)
+            {
+                return BadRequest(new { success = false, message = $"配置格式错误: {ex.Message}，请检查配置是否正确" });
+            }
+            
+            if (config == null || !config.ContainsKey("smtp"))
+            {
+                _logger.LogWarning($"Config解析结果: {System.Text.Json.JsonSerializer.Serialize(config)}, 包含smtp: {config?.ContainsKey("smtp") ?? false}");
+                return BadRequest(new { success = false, message = "协作配置中未找到SMTP配置，请先配置SMTP信息" });
+            }
+            
+            var smtpConfigElement = (System.Text.Json.JsonElement)config["smtp"];
+            _logger.LogInformation($"SMTP配置原始JSON: {smtpConfigElement.GetRawText()}");
+            
+            var smtpConfig = System.Text.Json.JsonSerializer.Deserialize<Application.Capabilities.SmtpConfig>(smtpConfigElement.GetRawText());
+            
+            _logger.LogInformation($"SMTP配置解析结果: Server={smtpConfig?.Server}, Port={smtpConfig?.Port}, Username={smtpConfig?.Username}, FromEmail={smtpConfig?.FromEmail}");
+            
+            if (smtpConfig == null || string.IsNullOrEmpty(smtpConfig.Server))
+            {
+                return BadRequest(new { success = false, message = "SMTP配置不完整，请检查服务器地址是否填写" });
+            }
+            
+            if (string.IsNullOrEmpty(smtpConfig.Username) || string.IsNullOrEmpty(smtpConfig.Password))
+            {
+                return BadRequest(new { success = false, message = "SMTP配置不完整，请检查用户名和密码是否填写" });
+            }
+            
+            if (string.IsNullOrEmpty(smtpConfig.FromEmail))
+            {
+                return BadRequest(new { success = false, message = "SMTP配置不完整，请检查发件人邮箱是否填写" });
+            }
+            
+            var emailCapability = new Application.Capabilities.EmailCapability();
+            
+            var subject = $"MAF Studio 测试邮件 - {DateTime.Now:yyyy-MM-dd HH:mm:ss}";
+            var body = $"这是一封测试邮件。\n\n发送时间: {DateTime.Now:yyyy-MM-dd HH:mm:ss}\n协作名称: {collaboration.Name}\n\n如果您收到这封邮件，说明SMTP配置正确。";
+            
+            var result = emailCapability.SendSimpleEmail(
+                smtpConfig.Server,
+                smtpConfig.Port,
+                smtpConfig.Username,
+                smtpConfig.Password,
+                smtpConfig.FromEmail,
+                smtpConfig.FromEmail,
+                subject,
+                body,
+                smtpConfig.EnableSsl
+            );
+            
+            if (result.Contains("成功"))
+            {
+                await _logService.LogAsync(userId, "测试", "SMTP配置", $"测试邮件发送成功: {collaboration.Name}", null);
+                return Ok(new { success = true, message = result });
+            }
+            else
+            {
+                return BadRequest(new { success = false, message = result });
+            }
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(new { success = false, message = $"测试邮件发送失败: {ex.Message}" });
+        }
+    }
+}
+
+public class TestEmailRequest
+{
+    public MAFStudio.Application.Capabilities.SmtpConfig? Smtp { get; set; }
 }

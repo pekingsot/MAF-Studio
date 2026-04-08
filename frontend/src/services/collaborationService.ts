@@ -9,6 +9,7 @@ export interface Collaboration {
   gitBranch?: string;
   gitUsername?: string;
   gitEmail?: string;
+  config?: string;
   status: 'Active' | 'Paused' | 'Completed' | 'Cancelled';
   createdAt: string;
   updatedAt?: string;
@@ -51,6 +52,7 @@ export interface CreateCollaborationRequest {
   gitUsername?: string;
   gitEmail?: string;
   gitAccessToken?: string;
+  config?: string;
 }
 
 export interface AddAgentRequest {

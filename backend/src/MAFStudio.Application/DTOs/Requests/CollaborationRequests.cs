@@ -10,6 +10,7 @@ public class CreateCollaborationRequest
     public string? GitUsername { get; set; }
     public string? GitEmail { get; set; }
     public string? GitAccessToken { get; set; }
+    public string? Config { get; set; }
 }
 
 public class UpdateCollaborationRequest

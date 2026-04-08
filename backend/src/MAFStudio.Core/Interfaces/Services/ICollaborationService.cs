@@ -9,7 +9,7 @@ public interface ICollaborationService
     Task<List<Collaboration>> GetByUserIdAsync(long userId);
     Task<Collaboration?> GetByIdAsync(long id, long userId);
     Task<Collaboration?> GetByIdAsync(long id);
-    Task<Collaboration> CreateAsync(string name, string? description, string? path, string? gitRepositoryUrl, string? gitBranch, string? gitUsername, string? gitEmail, string? gitAccessToken, long userId);
+    Task<Collaboration> CreateAsync(string name, string? description, string? path, string? gitRepositoryUrl, string? gitBranch, string? gitUsername, string? gitEmail, string? gitAccessToken, string? config, long userId);
     Task<Collaboration> UpdateAsync(Collaboration collaboration);
     Task<bool> DeleteAsync(long id, long userId);
     Task<bool> AddAgentAsync(long collaborationId, long agentId, string? role, string? customPrompt, long userId);
