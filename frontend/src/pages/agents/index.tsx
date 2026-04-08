@@ -25,8 +25,6 @@ const Agents: React.FC = () => {
     loadAgents,
     loadLLMConfigs,
     handleActivate,
-    handleSleep,
-    handleDestroy,
     handleTest,
     handleDelete,
   } = useAgents();
@@ -128,8 +126,6 @@ const Agents: React.FC = () => {
         onEdit={handleEdit}
         onDelete={handleDelete}
         onActivate={handleActivate}
-        onSleep={handleSleep}
-        onDestroy={handleDestroy}
         onTest={handleTest}
       />
 

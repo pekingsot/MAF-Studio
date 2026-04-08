@@ -2,6 +2,8 @@ using Microsoft.Extensions.DependencyInjection;
 using MAFStudio.Core.Interfaces.Repositories;
 using MAFStudio.Infrastructure.Data;
 using MAFStudio.Infrastructure.Data.Repositories;
+using MAFStudio.Core.Interfaces;
+using MAFStudio.Infrastructure.Repositories;
 
 namespace MAFStudio.Infrastructure;
 
@@ -17,6 +19,7 @@ public static class DependencyInjection
         services.AddScoped<IAgentTypeRepository, AgentTypeRepository>();
         services.AddScoped<IAgentMessageRepository, AgentMessageRepository>();
         services.AddScoped<ICollaborationRepository, CollaborationRepository>();
+        services.AddScoped<ICollaborationAgentRepository, CollaborationAgentRepository>();
         services.AddScoped<ICollaborationTaskRepository, CollaborationTaskRepository>();
         services.AddScoped<ILlmConfigRepository, LlmConfigRepository>();
         services.AddScoped<ILlmModelConfigRepository, LlmModelConfigRepository>();
@@ -24,6 +27,16 @@ public static class DependencyInjection
         services.AddScoped<ISystemLogRepository, SystemLogRepository>();
         services.AddScoped<IRoleRepository, RoleRepository>();
         services.AddScoped<IPermissionRepository, PermissionRepository>();
+        services.AddScoped<IWorkflowTemplateRepository, WorkflowTemplateRepository>();
+        services.AddScoped<IWorkflowPlanRepository, WorkflowPlanRepository>();
+        services.AddScoped<IWorkflowExecutionRepository, WorkflowExecutionRepository>();
+        services.AddScoped<ICoordinationSessionRepository, CoordinationSessionRepository>();
+        services.AddScoped<ICoordinationRoundRepository, CoordinationRoundRepository>();
+        services.AddScoped<ICoordinationParticipantRepository, CoordinationParticipantRepository>();
+        
+        services.AddScoped<IWorkflowSessionRepository, WorkflowSessionRepository>();
+        services.AddScoped<IMessageRepository, MessageRepository>();
+        services.AddScoped<ITaskAgentRepository, TaskAgentRepository>();
         
         return services;
     }

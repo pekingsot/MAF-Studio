@@ -10,6 +10,7 @@ public class CreateCollaborationRequest
     public string? GitUsername { get; set; }
     public string? GitEmail { get; set; }
     public string? GitAccessToken { get; set; }
+    public string? Config { get; set; }
 }
 
 public class UpdateCollaborationRequest
@@ -23,12 +24,35 @@ public class AddAgentRequest
 {
     public long AgentId { get; set; }
     public string? Role { get; set; }
+    public string? CustomPrompt { get; set; }
+}
+
+public class UpdateAgentRoleRequest
+{
+    public string Role { get; set; } = string.Empty;
+    public string? CustomPrompt { get; set; }
 }
 
 public class CreateTaskRequest
 {
     public string Title { get; set; } = string.Empty;
     public string? Description { get; set; }
+    public string? Prompt { get; set; }
+    public string? GitUrl { get; set; }
+    public string? GitBranch { get; set; }
+    public string? GitToken { get; set; }
+    public List<long>? AgentIds { get; set; }
+}
+
+public class UpdateTaskRequest
+{
+    public string Title { get; set; } = string.Empty;
+    public string? Description { get; set; }
+    public string? Prompt { get; set; }
+    public string? GitUrl { get; set; }
+    public string? GitBranch { get; set; }
+    public string? GitToken { get; set; }
+    public List<long>? AgentIds { get; set; }
 }
 
 public class UpdateTaskStatusRequest

@@ -110,6 +110,7 @@ public static class EntityMapper
             UserId = collaboration.UserId,
             GitRepositoryUrl = collaboration.GitRepositoryUrl,
             GitBranch = collaboration.GitBranch,
+            Config = collaboration.Config,
             CreatedAt = collaboration.CreatedAt
         };
     }
@@ -122,8 +123,11 @@ public static class EntityMapper
             CollaborationId = task.CollaborationId,
             Title = task.Title,
             Description = task.Description,
+            Prompt = task.Prompt,
             Status = task.Status,
             AssignedTo = task.AssignedTo,
+            GitUrl = task.GitUrl,
+            GitBranch = task.GitBranch,
             CompletedAt = task.CompletedAt,
             CreatedAt = task.CreatedAt
         };

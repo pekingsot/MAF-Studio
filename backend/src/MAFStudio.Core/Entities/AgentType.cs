@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.ComponentModel.DataAnnotations.Schema;
 
 namespace MAFStudio.Core.Entities;
 
@@ -16,21 +17,24 @@ public class AgentType
 
     public string? Icon { get; set; }
 
+    [Column("default_configuration")]
     public string? DefaultConfiguration { get; set; }
 
+    [Column("llm_config_id")]
     public long? LlmConfigId { get; set; }
 
+    [Column("is_system")]
     public bool IsSystem { get; set; } = false;
 
+    [Column("is_enabled")]
     public bool IsEnabled { get; set; } = true;
 
+    [Column("sort_order")]
     public int SortOrder { get; set; } = 0;
 
+    [Column("created_at")]
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
-    /// <summary>
-    /// 默认系统提示词（从DefaultConfiguration中提取）
-    /// </summary>
     public string? DefaultSystemPrompt
     {
         get
@@ -38,10 +42,10 @@ public class AgentType
             if (string.IsNullOrEmpty(DefaultConfiguration)) return null;
             try
             {
-                var config = JsonSerializer.Deserialize<Dictionary<string, object>>(DefaultConfiguration);
-                if (config != null && config.TryGetValue("systemPrompt", out var prompt))
+                using var doc = JsonDocument.Parse(DefaultConfiguration);
+                if (doc.RootElement.TryGetProperty("systemPrompt", out var prop))
                 {
-                    return prompt?.ToString();
+                    return prop.GetString();
                 }
             }
             catch { }
@@ -49,9 +53,6 @@ public class AgentType
         }
     }
 
-    /// <summary>
-    /// 默认温度（从DefaultConfiguration中提取）
-    /// </summary>
     public double DefaultTemperature
     {
         get
@@ -59,10 +60,10 @@ public class AgentType
             if (string.IsNullOrEmpty(DefaultConfiguration)) return 0.7;
             try
             {
-                var config = JsonSerializer.Deserialize<Dictionary<string, object>>(DefaultConfiguration);
-                if (config != null && config.TryGetValue("temperature", out var temp))
+                using var doc = JsonDocument.Parse(DefaultConfiguration);
+                if (doc.RootElement.TryGetProperty("temperature", out var prop))
                 {
-                    return Convert.ToDouble(temp);
+                    return prop.GetDouble();
                 }
             }
             catch { }
@@ -70,9 +71,6 @@ public class AgentType
         }
     }
 
-    /// <summary>
-    /// 默认最大Token数（从DefaultConfiguration中提取）
-    /// </summary>
     public int DefaultMaxTokens
     {
         get
@@ -80,10 +78,10 @@ public class AgentType
             if (string.IsNullOrEmpty(DefaultConfiguration)) return 4096;
             try
             {
-                var config = JsonSerializer.Deserialize<Dictionary<string, object>>(DefaultConfiguration);
-                if (config != null && config.TryGetValue("maxTokens", out var tokens))
+                using var doc = JsonDocument.Parse(DefaultConfiguration);
+                if (doc.RootElement.TryGetProperty("maxTokens", out var prop))
                 {
-                    return Convert.ToInt32(tokens);
+                    return prop.GetInt32();
                 }
             }
             catch { }

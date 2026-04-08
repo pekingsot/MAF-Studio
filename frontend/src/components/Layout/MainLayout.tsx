@@ -114,7 +114,22 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
             </Menu.Item>
           </SubMenu>
           <Menu.Item key="/collaborations" icon={<TeamOutlined />}>
-            <Link to="/collaborations">协作管理</Link>
+            <Link to="/collaborations">团队管理</Link>
+          </Menu.Item>
+          <Menu.Item key="/collaboration-workflow" icon={<TeamOutlined />}>
+            <Link to="/collaboration-workflow">协作工作流</Link>
+          </Menu.Item>
+          <Menu.Item key="/workflow-templates" icon={<AppstoreAddOutlined />}>
+            <Link to="/workflow-templates">工作流模板</Link>
+          </Menu.Item>
+          <Menu.Item key="/workflow-execute" icon={<TeamOutlined />}>
+            <Link to="/workflow-execute">执行工作流</Link>
+          </Menu.Item>
+          <Menu.Item key="/magentic-workflow" icon={<RobotOutlined />}>
+            <Link to="/magentic-workflow">Magentic工作流</Link>
+          </Menu.Item>
+          <Menu.Item key="/skill-management" icon={<AppstoreAddOutlined />}>
+            <Link to="/skill-management">Skill管理</Link>
           </Menu.Item>
           <Menu.Item key="/chat" icon={<CommentOutlined />}>
             <Link to="/chat">协作聊天</Link>

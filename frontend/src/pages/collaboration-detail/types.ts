@@ -1,15 +1,14 @@
 import { Collaboration } from '../../services/collaborationService';
 
 export interface CollaborationAgent {
-  id: string;
   agentId: number;
-  agent: {
-    id: number;
-    name: string;
-    type: string;
-    status: string;
-  };
-  role: string;
+  agentName: string;
+  agentType?: string;
+  agentStatus?: string;
+  agentAvatar?: string;
+  role?: string; // Agent在工作流中的角色：Manager（协调者）或 Worker（执行者）
+  customPrompt?: string; // Agent的自定义提示词（覆盖系统提示词）
+  systemPrompt?: string; // Agent的系统提示词
   joinedAt: string;
 }
 

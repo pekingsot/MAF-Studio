@@ -24,6 +24,12 @@ const AgentDetail = lazy(() => import('./pages/AgentDetail'));
 const AgentTypes = lazy(() => import('./pages/AgentTypes'));
 const Collaborations = lazy(() => import('./pages/Collaborations'));
 const CollaborationDetail = lazy(() => import('./pages/CollaborationDetail'));
+const CollaborationWorkflow = lazy(() => import('./pages/collaboration-workflow'));
+const SkillManagement = lazy(() => import('./pages/skill-management'));
+const WorkflowTemplateManagement = lazy(() => import('./pages/WorkflowTemplateManagement'));
+const WorkflowEditor = lazy(() => import('./pages/WorkflowEditor'));
+const WorkflowExecute = lazy(() => import('./pages/WorkflowExecute'));
+const MagenticWorkflow = lazy(() => import('./pages/MagenticWorkflow'));
 const Messages = lazy(() => import('./pages/Messages'));
 const CollaborationChat = lazy(() => import('./pages/CollaborationChat'));
 const Login = lazy(() => import('./pages/Login'));
@@ -37,6 +43,8 @@ const SystemLogs = lazy(() => import('./pages/SystemLogs'));
 const Users = lazy(() => import('./pages/Users'));
 const Roles = lazy(() => import('./pages/Roles'));
 const Permissions = lazy(() => import('./pages/Permissions'));
+const CoordinationSessions = lazy(() => import('./pages/coordination-sessions'));
+const CoordinationSessionDetail = lazy(() => import('./pages/coordination-session-detail'));
 
 function App() {
   const { isAuthenticated, loading } = useAuth();
@@ -71,7 +79,11 @@ function App() {
 
   return (
     <MainLayout>
-      <Content style={{ padding: '24px', minHeight: 'calc(100vh - 64px)' }}>
+      <Content style={{ 
+        padding: location.pathname === '/workflow-editor' ? 0 : '24px', 
+        minHeight: 'calc(100vh - 64px)',
+        height: location.pathname === '/workflow-editor' ? 'calc(100vh - 64px)' : 'auto',
+      }}>
         <Routes>
           <Route path="/" element={lazyLoad(Dashboard)} />
           <Route path="/agents" element={lazyLoad(Agents)} />
@@ -79,6 +91,14 @@ function App() {
           <Route path="/agent-types" element={lazyLoad(AgentTypes)} />
           <Route path="/collaborations" element={lazyLoad(Collaborations)} />
           <Route path="/collaborations/:id" element={lazyLoad(CollaborationDetail)} />
+          <Route path="/collaborations/:id/coordination" element={lazyLoad(CoordinationSessions)} />
+          <Route path="/collaborations/:collaborationId/coordination/:sessionId" element={lazyLoad(CoordinationSessionDetail)} />
+          <Route path="/collaboration-workflow" element={lazyLoad(CollaborationWorkflow)} />
+          <Route path="/skill-management" element={lazyLoad(SkillManagement)} />
+          <Route path="/workflow-templates" element={lazyLoad(WorkflowTemplateManagement)} />
+          <Route path="/workflow-editor" element={lazyLoad(WorkflowEditor)} />
+          <Route path="/workflow-execute" element={lazyLoad(WorkflowExecute)} />
+          <Route path="/magentic-workflow" element={lazyLoad(MagenticWorkflow)} />
           <Route path="/messages" element={lazyLoad(Messages)} />
           <Route path="/chat" element={lazyLoad(CollaborationChat)} />
           <Route path="/profile" element={lazyLoad(Profile)} />

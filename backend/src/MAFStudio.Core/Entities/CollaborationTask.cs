@@ -12,11 +12,19 @@ public class CollaborationTask
 
     public string? Description { get; set; }
 
+    public string? Prompt { get; set; }
+
     public Enums.CollaborationTaskStatus Status { get; set; } = Enums.CollaborationTaskStatus.Pending;
 
-    public string? AssignedTo { get; set; }
+    public long? AssignedTo { get; set; }
 
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
     public DateTime? CompletedAt { get; set; }
+
+    public string? GitUrl { get; set; }
+
+    public string? GitBranch { get; set; }
+
+    public string? GitCredentials { get; set; }
 }

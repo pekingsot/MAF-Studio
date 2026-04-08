@@ -78,9 +78,12 @@ public class AgentTypesController : ControllerBase
     {
         try
         {
+            _logger.LogInformation("创建智能体类型请求: {@Request}", request);
+            
             var existingType = await _agentTypeRepository.GetByCodeAsync(request.Code);
             if (existingType != null)
             {
+                _logger.LogWarning("类型编码已存在: {Code}", request.Code);
                 return BadRequest(new { message = "类型编码已存在" });
             }
 
@@ -96,13 +99,18 @@ public class AgentTypesController : ControllerBase
             };
             agentType.SetDefaultConfiguration(request.DefaultSystemPrompt, request.DefaultTemperature, request.DefaultMaxTokens);
 
+            _logger.LogInformation("准备插入数据库: {@AgentType}", new { agentType.Name, agentType.Code, agentType.DefaultConfiguration });
+            
             var created = await _agentTypeRepository.CreateAsync(agentType);
-            return CreatedAtAction(nameof(GetById), new { id = created.Id }, created);
+            
+            _logger.LogInformation("插入成功，返回结果: {@Created}", created);
+            
+            return Ok(created);
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "创建智能体类型失败");
-            return StatusCode(500, new { message = "创建智能体类型失败" });
+            return StatusCode(500, new { message = "创建智能体类型失败: " + ex.Message });
         }
     }
 

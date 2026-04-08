@@ -27,9 +27,31 @@ public interface IChatClientFactory
     IChatClient CreateClient(string provider, string apiKey, string? endpoint, string modelName);
 
     /// <summary>
+    /// 创建带故障转移功能的 IChatClient
+    /// </summary>
+    /// <param name="primaryLlmConfigId">主模型配置ID</param>
+    /// <param name="primaryModelConfigId">主模型ID（可选）</param>
+    /// <param name="fallbackModels">副模型配置列表</param>
+    /// <returns>带故障转移的 IChatClient 实例</returns>
+    Task<IChatClient> CreateClientWithFallbackAsync(
+        long primaryLlmConfigId,
+        long? primaryModelConfigId = null,
+        List<FallbackModelConfig>? fallbackModels = null);
+
+    /// <summary>
     /// 获取支持的供应商列表
     /// </summary>
     IReadOnlyList<ProviderInfo> GetSupportedProviders();
+}
+
+/// <summary>
+/// 副模型配置
+/// </summary>
+public class FallbackModelConfig
+{
+    public long LlmConfigId { get; set; }
+    public long? LlmModelConfigId { get; set; }
+    public int Priority { get; set; }
 }
 
 /// <summary>

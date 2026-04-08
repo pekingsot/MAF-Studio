@@ -10,7 +10,8 @@ public interface ICollaborationRepository
     Task<Collaboration> CreateAsync(Collaboration collaboration);
     Task<Collaboration> UpdateAsync(Collaboration collaboration);
     Task<bool> DeleteAsync(long id);
-    Task<bool> AddAgentAsync(long collaborationId, long agentId, string? role);
+    Task<bool> AddAgentAsync(long collaborationId, long agentId, string? role, string? customPrompt);
     Task<bool> RemoveAgentAsync(long collaborationId, long agentId);
+    Task<bool> UpdateAgentRoleAsync(long collaborationId, long agentId, string role, string? customPrompt);
     Task<List<CollaborationAgent>> GetAgentsAsync(long collaborationId);
 }
