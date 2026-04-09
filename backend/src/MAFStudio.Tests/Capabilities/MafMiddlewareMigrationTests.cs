@@ -18,7 +18,7 @@ namespace MAFStudio.Tests.Capabilities;
 /// </summary>
 public class MafMiddlewareMigrationTests
 {
-    private readonly string _logFile = "D:/trae/test_maf_middleware_log.txt";
+    private readonly string _logFile = Path.Combine(Path.GetTempPath(), "test_maf_middleware_log.txt");
     private readonly string _connectionString = "Host=192.168.1.250;Port=5433;Database=mafstudio;Username=pekingsot;Password=sunset@123";
     private const long TestTaskId = 1006;
 

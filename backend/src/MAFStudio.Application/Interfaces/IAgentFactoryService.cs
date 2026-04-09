@@ -18,4 +18,10 @@ public interface IAgentFactoryService
     /// <param name="llmModelConfigId">模型配置ID</param>
     /// <returns>ChatClient实例</returns>
     Task<IChatClient> CreateChatClientAsync(long llmConfigId, long llmModelConfigId);
+
+    /// <summary>
+    /// 创建Magentic Manager客户端（用于协调工作流）
+    /// </summary>
+    /// <returns>Magentic Manager客户端实例</returns>
+    Task<IChatClient> CreateManagerClientAsync();
 }

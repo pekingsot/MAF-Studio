@@ -42,6 +42,12 @@ public class CreateTaskRequest
     public string? GitBranch { get; set; }
     public string? GitToken { get; set; }
     public List<long>? AgentIds { get; set; }
+    
+    /// <summary>
+    /// 任务配置（JSON格式）
+    /// 包含：orchestrationMode, managerAgentId, maxIterations 等
+    /// </summary>
+    public string? Config { get; set; }
 }
 
 public class UpdateTaskRequest
@@ -53,6 +59,11 @@ public class UpdateTaskRequest
     public string? GitBranch { get; set; }
     public string? GitToken { get; set; }
     public List<long>? AgentIds { get; set; }
+    
+    /// <summary>
+    /// 任务配置（JSON格式）
+    /// </summary>
+    public string? Config { get; set; }
 }
 
 public class UpdateTaskStatusRequest

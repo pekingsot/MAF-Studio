@@ -133,4 +133,111 @@ public class CollaborationTaskRepositoryIntegrationTests
         Assert.NotNull(retrievedTask);
         Assert.Null(retrievedTask.Prompt);
     }
+
+    [Fact]
+    public async Task CreateAsync_WithConfig_ShouldSaveConfig()
+    {
+        var context = CreateDapperContext();
+        var repository = new CollaborationTaskRepository(context);
+
+        var config = "{\"workflowType\":\"GroupChat\",\"orchestrationMode\":\"Manager\",\"maxIterations\":10,\"managerAgentId\":123,\"managerCustomPrompt\":\"这是一个测试提示词\"}";
+
+        var task = new CollaborationTask
+        {
+            CollaborationId = 1000,
+            Title = $"Test Task with Config {Guid.NewGuid()}",
+            Description = "Test Description",
+            Config = config,
+            Status = CollaborationTaskStatus.Pending
+        };
+
+        var createdTask = await repository.CreateAsync(task);
+
+        Assert.NotNull(createdTask);
+        Assert.True(createdTask.Id > 0);
+        Assert.Equal(config, createdTask.Config);
+
+        var retrievedTask = await repository.GetByIdAsync(createdTask.Id);
+        Assert.NotNull(retrievedTask);
+        Assert.Equal(config, retrievedTask.Config);
+
+        System.Console.WriteLine($"✅ Config保存成功: {retrievedTask.Config}");
+    }
+
+    [Fact]
+    public async Task CreateAsync_WithConfig_ShouldParseManagerAgentIdAndPrompt()
+    {
+        var context = CreateDapperContext();
+        var repository = new CollaborationTaskRepository(context);
+
+        var config = "{\"workflowType\":\"GroupChat\",\"orchestrationMode\":\"Manager\",\"maxIterations\":10,\"managerAgentId\":123,\"managerCustomPrompt\":\"这是一个测试提示词\"}";
+
+        var task = new CollaborationTask
+        {
+            CollaborationId = 1000,
+            Title = $"Test Task Config Parse {Guid.NewGuid()}",
+            Description = "Test Description",
+            Config = config,
+            Status = CollaborationTaskStatus.Pending
+        };
+
+        var createdTask = await repository.CreateAsync(task);
+        var retrievedTask = await repository.GetByIdAsync(createdTask.Id);
+
+        Assert.NotNull(retrievedTask);
+        Assert.NotNull(retrievedTask.Config);
+
+        var configObj = System.Text.Json.JsonDocument.Parse(retrievedTask.Config);
+        var root = configObj.RootElement;
+
+        Assert.True(root.TryGetProperty("managerAgentId", out var managerAgentId));
+        Assert.Equal(123, managerAgentId.GetInt64());
+
+        Assert.True(root.TryGetProperty("managerCustomPrompt", out var managerCustomPrompt));
+        Assert.Equal("这是一个测试提示词", managerCustomPrompt.GetString());
+
+        System.Console.WriteLine($"✅ managerAgentId: {managerAgentId.GetInt64()}");
+        System.Console.WriteLine($"✅ managerCustomPrompt: {managerCustomPrompt.GetString()}");
+    }
+
+    [Fact]
+    public async Task UpdateAsync_WithConfig_ShouldUpdateConfig()
+    {
+        var context = CreateDapperContext();
+        var repository = new CollaborationTaskRepository(context);
+
+        var task = new CollaborationTask
+        {
+            CollaborationId = 1000,
+            Title = $"Test Task for Config Update {Guid.NewGuid()}",
+            Description = "Original Description",
+            Config = "{\"workflowType\":\"GroupChat\",\"orchestrationMode\":\"RoundRobin\"}",
+            Status = CollaborationTaskStatus.Pending
+        };
+
+        var createdTask = await repository.CreateAsync(task);
+
+        var updatedConfig = "{\"workflowType\":\"ReviewIterative\",\"orchestrationMode\":\"Manager\",\"maxIterations\":15,\"managerAgentId\":456,\"managerCustomPrompt\":\"更新后的提示词\"}";
+        createdTask.Config = updatedConfig;
+
+        var updatedTask = await repository.UpdateAsync(createdTask);
+
+        Assert.Equal(updatedConfig, updatedTask.Config);
+
+        var retrievedTask = await repository.GetByIdAsync(updatedTask.Id);
+        Assert.NotNull(retrievedTask);
+        Assert.Equal(updatedConfig, retrievedTask.Config);
+
+        var configObj = System.Text.Json.JsonDocument.Parse(retrievedTask.Config);
+        var root = configObj.RootElement;
+
+        Assert.True(root.TryGetProperty("managerAgentId", out var managerAgentId));
+        Assert.Equal(456, managerAgentId.GetInt64());
+
+        Assert.True(root.TryGetProperty("managerCustomPrompt", out var managerCustomPrompt));
+        Assert.Equal("更新后的提示词", managerCustomPrompt.GetString());
+
+        System.Console.WriteLine($"✅ 更新后的 managerAgentId: {managerAgentId.GetInt64()}");
+        System.Console.WriteLine($"✅ 更新后的 managerCustomPrompt: {managerCustomPrompt.GetString()}");
+    }
 }

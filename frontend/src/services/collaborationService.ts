@@ -92,6 +92,16 @@ export const collaborationService = {
     return response.data;
   },
 
+  getCollaborationAgents: async (id: string): Promise<CollaborationAgent[]> => {
+    const response = await api.get<CollaborationAgent[]>(`/collaborations/${id}/agents`);
+    return response.data;
+  },
+
+  getCollaborationTasks: async (id: string): Promise<CollaborationTask[]> => {
+    const response = await api.get<CollaborationTask[]>(`/collaborations/${id}/tasks`);
+    return response.data;
+  },
+
   getCollaborationById: async (id: string): Promise<Collaboration> => {
     const response = await api.get<Collaboration>(`/collaborations/${id}`);
     return response.data;
@@ -132,6 +142,10 @@ export const collaborationService = {
   updateTask: async (taskId: string, request: UpdateTaskRequest): Promise<CollaborationTask> => {
     const response = await api.put<CollaborationTask>(`/collaborations/tasks/${taskId}`, request);
     return response.data;
+  },
+
+  deleteTask: async (taskId: string): Promise<void> => {
+    await api.delete(`/collaborations/tasks/${taskId}`);
   },
 
   getTaskAgents: async (taskId: string): Promise<number[]> => {
@@ -188,11 +202,6 @@ export const collaborationService = {
       toAgentId,
       content,
     });
-    return response.data;
-  },
-
-  getCollaborationAgents: async (collaborationId: string): Promise<CollaborationAgent[]> => {
-    const response = await api.get<CollaborationAgent[]>(`/collaborations/${collaborationId}/agents`);
     return response.data;
   },
 

@@ -27,4 +27,10 @@ public class CollaborationTask
     public string? GitBranch { get; set; }
 
     public string? GitCredentials { get; set; }
+
+    /// <summary>
+    /// 任务配置（JSON格式）
+    /// 包含：orchestrationMode, managerAgentId, maxIterations 等
+    /// </summary>
+    public string? Config { get; set; }
 }

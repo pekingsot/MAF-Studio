@@ -1,11 +1,25 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { Row, Col, Card, Statistic, Table, Tag, Badge, Tooltip, Space, Button, List, Typography, Divider, Popover } from 'antd';
-import { RobotOutlined, TeamOutlined, MessageOutlined, CheckCircleOutlined, ApiOutlined, CheckCircleFilled, CloseCircleFilled, LoadingOutlined, StarFilled, ClockCircleOutlined } from '@ant-design/icons';
+import { Row, Col, Card, Statistic, Table, Tag, Badge, Tooltip, Space, Button, List, Typography, Divider, Popover, Descriptions } from 'antd';
+import { RobotOutlined, TeamOutlined, MessageOutlined, CheckCircleOutlined, ApiOutlined, CheckCircleFilled, CloseCircleFilled, LoadingOutlined, StarFilled, ClockCircleOutlined, DesktopOutlined, DockerOutlined } from '@ant-design/icons';
 import { agentService, Agent } from '../services/agentService';
 import { collaborationService, Collaboration } from '../services/collaborationService';
 import api from '../services/api';
 
 const { Text } = Typography;
+
+interface EnvironmentInfo {
+  dotNetVersion: string;
+  gitVersion: string;
+  pythonVersion: string;
+  nodeVersion: string;
+  osInfo: string;
+  machineName: string;
+  processorCount: number;
+  runtime: string;
+  osArchitecture: string;
+  processArchitecture: string;
+  containerized: boolean;
+}
 
 interface AgentType {
   id: number;
@@ -64,6 +78,7 @@ const Dashboard: React.FC = () => {
   const [connectionStatus, setConnectionStatus] = useState<Record<string, ConnectionStatus>>({});
   const [testingLLM, setTestingLLM] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [environmentInfo, setEnvironmentInfo] = useState<EnvironmentInfo | null>(null);
   const initializedRef = useRef(false);
 
   useEffect(() => {
@@ -76,16 +91,18 @@ const Dashboard: React.FC = () => {
   const loadData = async () => {
     try {
       setLoading(true);
-      const [agentsData, collaborationsData, llmConfigsData, agentTypesData] = await Promise.all([
+      const [agentsData, collaborationsData, llmConfigsData, agentTypesData, envInfoData] = await Promise.all([
         agentService.getAllAgents(),
         collaborationService.getAllCollaborations(),
         api.get<LLMConfig[]>('/llmconfigs'),
         api.get<AgentType[]>('/agenttypes/enabled'),
+        api.get<EnvironmentInfo>('/system/environment').catch(() => ({ data: null })),
       ]);
       setAgents(agentsData || []);
       setCollaborations(collaborationsData);
       setLlmConfigs(llmConfigsData.data.filter(c => c.isEnabled));
       setAgentTypes(agentTypesData.data || []);
+      setEnvironmentInfo(envInfoData.data);
     } catch (error) {
       console.error('Failed to load data:', error);
     } finally {
@@ -314,6 +331,36 @@ const Dashboard: React.FC = () => {
           </Card>
         </Col>
       </Row>
+
+      {environmentInfo && (
+        <Row gutter={16} style={{ marginBottom: 24 }}>
+          <Col span={24}>
+            <Card 
+              title={
+                <Space>
+                  {environmentInfo.containerized ? <DockerOutlined /> : <DesktopOutlined />}
+                  <span>运行环境</span>
+                  {environmentInfo.containerized && <Tag color="blue">Docker 容器</Tag>}
+                </Space>
+              }
+              size="small"
+            >
+              <Descriptions column={4} size="small">
+                <Descriptions.Item label=".NET 版本">{environmentInfo.dotNetVersion}</Descriptions.Item>
+                <Descriptions.Item label="Git 版本">{environmentInfo.gitVersion}</Descriptions.Item>
+                <Descriptions.Item label="Python 版本">{environmentInfo.pythonVersion}</Descriptions.Item>
+                <Descriptions.Item label="Node 版本">{environmentInfo.nodeVersion}</Descriptions.Item>
+                <Descriptions.Item label="操作系统">{environmentInfo.osInfo}</Descriptions.Item>
+                <Descriptions.Item label="机器名">{environmentInfo.machineName}</Descriptions.Item>
+                <Descriptions.Item label="CPU 核心数">{environmentInfo.processorCount}</Descriptions.Item>
+                <Descriptions.Item label="运行时">{environmentInfo.runtime}</Descriptions.Item>
+                <Descriptions.Item label="系统架构">{environmentInfo.osArchitecture}</Descriptions.Item>
+                <Descriptions.Item label="进程架构">{environmentInfo.processArchitecture}</Descriptions.Item>
+              </Descriptions>
+            </Card>
+          </Col>
+        </Row>
+      )}
 
       <Row gutter={16} style={{ marginBottom: 24 }}>
         <Col span={24}>

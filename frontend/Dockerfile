@@ -1,10 +1,13 @@
 # ==================== 构建阶段 ====================
-FROM node:18-alpine AS build
+FROM maf-studio-frontend-base:latest AS build
 WORKDIR /app
+
+# 构建阶段需要安装 devDependencies
+ENV NODE_ENV=development
 
 # 复制package文件（利用Docker缓存层）
 COPY package*.json ./
-RUN npm ci --only=production
+RUN npm ci
 
 # 复制源代码
 COPY . .
@@ -13,28 +16,18 @@ COPY . .
 RUN npm run build
 
 # ==================== 运行时阶段 ====================
-FROM nginx:alpine AS final
-
-# 安装curl用于健康检查
-RUN apk add --no-cache curl
+FROM maf-studio-frontend-base:latest AS final
+WORKDIR /app
 
 # 复制构建产物
-COPY --from=build /app/build /usr/share/nginx/html
-
-# 复制nginx配置
-COPY nginx.conf /etc/nginx/conf.d/default.conf
-
-# 创建nginx缓存目录
-RUN mkdir -p /var/cache/nginx && \
-    chown -R nginx:nginx /var/cache/nginx && \
-    chown -R nginx:nginx /usr/share/nginx/html
+COPY --from=build /app/build ./build
 
 # 暴露端口
-EXPOSE 80
+EXPOSE 3000
 
 # 健康检查
 HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \
-    CMD curl -f http://localhost:80 || exit 1
+    CMD curl -f http://localhost:3000 || exit 1
 
-# 启动nginx
-CMD ["nginx", "-g", "daemon off;"]
+# 启动 serve
+CMD ["serve", "-s", "build", "-l", "3000"]

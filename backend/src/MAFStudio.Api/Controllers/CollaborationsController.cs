@@ -44,44 +44,50 @@ public class CollaborationsController : ControllerBase
     {
         var userId = User.GetUserId();
         var collaborations = await _collaborationService.GetByUserIdAsync(userId);
-        var vos = new List<CollaborationVo>();
-        
-        foreach (var collaboration in collaborations)
+        var vos = collaborations.Select(c => c.ToVo()).ToList();
+        return Ok(vos);
+    }
+
+    [HttpGet("{id}/agents")]
+    public async Task<ActionResult<List<CollaborationAgentVo>>> GetCollaborationAgents(long id)
+    {
+        var agents = await _collaborationService.GetAgentsWithDetailsAsync(id);
+        var vos = agents?.Select(a => new CollaborationAgentVo
         {
-            var vo = collaboration.ToVo();
-            var agents = await _collaborationService.GetAgentsWithDetailsAsync(collaboration.Id);
-            vo.Agents = agents?.Select(a => new CollaborationAgentVo
-            {
-                AgentId = a.AgentId,
-                AgentName = a.AgentName,
-                AgentType = a.AgentType,
-                AgentStatus = a.AgentStatus,
-                AgentAvatar = a.AgentAvatar,
-                Role = a.Role,
-                CustomPrompt = a.CustomPrompt,
-                SystemPrompt = a.SystemPrompt,
-                JoinedAt = a.JoinedAt
-            }).ToList() ?? new List<CollaborationAgentVo>();
-            
-            var tasks = await _collaborationService.GetTasksAsync(collaboration.Id);
-            vo.Tasks = tasks?.Select(t => new CollaborationTaskVo
-            {
-                Id = t.Id,
-                CollaborationId = t.CollaborationId,
-                Title = t.Title,
-                Description = t.Description,
-                Prompt = t.Prompt,
-                Status = t.Status,
-                AssignedTo = t.AssignedTo,
-                GitUrl = t.GitUrl,
-                GitBranch = t.GitBranch,
-                HasGitToken = !string.IsNullOrEmpty(t.GitCredentials),
-                CompletedAt = t.CompletedAt,
-                CreatedAt = t.CreatedAt
-            }).ToList() ?? new List<CollaborationTaskVo>();
-            
-            vos.Add(vo);
-        }
+            AgentId = a.AgentId,
+            AgentName = a.AgentName,
+            AgentType = a.AgentType,
+            AgentStatus = a.AgentStatus,
+            AgentAvatar = a.AgentAvatar,
+            Role = a.Role,
+            CustomPrompt = a.CustomPrompt,
+            SystemPrompt = a.SystemPrompt,
+            JoinedAt = a.JoinedAt
+        }).ToList() ?? new List<CollaborationAgentVo>();
+        
+        return Ok(vos);
+    }
+
+    [HttpGet("{id}/tasks")]
+    public async Task<ActionResult<List<CollaborationTaskVo>>> GetCollaborationTasks(long id)
+    {
+        var tasks = await _collaborationService.GetTasksAsync(id);
+        var vos = tasks?.Select(t => new CollaborationTaskVo
+        {
+            Id = t.Id,
+            CollaborationId = t.CollaborationId,
+            Title = t.Title,
+            Description = t.Description,
+            Prompt = t.Prompt,
+            Status = t.Status,
+            AssignedTo = t.AssignedTo,
+            GitUrl = t.GitUrl,
+            GitBranch = t.GitBranch,
+            HasGitToken = !string.IsNullOrEmpty(t.GitCredentials),
+            Config = t.Config,
+            CompletedAt = t.CompletedAt,
+            CreatedAt = t.CreatedAt
+        }).ToList() ?? new List<CollaborationTaskVo>();
         
         return Ok(vos);
     }
@@ -124,6 +130,7 @@ public class CollaborationsController : ControllerBase
             GitUrl = t.GitUrl,
             GitBranch = t.GitBranch,
             HasGitToken = !string.IsNullOrEmpty(t.GitCredentials),
+            Config = t.Config,
             CompletedAt = t.CompletedAt,
             CreatedAt = t.CreatedAt
         }).ToList() ?? new List<CollaborationTaskVo>();
@@ -276,7 +283,8 @@ public class CollaborationsController : ControllerBase
             request.GitUrl,
             request.GitBranch,
             request.GitToken,
-            request.AgentIds);
+            request.AgentIds,
+            request.Config);
         
         return CreatedAtAction(nameof(GetCollaboration), new { id }, task);
     }
@@ -292,9 +300,24 @@ public class CollaborationsController : ControllerBase
             request.GitUrl,
             request.GitBranch,
             request.GitToken,
-            request.AgentIds);
+            request.AgentIds,
+            request.Config);
         
         return Ok(task);
+    }
+
+    [HttpDelete("tasks/{taskId}")]
+    public async Task<ActionResult> DeleteTask(long taskId)
+    {
+        var userId = User.GetUserId();
+        var result = await _collaborationService.DeleteTaskAsync(taskId, userId);
+        
+        if (!result)
+        {
+            return NotFound(new { message = "任务不存在或无权删除" });
+        }
+        
+        return NoContent();
     }
 
     [HttpGet("tasks/{taskId}/agents")]

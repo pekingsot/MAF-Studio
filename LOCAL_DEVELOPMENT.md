@@ -3,7 +3,7 @@
 ## 环境要求
 
 ### 必需软件
-- .NET 8.0 SDK
+- .NET 10.0 SDK
 - Node.js 18+
 - PostgreSQL 客户端（可选，用于数据库管理）
 

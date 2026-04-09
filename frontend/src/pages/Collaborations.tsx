@@ -2,11 +2,12 @@ import React, { useEffect, useState, useRef } from 'react';
 import { Table, Button, Modal, Form, Input, Tag, Space, message, Tabs, Select, Popconfirm, Divider, Row, Col, Alert, Radio, InputNumber, Typography, Card, Tooltip, Transfer, Collapse, Switch } from 'antd';
 import type { RadioChangeEvent } from 'antd';
 import type { TransferProps } from 'antd';
-import { PlusOutlined, EditOutlined, DeleteOutlined, TeamOutlined, UserOutlined, FolderOutlined, PlayCircleOutlined, EyeOutlined, MessageOutlined, SettingOutlined, SwapOutlined, CrownOutlined, BulbOutlined, InfoCircleOutlined, MailOutlined } from '@ant-design/icons';
+import { PlusOutlined, EditOutlined, DeleteOutlined, TeamOutlined, UserOutlined, FolderOutlined, PlayCircleOutlined, EyeOutlined, MessageOutlined, SettingOutlined, SwapOutlined, CrownOutlined, BulbOutlined, InfoCircleOutlined, MailOutlined, ApartmentOutlined, DashboardOutlined } from '@ant-design/icons';
 import { collaborationService, Collaboration } from '../services/collaborationService';
 import { agentService, Agent } from '../services/agentService';
 import { useNavigate } from 'react-router-dom';
 import ChatHistory from './collaboration-detail/ChatHistory';
+import { getApiUrl } from '../config/api';
 
 const { Option } = Select;
 const { Title, Text } = Typography;
@@ -43,14 +44,12 @@ const Collaborations: React.FC = () => {
   const [editTaskModalVisible, setEditTaskModalVisible] = useState(false);
   const [editAgentModalVisible, setEditAgentModalVisible] = useState(false);
   const [chatHistoryModalVisible, setChatHistoryModalVisible] = useState(false);
-  const [executeTaskModalVisible, setExecuteTaskModalVisible] = useState(false);
   const [executionModalVisible, setExecutionModalVisible] = useState(false);
   const [executionMessages, setExecutionMessages] = useState<any[]>([]);
   const [isExecuting, setIsExecuting] = useState(false);
   const [selectedTask, setSelectedTask] = useState<any>(null);
   const [editingTask, setEditingTask] = useState<any>(null);
   const [selectedCollaboration, setSelectedCollaboration] = useState<Collaboration | null>(null);
-  const [executeForm] = Form.useForm();
   const [editingAgent, setEditingAgent] = useState<any>(null);
   const [form] = Form.useForm();
   const [addAgentForm] = Form.useForm();
@@ -60,6 +59,14 @@ const Collaborations: React.FC = () => {
   const [selectedAgentId, setSelectedAgentId] = useState<number | null>(null);
   const [selectedTaskAgents, setSelectedTaskAgents] = useState<string[]>([]);
   const [editTaskAgents, setEditTaskAgents] = useState<string[]>([]);
+  const [taskWorkflowType, setTaskWorkflowType] = useState<string>('GroupChat');
+  const [taskOrchestrationMode, setTaskOrchestrationMode] = useState<string>('Manager');
+  const [taskManagerAgentId, setTaskManagerAgentId] = useState<number | null>(null);
+  const [taskManagerCustomPrompt, setTaskManagerCustomPrompt] = useState<string>('');
+  const [taskMaxIterations, setTaskMaxIterations] = useState<number>(10);
+  const [taskWorkflowPlanId, setTaskWorkflowPlanId] = useState<number | null>(null);
+  const [taskMaxAttempts, setTaskMaxAttempts] = useState<number>(5);
+  const [taskThresholds, setTaskThresholds] = useState<string>('');
   const initializedRef = useRef(false);
 
   useEffect(() => {
@@ -83,6 +90,43 @@ const Collaborations: React.FC = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const loadCollaborationAgents = async (collaborationId: string) => {
+    try {
+      const agents = await collaborationService.getCollaborationAgents(collaborationId);
+      setCollaborations(prev => 
+        prev.map(c => 
+          c.id === collaborationId 
+            ? { ...c, agents } 
+            : c
+        )
+      );
+    } catch (error) {
+      message.error('加载智能体失败');
+    }
+  };
+
+  const loadCollaborationTasks = async (collaborationId: string) => {
+    try {
+      const tasks = await collaborationService.getCollaborationTasks(collaborationId);
+      setCollaborations(prev => 
+        prev.map(c => 
+          c.id === collaborationId 
+            ? { ...c, tasks } 
+            : c
+        )
+      );
+    } catch (error) {
+      message.error('加载任务失败');
+    }
+  };
+
+  const loadCollaborationData = async (collaborationId: string) => {
+    await Promise.all([
+      loadCollaborationAgents(collaborationId),
+      loadCollaborationTasks(collaborationId),
+    ]);
   };
 
   const handleCreate = () => {
@@ -133,7 +177,7 @@ const Collaborations: React.FC = () => {
         await collaborationService.addAgentToCollaboration(selectedCollaboration.id, values);
         message.success('添加成功');
         setAddAgentModalVisible(false);
-        loadData();
+        loadCollaborationAgents(selectedCollaboration.id);
       }
     } catch (error: any) {
       const errorMessage = error?.response?.data?.message || error?.message || '添加失败';
@@ -158,24 +202,64 @@ const Collaborations: React.FC = () => {
     setSelectedCollaboration(collaboration);
     createTaskForm.resetFields();
     setSelectedTaskAgents([]);
+    setTaskOrchestrationMode('RoundRobin');
+    setTaskManagerAgentId(null);
+    setTaskManagerCustomPrompt('');
+    setTaskMaxIterations(10);
     setCreateTaskModalVisible(true);
   };
 
   const handleCloseCreateTask = () => {
     createTaskForm.resetFields();
     setSelectedTaskAgents([]);
+    setTaskWorkflowType('GroupChat');
+    setTaskOrchestrationMode('RoundRobin');
+    setTaskManagerAgentId(null);
+    setTaskManagerCustomPrompt('');
+    setTaskMaxIterations(10);
+    setTaskWorkflowPlanId(null);
+    setTaskMaxAttempts(5);
+    setTaskThresholds('');
     setCreateTaskModalVisible(false);
   };
 
   const handleSubmitCreateTask = async () => {
     try {
       const values = await createTaskForm.validateFields();
-      values.agentIds = selectedTaskAgents.map(key => Number(key));
+      
+      const workerAgents = selectedTaskAgents
+        .filter(key => Number(key) !== taskManagerAgentId)
+        .map(key => ({ agentId: Number(key) }));
+      
+      const config: any = {
+        workflowType: taskWorkflowType,
+        orchestrationMode: taskOrchestrationMode,
+        maxIterations: taskMaxIterations,
+        managerAgentId: taskManagerAgentId,
+        managerCustomPrompt: taskManagerCustomPrompt || undefined,
+        workerAgents: workerAgents.length > 0 ? workerAgents : undefined
+      };
+
+      if (taskWorkflowType === 'ReviewIterative') {
+        config.workflowPlanId = taskWorkflowPlanId;
+        config.maxAttempts = taskMaxAttempts;
+        
+        if (taskThresholds && taskThresholds.trim()) {
+          try {
+            config.thresholds = JSON.parse(taskThresholds);
+          } catch (e) {
+            message.warning('阈值标准JSON格式不正确，已忽略');
+          }
+        }
+      }
+
+      values.config = JSON.stringify(config);
+      
       if (selectedCollaboration) {
         await collaborationService.createTask(selectedCollaboration.id, values);
         message.success('创建成功');
         handleCloseCreateTask();
-        loadData();
+        loadCollaborationTasks(selectedCollaboration.id);
       }
     } catch (error) {
       message.error('创建失败');
@@ -196,7 +280,7 @@ const Collaborations: React.FC = () => {
     try {
       await collaborationService.removeAgentFromCollaboration(collaborationId, agentId);
       message.success('移除成功');
-      loadData();
+      loadCollaborationAgents(collaborationId);
     } catch (error) {
       message.error('移除失败');
     }
@@ -217,10 +301,46 @@ const Collaborations: React.FC = () => {
       prompt: task.prompt,
     });
     
-    try {
-      const agentIds = await collaborationService.getTaskAgents(task.id);
-      setEditTaskAgents(agentIds.map(id => id.toString()));
-    } catch (error) {
+    if (task.config) {
+      try {
+        const config = JSON.parse(task.config);
+        setTaskWorkflowType(config.workflowType || 'GroupChat');
+        setTaskOrchestrationMode(config.orchestrationMode || 'RoundRobin');
+        setTaskManagerAgentId(config.managerAgentId || null);
+        setTaskManagerCustomPrompt(config.managerCustomPrompt || '');
+        setTaskMaxIterations(config.maxIterations || 10);
+        setTaskWorkflowPlanId(config.workflowPlanId || null);
+        setTaskMaxAttempts(config.maxAttempts || 5);
+        setTaskThresholds(config.thresholds ? JSON.stringify(config.thresholds, null, 2) : '');
+        
+        const allAgentIds: string[] = [];
+        if (config.managerAgentId) {
+          allAgentIds.push(config.managerAgentId.toString());
+        }
+        if (config.workerAgents && config.workerAgents.length > 0) {
+          allAgentIds.push(...config.workerAgents.map((w: any) => w.agentId.toString()));
+        }
+        setEditTaskAgents(allAgentIds);
+      } catch {
+        setTaskWorkflowType('GroupChat');
+        setTaskOrchestrationMode('RoundRobin');
+        setTaskManagerAgentId(null);
+        setTaskManagerCustomPrompt('');
+        setTaskMaxIterations(10);
+        setTaskWorkflowPlanId(null);
+        setTaskMaxAttempts(5);
+        setTaskThresholds('');
+        setEditTaskAgents([]);
+      }
+    } else {
+      setTaskWorkflowType('GroupChat');
+      setTaskOrchestrationMode('RoundRobin');
+      setTaskManagerAgentId(null);
+      setTaskManagerCustomPrompt('');
+      setTaskMaxIterations(10);
+      setTaskWorkflowPlanId(null);
+      setTaskMaxAttempts(5);
+      setTaskThresholds('');
       setEditTaskAgents([]);
     }
     
@@ -231,25 +351,69 @@ const Collaborations: React.FC = () => {
     editTaskForm.resetFields();
     setEditTaskAgents([]);
     setEditingTask(null);
+    setTaskWorkflowType('GroupChat');
+    setTaskOrchestrationMode('RoundRobin');
+    setTaskManagerAgentId(null);
+    setTaskManagerCustomPrompt('');
+    setTaskMaxIterations(10);
+    setTaskWorkflowPlanId(null);
+    setTaskMaxAttempts(5);
+    setTaskThresholds('');
     setEditTaskModalVisible(false);
   };
 
   const handleSubmitEditTask = async () => {
     try {
       const values = await editTaskForm.validateFields();
-      values.agentIds = editTaskAgents.map(key => Number(key));
+      
+      const workerAgents = editTaskAgents
+        .filter(key => Number(key) !== taskManagerAgentId)
+        .map(key => ({ agentId: Number(key) }));
+      
+      const config: any = {
+        workflowType: taskWorkflowType,
+        orchestrationMode: taskOrchestrationMode,
+        maxIterations: taskMaxIterations,
+        managerAgentId: taskManagerAgentId,
+        managerCustomPrompt: taskManagerCustomPrompt || undefined,
+        workerAgents: workerAgents.length > 0 ? workerAgents : undefined
+      };
+
+      if (taskWorkflowType === 'ReviewIterative') {
+        config.workflowPlanId = taskWorkflowPlanId;
+        config.maxAttempts = taskMaxAttempts;
+        
+        if (taskThresholds && taskThresholds.trim()) {
+          try {
+            config.thresholds = JSON.parse(taskThresholds);
+          } catch (e) {
+            message.warning('阈值标准JSON格式不正确，已忽略');
+          }
+        }
+      }
+
+      values.config = JSON.stringify(config);
       
       await collaborationService.updateTask(editingTask.id, values);
       message.success('任务更新成功');
       handleCloseEditTask();
-      loadData();
+      loadCollaborationTasks(editingTask.collaborationId);
     } catch (error) {
       message.error('更新任务失败');
     }
   };
 
+  const handleDeleteTask = async (task: any) => {
+    try {
+      await collaborationService.deleteTask(task.id);
+      message.success('任务删除成功');
+      loadCollaborationTasks(task.collaborationId);
+    } catch (error) {
+      message.error('删除任务失败');
+    }
+  };
+
   const handleExecuteTask = (task: any) => {
-    // 找到任务对应的团队
     const collaboration = collaborations.find(c => c.id === task.collaborationId);
     
     if (!collaboration) {
@@ -257,30 +421,36 @@ const Collaborations: React.FC = () => {
       return;
     }
 
-    // 检查团队中的Agent角色配置
     const agents = collaboration.agents || [];
+    
+    let config: any = {
+      workflowType: 'GroupChat',
+      orchestrationMode: 'RoundRobin',
+      maxIterations: 10
+    };
+    
+    if (task.config) {
+      try {
+        config = { ...config, ...JSON.parse(task.config) };
+      } catch {}
+    }
+
     const hasManager = agents.some(agent => agent.role === 'Manager');
     const hasWorker = agents.some(agent => agent.role === 'Worker');
 
-    // 如果没有必要的角色，显示提示
-    if (!hasManager || !hasWorker) {
+    if (config.workflowType === 'GroupChat' 
+        && config.orchestrationMode === 'Manager'
+        && !hasManager) {
       Modal.warning({
-        title: '缺少必要的角色',
+        title: '缺少协调者',
         content: (
           <div>
-            <p>执行任务需要以下角色：</p>
-            <ul>
-              {!hasManager && <li>❌ 缺少Manager（协调者）</li>}
-              {hasManager && <li>✅ 已有Manager（协调者）</li>}
-              {!hasWorker && <li>❌ 缺少Worker（执行者）</li>}
-              {hasWorker && <li>✅ 已有Worker（执行者）</li>}
-            </ul>
-            <p style={{ marginTop: 16 }}>请先在团队中添加必要的Agent角色。</p>
+            <p>协调者模式需要一个Manager角色的Agent来引导讨论。</p>
+            <p style={{ marginTop: 16 }}>请在团队中添加一个Manager角色的Agent。</p>
           </div>
         ),
         okText: '去添加',
         onOk: () => {
-          // 直接打开添加智能体的弹窗
           setSelectedCollaboration(collaboration);
           addAgentForm.resetFields();
           setSelectedAgentId(null);
@@ -290,118 +460,119 @@ const Collaborations: React.FC = () => {
       return;
     }
 
-    // 角色配置完整，打开执行弹窗
+    if (!hasWorker) {
+      Modal.warning({
+        title: '缺少执行者',
+        content: (
+          <div>
+            <p>执行任务需要至少一个Worker角色的Agent。</p>
+            <p style={{ marginTop: 16 }}>请在团队中添加Worker角色的Agent。</p>
+          </div>
+        ),
+        okText: '去添加',
+        onOk: () => {
+          setSelectedCollaboration(collaboration);
+          addAgentForm.resetFields();
+          setSelectedAgentId(null);
+          setAddAgentModalVisible(true);
+        }
+      });
+      return;
+    }
+
     setSelectedTask(task);
-    executeForm.setFieldsValue({
-      workflowType: 'magentic',
-      maxIterations: 10,
-      orchestrationMode: 'manager'
-    });
-    setExecuteTaskModalVisible(true);
+    setSelectedCollaboration(collaboration);
+    setExecutionMessages([]);
+    setExecutionModalVisible(true);
+    setIsExecuting(true);
+    
+    executeTaskWithConfig(task, collaboration, config);
   };
 
-  const handleConfirmExecuteTask = async () => {
+  const executeTaskWithConfig = async (task: any, collaboration: Collaboration, config: any) => {
+    const input = task.description || task.title;
+    const token = localStorage.getItem('token');
+    
     try {
-      const values = await executeForm.validateFields();
-      
-      setExecutionMessages([]);
-      setExecutionModalVisible(true);
-      setExecuteTaskModalVisible(false);
-      setIsExecuting(true);
-      
-      const input = selectedTask.description || selectedTask.title;
-      const token = localStorage.getItem('token');
-      
-      if (values.workflowType === 'magentic') {
-        const url = `http://localhost:5000/api/collaborationworkflow/${selectedTask.collaborationId}/review-iterative`;
-        
-        const response = await fetch(url, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`
-          },
-          body: JSON.stringify({ input })
-        });
-        
-        if (!response.ok) {
-          const errorData = await response.json();
-          message.error(errorData.error || '执行失败');
-          setIsExecuting(false);
-          return;
-        }
-        
-        const result = await response.json();
-        
-        if (result.success) {
-          if (result.messages && result.messages.length > 0) {
-            setExecutionMessages(result.messages.map((msg: any) => ({
-              sender: msg.sender,
-              content: msg.content,
-              timestamp: msg.timestamp
-            })));
+      const workflowType = config.workflowType || 'GroupChat';
+      let url: string;
+      let body: any;
+
+      if (workflowType === 'ReviewIterative') {
+        url = getApiUrl(`/collaborationworkflow/${task.collaborationId}/review-iterative`);
+        body = {
+          input,
+          parameters: {
+            maxIterations: config.maxIterations,
+            maxAttempts: config.maxAttempts,
+            thresholds: config.thresholds,
+            workflowPlanId: config.workflowPlanId
           }
-          message.success('任务执行完成！');
-        } else {
-          message.error(result.error || '任务执行失败');
-        }
-        
-        setIsExecuting(false);
-        loadData();
-      } else {
-        const url = `http://localhost:5000/api/collaborationworkflow/${selectedTask.collaborationId}/groupchat`;
-        
-        const parameters = {
-          orchestrationMode: values.orchestrationMode || 'manager',
-          maxIterations: values.maxIterations || 10
         };
-        
-        const response = await fetch(url, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`
+      } else {
+        url = getApiUrl(`/collaborationworkflow/${task.collaborationId}/groupchat`);
+        body = {
+          input,
+          parameters: {
+            orchestrationMode: config.orchestrationMode,
+            maxIterations: config.maxIterations
           },
-          body: JSON.stringify({ input, parameters, taskId: selectedTask.id })
-        });
+          taskId: task.id
+        };
+      }
+      
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(body)
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        message.error(errorData.error || '执行失败');
+        setIsExecuting(false);
+        return;
+      }
+      
+      const reader = response.body?.getReader();
+      const decoder = new TextDecoder();
+      
+      if (!reader) {
+        message.error('无法读取响应流');
+        setIsExecuting(false);
+        return;
+      }
+      
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
         
-        const reader = response.body?.getReader();
-        const decoder = new TextDecoder();
+        const chunk = decoder.decode(value, { stream: true });
+        const lines = chunk.split('\n');
         
-        if (!reader) {
-          message.error('无法获取响应流');
-          setIsExecuting(false);
-          return;
-        }
-        
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
-          
-          const chunk = decoder.decode(value, { stream: true });
-          const lines = chunk.split('\n');
-          
-          for (const line of lines) {
-            if (line.startsWith('data:')) {
-              const jsonStr = line.substring(5).trim();
-              if (jsonStr) {
-                try {
-                  const message = JSON.parse(jsonStr);
-                  setExecutionMessages(prev => [...prev, message]);
-                } catch (e) {
-                  console.error('解析消息失败:', e);
-                }
+        for (const line of lines) {
+          if (line.startsWith('data: ')) {
+            try {
+              const data = JSON.parse(line.slice(6));
+              if (data.sender && data.content) {
+                setExecutionMessages(prev => [...prev, {
+                  sender: data.sender,
+                  content: data.content,
+                  timestamp: data.timestamp || new Date().toISOString()
+                }]);
               }
-            }
+            } catch {}
           }
         }
-        
-        message.success('任务执行完成！');
-        setIsExecuting(false);
-        loadData();
       }
+      
+      message.success('任务执行完成！');
     } catch (error) {
-      message.error('启动任务失败');
+      message.error('任务执行失败');
+    } finally {
       setIsExecuting(false);
     }
   };
@@ -432,7 +603,7 @@ const Collaborations: React.FC = () => {
         );
         message.success('更新成功');
         setEditAgentModalVisible(false);
-        loadData();
+        loadCollaborationAgents(selectedCollaboration.id);
       }
     } catch (error) {
       message.error('更新失败');
@@ -552,6 +723,12 @@ const Collaborations: React.FC = () => {
 
   const taskColumns = [
     {
+      title: 'ID',
+      dataIndex: 'id',
+      key: 'id',
+      width: '6%',
+    },
+    {
       title: '标题',
       dataIndex: 'title',
       key: 'title',
@@ -562,14 +739,14 @@ const Collaborations: React.FC = () => {
       title: '描述',
       dataIndex: 'description',
       key: 'description',
-      width: '30%',
+      width: '32%',
       ellipsis: true,
     },
     {
       title: '状态',
       dataIndex: 'status',
       key: 'status',
-      width: '10%',
+      width: '8%',
       render: (status: string) => {
         const colorMap: Record<string, string> = {
           Pending: 'default',
@@ -596,7 +773,7 @@ const Collaborations: React.FC = () => {
     {
       title: '操作',
       key: 'action',
-      width: '25%',
+      width: '19%',
       render: (_: any, record: any) => (
         <Space size="small" wrap>
           <Button 
@@ -623,6 +800,22 @@ const Collaborations: React.FC = () => {
           >
             团队协作过程
           </Button>
+          <Popconfirm
+            title="确定删除此任务吗？"
+            description="删除后将无法恢复"
+            onConfirm={() => handleDeleteTask(record)}
+            okText="确定"
+            cancelText="取消"
+          >
+            <Button 
+              type="link" 
+              size="small"
+              danger
+              icon={<DeleteOutlined />}
+            >
+              删除
+            </Button>
+          </Popconfirm>
         </Space>
       ),
     },
@@ -799,6 +992,11 @@ const Collaborations: React.FC = () => {
         expandable={{
           expandedRowRender,
           expandRowByClick: true,
+          onExpand: async (expanded, record) => {
+            if (expanded && (!record.agents || record.agents.length === 0)) {
+              await loadCollaborationData(record.id);
+            }
+          },
         }}
       />
 
@@ -1089,23 +1287,40 @@ const Collaborations: React.FC = () => {
             name="role"
             rules={[{ required: true, message: '请选择角色' }]}
             initialValue="Worker"
-            tooltip="Manager负责协调Worker Agents，Worker负责执行具体任务"
+            tooltip="Manager负责协调Worker Agents（仅GroupChat模式需要），Worker负责执行具体任务。Magentic模式会自动创建协调者，所有成员都是Worker。"
           >
             <Select placeholder="请选择角色">
-              <Select.Option value="Manager">
-                <Space>
-                  <TeamOutlined />
-                  <span>Manager（协调者）</span>
-                </Space>
-              </Select.Option>
               <Select.Option value="Worker">
                 <Space>
                   <UserOutlined />
-                  <span>Worker（执行者）</span>
+                  <span>Worker（执行者）- 推荐</span>
+                </Space>
+              </Select.Option>
+              <Select.Option value="Manager">
+                <Space>
+                  <TeamOutlined />
+                  <span>Manager（协调者）- 仅GroupChat模式</span>
                 </Space>
               </Select.Option>
             </Select>
           </Form.Item>
+
+          <Alert
+            message="角色说明"
+            description={
+              <div>
+                <p><strong>Worker（执行者）：</strong>执行具体业务任务，适用于所有工作流模式</p>
+                <p><strong>Manager（协调者）：</strong>仅用于GroupChat模式，负责协调Worker Agents</p>
+                <p style={{ color: '#1890ff', marginTop: 8 }}>
+                  <InfoCircleOutlined style={{ marginRight: 4 }} />
+                  Magentic模式会自动创建独立的协调者（MagenticManager），所有成员都作为Worker参与
+                </p>
+              </div>
+            }
+            type="info"
+            showIcon
+            style={{ marginBottom: 16 }}
+          />
 
           <div style={{ marginBottom: 16 }}>
             <div style={{ marginBottom: 4, fontWeight: 500 }}>
@@ -1153,7 +1368,7 @@ const Collaborations: React.FC = () => {
         onOk={handleSubmitCreateTask}
         onCancel={handleCloseCreateTask}
         destroyOnClose
-        width={750}
+        width={800}
       >
         <Form form={createTaskForm} layout="vertical">
           <Form.Item
@@ -1169,14 +1384,18 @@ const Collaborations: React.FC = () => {
           </Form.Item>
           
           <Form.Item 
-            label={<span>选择队员 <span style={{color: '#999', fontSize: 12}}>(不选择则使用团队所有成员)</span></span>}
+            label={<span><TeamOutlined style={{ color: '#1890ff', marginRight: 4 }} />队员（Worker类型）</span>}
+            required
+            tooltip="至少选择一个Worker类型的Agent"
+            validateStatus={selectedTaskAgents.length === 0 ? 'error' : ''}
+            help={selectedTaskAgents.length === 0 ? '请至少选择一个Worker' : ''}
           >
             <Transfer
-              dataSource={selectedCollaboration?.agents?.map(agent => ({
+              dataSource={selectedCollaboration?.agents?.filter(agent => agent.role === 'Worker').map(agent => ({
                 key: agent.agentId.toString(),
                 title: agent.agentName,
               })) || []}
-              titles={['可选队员', '已选队员']}
+              titles={['可选Worker', '已选Worker']}
               targetKeys={selectedTaskAgents}
               onChange={(targetKeys) => {
                 setSelectedTaskAgents(targetKeys as string[]);
@@ -1187,16 +1406,195 @@ const Collaborations: React.FC = () => {
             />
           </Form.Item>
           
-          <Divider style={{ margin: '12px 0' }}>任务提示词</Divider>
-          
-          <Form.Item 
-            label={<span>任务提示词 <span style={{color: '#999', fontSize: 12}}>(会与Agent的提示词组合使用，支持变量: {`{{agent_name}}`}, {`{{agent_role}}`}, {`{{agent_type}}`}, {`{{members}}`})</span></span>}
-            name="prompt"
-            tooltip="任务级别的提示词，所有参与此任务的Agent都会收到这段提示词，与Agent自身的提示词组合使用"
-          >
-            <Input.TextArea 
-              rows={6} 
-              placeholder={`【任务要求】
+          <Collapse 
+            defaultActiveKey={['execution']} 
+            style={{ marginBottom: 16 }}
+            items={[
+              {
+                key: 'execution',
+                label: '执行配置',
+                children: (
+                  <>
+                    <Form.Item label="工作流类型">
+                      <Radio.Group 
+                        value={taskWorkflowType} 
+                        onChange={(e) => {
+                          setTaskWorkflowType(e.target.value);
+                          setTaskOrchestrationMode('Manager');
+                        }}
+                      >
+                        <Space direction="vertical">
+                          <Radio value="GroupChat">
+                            <Space>
+                              <TeamOutlined style={{ color: '#1890ff' }} />
+                              <span>群聊协作</span>
+                              <Text type="secondary" style={{ fontSize: 12 }}>协调者引导Worker协作讨论</Text>
+                            </Space>
+                          </Radio>
+                          <Radio value="ReviewIterative">
+                            <Space>
+                              <BulbOutlined style={{ color: '#722ed1' }} />
+                              <span>Magentic智能工作流</span>
+                              <Text type="secondary" style={{ fontSize: 12 }}>MagenticManager动态协调Worker</Text>
+                            </Space>
+                          </Radio>
+                        </Space>
+                      </Radio.Group>
+                    </Form.Item>
+
+                    <Form.Item 
+                      label={<span><CrownOutlined style={{ color: '#faad14', marginRight: 4 }} />协调者（Manager类型）</span>}
+                      required
+                      tooltip="协调者负责引导整个工作流的流转"
+                    >
+                      <Select
+                        placeholder="请选择协调者（Manager类型）"
+                        value={taskManagerAgentId}
+                        onChange={(value) => setTaskManagerAgentId(value)}
+                        style={{ width: '100%' }}
+                      >
+                        {selectedCollaboration?.agents?.filter(agent => agent.role === 'Manager').map(agent => (
+                          <Option key={agent.agentId} value={agent.agentId}>
+                            <Space>
+                              <CrownOutlined style={{ color: '#faad14' }} />
+                              {agent.agentName}
+                              <Tag color="gold">Manager</Tag>
+                            </Space>
+                          </Option>
+                        ))}
+                      </Select>
+                    </Form.Item>
+                    
+                    <Alert
+                      message="协调者提示词"
+                      description={
+                        <div>
+                          <p>协调者的提示词将影响整个工作流的流转逻辑，请仔细编写！</p>
+                          <p style={{ marginTop: 8, fontSize: 12, color: '#666' }}>
+                            留空则使用协调者Agent的默认提示词
+                          </p>
+                        </div>
+                      }
+                      type="warning"
+                      showIcon
+                      style={{ marginBottom: 12 }}
+                    />
+                    
+                    <Form.Item label="自定义协调者提示词（可选）">
+                      <Input.TextArea
+                        rows={6}
+                        placeholder={`自定义协调者提示词，将覆盖协调者Agent的默认提示词。
+
+示例：
+你是一个群聊协调者，负责引导讨论。
+
+你的职责：
+1. 分析当前讨论内容
+2. 决定下一个发言的Agent
+3. 确保讨论不偏离主题`}
+                        value={taskManagerCustomPrompt}
+                        onChange={(e) => setTaskManagerCustomPrompt(e.target.value)}
+                      />
+                    </Form.Item>
+
+                    {taskWorkflowType === 'ReviewIterative' && (
+                      <>
+                        <Alert
+                          message="Magentic智能工作流"
+                          description={
+                            <div>
+                              <p>框架将自动创建独立的<strong>MagenticManager</strong>作为协调者，负责：</p>
+                              <ul style={{ marginTop: 8, marginBottom: 0 }}>
+                                <li>规划：分析任务，制定执行计划，维护任务账本（Task Ledger）</li>
+                                <li>分派：根据当前进度决定由哪个Worker执行下一步</li>
+                                <li>反思：检查Worker的产出是否达标，维护进度账本（Progress Ledger）</li>
+                              </ul>
+                              <p style={{ marginTop: 8, color: '#1890ff' }}>
+                                <InfoCircleOutlined style={{ marginRight: 4 }} />
+                                所有团队成员都作为Worker参与执行，不需要指定Manager Agent
+                              </p>
+                            </div>
+                          }
+                          type="info"
+                          showIcon
+                          style={{ marginBottom: 16 }}
+                        />
+                        
+                        <Form.Item 
+                          label={<span><ApartmentOutlined style={{ marginRight: 4 }} />工作流计划</span>}
+                          help="可选：选择已有的工作流计划，或留空让MagenticManager动态生成"
+                        >
+                          <Select
+                            placeholder="留空则由MagenticManager动态生成工作流"
+                            value={taskWorkflowPlanId}
+                            onChange={(value) => setTaskWorkflowPlanId(value)}
+                            style={{ width: '100%' }}
+                            allowClear
+                          >
+                            <Option value={1}>示例工作流计划 #1</Option>
+                            <Option value={2}>示例工作流计划 #2</Option>
+                          </Select>
+                        </Form.Item>
+                        
+                        <Form.Item 
+                          label={<span><DashboardOutlined style={{ marginRight: 4 }} />阈值标准</span>}
+                          help="多维度评分标准，例如：质量≥85，准确性≥90"
+                        >
+                          <Input.TextArea
+                            rows={3}
+                            placeholder={`JSON格式，例如：
+{
+  "quality": 85,
+  "accuracy": 90,
+  "completeness": 80
+}`}
+                            value={taskThresholds}
+                            onChange={(e) => setTaskThresholds(e.target.value)}
+                          />
+                        </Form.Item>
+                        
+                        <Form.Item label="最大尝试次数">
+                          <InputNumber 
+                            min={1} 
+                            max={20} 
+                            value={taskMaxAttempts}
+                            onChange={(value) => setTaskMaxAttempts(value || 5)}
+                            style={{ width: 120 }}
+                          />
+                          <Text type="secondary" style={{ marginLeft: 8, fontSize: 12 }}>
+                            循环工作流的最大尝试次数
+                          </Text>
+                        </Form.Item>
+                      </>
+                    )}
+                    
+                    <Form.Item label="最大迭代次数">
+                      <InputNumber 
+                        min={1} 
+                        max={50} 
+                        value={taskMaxIterations}
+                        onChange={(value) => setTaskMaxIterations(value || 10)}
+                        style={{ width: 120 }}
+                      />
+                      <Text type="secondary" style={{ marginLeft: 8, fontSize: 12 }}>
+                        {taskWorkflowType === 'GroupChat' ? 'Agent发言的最大轮次' : 'Manager审阅的最大轮次'}
+                      </Text>
+                    </Form.Item>
+                  </>
+                )
+              },
+              {
+                key: 'prompt',
+                label: '任务提示词',
+                children: (
+                  <Form.Item 
+                    label={<span style={{ display: 'none' }}>任务提示词</span>}
+                    name="prompt"
+                    tooltip="任务级别的提示词，所有参与此任务的Agent都会收到这段提示词"
+                  >
+                    <Input.TextArea 
+                      rows={6} 
+                      placeholder={`【任务要求】
 请各位团队成员根据任务描述，积极参与讨论并提交自己的专业观点。
 
 【Git提交要求】
@@ -1204,9 +1602,15 @@ const Collaborations: React.FC = () => {
 
 【注意事项】
 - 文档内容要体现专业见解
-- 必须真实调用Git工具提交`}
-            />
-          </Form.Item>
+- 必须真实调用Git工具提交
+
+支持变量: {{agent_name}}, {{agent_role}}, {{agent_type}}, {{members}}`}
+                    />
+                  </Form.Item>
+                )
+              }
+            ]}
+          />
         </Form>
       </Modal>
 
@@ -1216,7 +1620,7 @@ const Collaborations: React.FC = () => {
         onOk={handleSubmitEditTask}
         onCancel={handleCloseEditTask}
         destroyOnClose
-        width={750}
+        width={800}
       >
         <Form form={editTaskForm} layout="vertical">
           <Form.Item
@@ -1232,14 +1636,18 @@ const Collaborations: React.FC = () => {
           </Form.Item>
           
           <Form.Item 
-            label={<span>选择队员 <span style={{color: '#999', fontSize: 12}}>(不选择则使用团队所有成员)</span></span>}
+            label={<span><TeamOutlined style={{ color: '#1890ff', marginRight: 4 }} />队员（Worker类型）</span>}
+            required
+            tooltip="至少选择一个Worker类型的Agent"
+            validateStatus={editTaskAgents.length === 0 ? 'error' : ''}
+            help={editTaskAgents.length === 0 ? '请至少选择一个Worker' : ''}
           >
             <Transfer
-              dataSource={selectedCollaboration?.agents?.map(agent => ({
+              dataSource={selectedCollaboration?.agents?.filter(agent => agent.role === 'Worker').map(agent => ({
                 key: agent.agentId.toString(),
                 title: agent.agentName,
               })) || []}
-              titles={['可选队员', '已选队员']}
+              titles={['可选Worker', '已选Worker']}
               targetKeys={editTaskAgents}
               onChange={(targetKeys) => {
                 setEditTaskAgents(targetKeys as string[]);
@@ -1250,16 +1658,182 @@ const Collaborations: React.FC = () => {
             />
           </Form.Item>
           
-          <Divider style={{ margin: '12px 0' }}>任务提示词</Divider>
-          
-          <Form.Item 
-            label={<span>任务提示词 <span style={{color: '#999', fontSize: 12}}>(会与Agent的提示词组合使用，支持变量: {`{{agent_name}}`}, {`{{agent_role}}`}, {`{{agent_type}}`}, {`{{members}}`})</span></span>}
-            name="prompt"
-            tooltip="任务级别的提示词，所有参与此任务的Agent都会收到这段提示词，与Agent自身的提示词组合使用"
-          >
-            <Input.TextArea 
-              rows={6} 
-              placeholder={`【任务要求】
+          <Collapse 
+            defaultActiveKey={['execution']} 
+            style={{ marginBottom: 16 }}
+            items={[
+              {
+                key: 'execution',
+                label: '执行配置',
+                children: (
+                  <>
+                    <Form.Item label="工作流类型">
+                      <Radio.Group 
+                        value={taskWorkflowType} 
+                        onChange={(e) => {
+                          setTaskWorkflowType(e.target.value);
+                          setTaskOrchestrationMode('Manager');
+                        }}
+                      >
+                        <Space direction="vertical">
+                          <Radio value="GroupChat">
+                            <Space>
+                              <TeamOutlined style={{ color: '#1890ff' }} />
+                              <span>群聊协作</span>
+                              <Text type="secondary" style={{ fontSize: 12 }}>协调者引导Worker协作讨论</Text>
+                            </Space>
+                          </Radio>
+                          <Radio value="ReviewIterative">
+                            <Space>
+                              <BulbOutlined style={{ color: '#722ed1' }} />
+                              <span>Magentic智能工作流</span>
+                              <Text type="secondary" style={{ fontSize: 12 }}>MagenticManager动态协调Worker</Text>
+                            </Space>
+                          </Radio>
+                        </Space>
+                      </Radio.Group>
+                    </Form.Item>
+
+                    <Form.Item 
+                      label={<span><CrownOutlined style={{ color: '#faad14', marginRight: 4 }} />协调者（Manager类型）</span>}
+                      required
+                      tooltip="协调者负责引导整个工作流的流转"
+                    >
+                      <Select
+                        placeholder="请选择协调者（Manager类型）"
+                        value={taskManagerAgentId}
+                        onChange={(value) => setTaskManagerAgentId(value)}
+                        style={{ width: '100%' }}
+                      >
+                        {selectedCollaboration?.agents?.filter(agent => agent.role === 'Manager').map(agent => (
+                          <Option key={agent.agentId} value={agent.agentId}>
+                            <Space>
+                              <CrownOutlined style={{ color: '#faad14' }} />
+                              {agent.agentName}
+                              <Tag color="gold">Manager</Tag>
+                            </Space>
+                          </Option>
+                        ))}
+                      </Select>
+                    </Form.Item>
+                    
+                    <Alert
+                      message="协调者提示词"
+                      description={
+                        <div>
+                          <p>协调者的提示词将影响整个工作流的流转逻辑，请仔细编写！</p>
+                          <p style={{ marginTop: 8, fontSize: 12, color: '#666' }}>
+                            留空则使用协调者Agent的默认提示词
+                          </p>
+                        </div>
+                      }
+                      type="warning"
+                      showIcon
+                      style={{ marginBottom: 12 }}
+                    />
+                    
+                    <Form.Item label="自定义协调者提示词（可选）">
+                      <Input.TextArea
+                        rows={6}
+                        placeholder={`自定义协调者提示词，将覆盖协调者Agent的默认提示词。
+
+示例：
+你是一个群聊协调者，负责引导讨论。
+
+你的职责：
+1. 分析当前讨论内容
+2. 决定下一个发言的Agent
+3. 确保讨论不偏离主题`}
+                        value={taskManagerCustomPrompt}
+                        onChange={(e) => setTaskManagerCustomPrompt(e.target.value)}
+                      />
+                    </Form.Item>
+
+                    {taskWorkflowType === 'ReviewIterative' && (
+                      <>
+                        <Alert
+                          message="Magentic智能工作流"
+                          description="Manager Agent将动态生成工作流计划，并根据任务账本和进度账本进行双环规划。"
+                          type="info"
+                          showIcon
+                          style={{ marginBottom: 16 }}
+                        />
+                        
+                        <Form.Item 
+                          label={<span><ApartmentOutlined style={{ marginRight: 4 }} />工作流计划</span>}
+                          help="可选：选择已有的工作流计划，或留空让Manager动态生成"
+                        >
+                          <Select
+                            placeholder="留空则由Manager动态生成工作流"
+                            value={taskWorkflowPlanId}
+                            onChange={(value) => setTaskWorkflowPlanId(value)}
+                            style={{ width: '100%' }}
+                            allowClear
+                          >
+                            <Option value={1}>示例工作流计划 #1</Option>
+                            <Option value={2}>示例工作流计划 #2</Option>
+                          </Select>
+                        </Form.Item>
+                        
+                        <Form.Item 
+                          label={<span><DashboardOutlined style={{ marginRight: 4 }} />阈值标准</span>}
+                          help="多维度评分标准，例如：质量≥85，准确性≥90"
+                        >
+                          <Input.TextArea
+                            rows={3}
+                            placeholder={`JSON格式，例如：
+{
+  "quality": 85,
+  "accuracy": 90,
+  "completeness": 80
+}`}
+                            value={taskThresholds}
+                            onChange={(e) => setTaskThresholds(e.target.value)}
+                          />
+                        </Form.Item>
+                        
+                        <Form.Item label="最大尝试次数">
+                          <InputNumber 
+                            min={1} 
+                            max={20} 
+                            value={taskMaxAttempts}
+                            onChange={(value) => setTaskMaxAttempts(value || 5)}
+                            style={{ width: 120 }}
+                          />
+                          <Text type="secondary" style={{ marginLeft: 8, fontSize: 12 }}>
+                            循环工作流的最大尝试次数
+                          </Text>
+                        </Form.Item>
+                      </>
+                    )}
+                    
+                    <Form.Item label="最大迭代次数">
+                      <InputNumber 
+                        min={1} 
+                        max={50} 
+                        value={taskMaxIterations}
+                        onChange={(value) => setTaskMaxIterations(value || 10)}
+                        style={{ width: 120 }}
+                      />
+                      <Text type="secondary" style={{ marginLeft: 8, fontSize: 12 }}>
+                        {taskWorkflowType === 'GroupChat' ? 'Agent发言的最大轮次' : 'Manager审阅的最大轮次'}
+                      </Text>
+                    </Form.Item>
+                  </>
+                )
+              },
+              {
+                key: 'prompt',
+                label: '任务提示词',
+                children: (
+                  <Form.Item 
+                    label={<span style={{ display: 'none' }}>任务提示词</span>}
+                    name="prompt"
+                    tooltip="任务级别的提示词，所有参与此任务的Agent都会收到这段提示词"
+                  >
+                    <Input.TextArea 
+                      rows={6} 
+                      placeholder={`【任务要求】
 请各位团队成员根据任务描述，积极参与讨论并提交自己的专业观点。
 
 【Git提交要求】
@@ -1267,9 +1841,15 @@ const Collaborations: React.FC = () => {
 
 【注意事项】
 - 文档内容要体现专业见解
-- 必须真实调用Git工具提交`}
-            />
-          </Form.Item>
+- 必须真实调用Git工具提交
+
+支持变量: {{agent_name}}, {{agent_role}}, {{agent_type}}, {{members}}`}
+                    />
+                  </Form.Item>
+                )
+              }
+            ]}
+          />
         </Form>
       </Modal>
 
@@ -1401,264 +1981,6 @@ const Collaborations: React.FC = () => {
               style={{ marginBottom: 16 }}
             />
             <ChatHistory taskId={String(selectedTask.id)} />
-          </div>
-        )}
-      </Modal>
-
-      <Modal
-        title="执行任务"
-        open={executeTaskModalVisible}
-        onOk={handleConfirmExecuteTask}
-        onCancel={() => setExecuteTaskModalVisible(false)}
-        okText="执行工作流"
-        cancelText="取消"
-        width={700}
-      >
-        {selectedTask && (
-          <div>
-            <Alert
-              message={`任务：${selectedTask.title}`}
-              description={selectedTask.description || '无描述'}
-              type="info"
-              showIcon
-              style={{ marginBottom: 16 }}
-            />
-
-            {(() => {
-              const collaboration = collaborations.find(c => c.id === selectedTask.collaborationId);
-              if (!collaboration) return null;
-
-              const agents = collaboration.agents || [];
-              const managers = agents.filter(agent => agent.role === 'Manager');
-              const workers = agents.filter(agent => agent.role === 'Worker');
-
-              return (
-                <Card size="small" title="参与Agent" style={{ marginBottom: 16 }}>
-                  <Space direction="vertical" style={{ width: '100%' }}>
-                    <div>
-                      <Text strong>Manager（协调者）：</Text>
-                      <div style={{ marginTop: 4 }}>
-                        {managers.length > 0 ? (
-                          managers.map(agent => (
-                            <Tag key={agent.agentId} color="blue" style={{ marginBottom: 4 }}>
-                              {agent.agentName}
-                            </Tag>
-                          ))
-                        ) : (
-                          <Text type="secondary">无</Text>
-                        )}
-                      </div>
-                    </div>
-                    <div>
-                      <Text strong>Worker（执行者）：</Text>
-                      <div style={{ marginTop: 4 }}>
-                        {workers.length > 0 ? (
-                          workers.map(agent => (
-                            <Tag key={agent.agentId} color="green" style={{ marginBottom: 4 }}>
-                              {agent.agentName}
-                            </Tag>
-                          ))
-                        ) : (
-                          <Text type="secondary">无</Text>
-                        )}
-                      </div>
-                    </div>
-                  </Space>
-                </Card>
-              );
-            })()}
-
-            <Form
-              form={executeForm}
-              layout="vertical"
-            >
-              <Form.Item
-                label="选择工作流模式"
-                name="workflowType"
-                rules={[{ required: true, message: '请选择工作流类型' }]}
-              >
-                <Select style={{ width: '100%' }}>
-                  <Option value="magentic">
-                    <Space>
-                      <TeamOutlined />
-                      <span>Magentic智能工作流</span>
-                      <Tag color="blue">中心化协调</Tag>
-                    </Space>
-                  </Option>
-                  <Option value="groupchat">
-                    <Space>
-                      <MessageOutlined />
-                      <span>群聊协作</span>
-                      <Tag color="green">主持人协调</Tag>
-                    </Space>
-                  </Option>
-                </Select>
-              </Form.Item>
-
-              <Form.Item shouldUpdate>
-                {({ getFieldValue }) => {
-                  const workflowType = getFieldValue('workflowType');
-                  
-                  const orchestrationModeDescriptions = {
-                    roundRobin: {
-                      title: '群聊协作 - 轮询模式',
-                      icon: <SwapOutlined />,
-                      description: '所有Agent按顺序轮流发言，平等参与讨论',
-                      features: [
-                        '✅ 按固定顺序轮流发言',
-                        '✅ 每个Agent都有发言机会',
-                        '✅ 平等参与，无主次之分',
-                        '✅ 适合团队意见收集',
-                      ],
-                      useCases: '适合平等讨论场景，如：团队意见收集、轮流汇报、民主决策',
-                    },
-                    manager: {
-                      title: '群聊协作 - 主Agent协调',
-                      icon: <CrownOutlined />,
-                      description: '主持人Agent协调多个Agents进行对话讨论',
-                      features: [
-                        '✅ 主持人控制对话流程',
-                        '✅ 决定何时结束讨论',
-                        '✅ 总结和归纳观点',
-                        '✅ 多轮对话，达成共识',
-                      ],
-                      useCases: '适合开放性任务，如：头脑风暴、创意讨论、方案评审',
-                    },
-                    intelligent: {
-                      title: '群聊协作 - AI智能选择',
-                      icon: <BulbOutlined />,
-                      description: 'AI根据讨论内容智能选择最合适的发言者',
-                      features: [
-                        '✅ AI智能判断谁应该发言',
-                        '✅ 根据话题匹配专业能力',
-                        '✅ 动态调整发言顺序',
-                        '✅ 高效推进讨论进程',
-                      ],
-                      useCases: '适合专业讨论场景，如：技术方案评审、专家会诊、问题诊断',
-                    },
-                  };
-
-                  const workflowDescriptions = {
-                    magentic: {
-                      title: 'Magentic智能工作流',
-                      icon: <TeamOutlined />,
-                      description: 'Manager Agent根据任务动态协调Worker Agents执行任务',
-                      features: [
-                        '✅ 自动决定执行顺序（顺序/并发）',
-                        '✅ 动态分配任务给最合适的Agent',
-                        '✅ 智能合并和优化结果',
-                        '✅ 自动处理错误和重试',
-                      ],
-                      useCases: '适合有明确目标的任务，如：开发功能、分析问题、设计方案',
-                    },
-                    groupchat: orchestrationModeDescriptions.manager,
-                  };
-
-                  let currentWorkflow = workflowDescriptions[workflowType as keyof typeof workflowDescriptions];
-                  
-                  if (workflowType === 'groupchat') {
-                    const orchestrationMode = getFieldValue('orchestrationMode') || 'manager';
-                    currentWorkflow = orchestrationModeDescriptions[orchestrationMode as keyof typeof orchestrationModeDescriptions] || orchestrationModeDescriptions.manager;
-                  }
-
-                  return currentWorkflow ? (
-                    <Alert
-                      message={currentWorkflow.title}
-                      description={
-                        <div>
-                          <p>{currentWorkflow.description}</p>
-                          <br />
-                          {currentWorkflow.features.map((feature, index) => (
-                            <p key={index} style={{ margin: '4px 0' }}>{feature}</p>
-                          ))}
-                          <br />
-                          <p><strong>适用场景：</strong>{currentWorkflow.useCases}</p>
-                        </div>
-                      }
-                      type="info"
-                      showIcon
-                      icon={currentWorkflow.icon}
-                      style={{ marginBottom: 16 }}
-                    />
-                  ) : null;
-                }}
-              </Form.Item>
-
-              <Form.Item shouldUpdate>
-                {({ getFieldValue }) => {
-                  const workflowType = getFieldValue('workflowType');
-                  
-                  if (workflowType === 'magentic') {
-                    return (
-                      <div>
-                        <Title level={5}>
-                          <SettingOutlined /> 配置参数
-                        </Title>
-                        <Form.Item
-                          label="最大迭代次数"
-                          name="maxIterations"
-                          tooltip="Manager最多进行多少轮迭代决策"
-                        >
-                          <InputNumber
-                            min={1}
-                            max={50}
-                            style={{ width: '100%' }}
-                            placeholder="默认10次"
-                          />
-                        </Form.Item>
-                      </div>
-                    );
-                  }
-                  
-                  if (workflowType === 'groupchat') {
-                    return (
-                      <div>
-                        <Title level={5}>
-                          <MessageOutlined /> 群聊配置
-                        </Title>
-                        <Form.Item
-                          label="协调模式"
-                          name="orchestrationMode"
-                          tooltip="选择Agent发言的协调方式"
-                        >
-                          <Radio.Group style={{ width: '100%' }}>
-                            <Space direction="vertical" style={{ width: '100%' }}>
-                              {(Object.keys(orchestrationModeConfig) as Array<keyof typeof orchestrationModeConfig>).map((key) => {
-                                const config = orchestrationModeConfig[key];
-                                return (
-                                  <Radio key={key} value={key}>
-                                    <Space>
-                                      <Tag color={config.color} icon={config.icon}>
-                                        {config.label}
-                                      </Tag>
-                                      <Text type="secondary">{config.description}</Text>
-                                    </Space>
-                                  </Radio>
-                                );
-                              })}
-                            </Space>
-                          </Radio.Group>
-                        </Form.Item>
-                        <Form.Item
-                          label="最大迭代次数"
-                          name="maxIterations"
-                          tooltip="群聊最多进行多少轮对话"
-                        >
-                          <InputNumber
-                            min={1}
-                            max={50}
-                            style={{ width: '100%' }}
-                            placeholder="默认10次"
-                          />
-                        </Form.Item>
-                      </div>
-                    );
-                  }
-                  
-                  return null;
-                }}
-              </Form.Item>
-            </Form>
           </div>
         )}
       </Modal>

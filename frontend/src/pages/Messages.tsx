@@ -3,6 +3,7 @@ import { Table, Select, Card, Input, Button, Tag, message } from 'antd';
 import { SendOutlined } from '@ant-design/icons';
 import { agentService, Agent } from '../services/agentService';
 import socketService from '../services/socketService';
+import { getApiUrl } from '../config/api';
 
 const { TextArea } = Input;
 const { Option } = Select;
@@ -55,7 +56,7 @@ const Messages: React.FC = () => {
     try {
       setLoading(true);
       const response = await fetch(
-        `http://localhost:5000/api/messages/conversation/${selectedAgent1}/${selectedAgent2}`
+        getApiUrl(`/messages/conversation/${selectedAgent1}/${selectedAgent2}`)
       );
       const data = await response.json();
       setMessages(data);

@@ -79,4 +79,25 @@ public class ReviewIterativeParameters
     /// 是否在每次迭代后保存版本（默认true）
     /// </summary>
     public bool SaveVersions { get; set; } = true;
+
+    /// <summary>
+    /// 最大尝试次数（循环工作流）
+    /// </summary>
+    public int? MaxAttempts { get; set; }
+
+    /// <summary>
+    /// 阈值标准（多维度评分）
+    /// 例如：{ "quality": 85, "accuracy": 90, "completeness": 80 }
+    /// </summary>
+    public Dictionary<string, double>? Thresholds { get; set; }
+
+    /// <summary>
+    /// 任务账本配置（Magentic双环规划 - 外环）
+    /// </summary>
+    public TaskLedgerConfig? TaskLedger { get; set; }
+
+    /// <summary>
+    /// 进度账本配置（Magentic双环规划 - 内环）
+    /// </summary>
+    public ProgressLedgerConfig? ProgressLedger { get; set; }
 }

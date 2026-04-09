@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Table, Card, Button, Modal, Form, Input, Switch, message, Tag, Space, Popconfirm } from 'antd';
 import { PlusOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons';
 import authService from '../services/authService';
+import { getApiUrl } from '../config/api';
 
 interface Permission {
   id: number;
@@ -29,7 +30,7 @@ const Permissions: React.FC = () => {
     try {
       setLoading(true);
       const token = authService.getToken();
-      const response = await fetch('http://localhost:5000/api/permissions', {
+      const response = await fetch(getApiUrl('/permissions'), {
         headers: {
           'Authorization': `Bearer ${token}`,
         },
@@ -51,7 +52,7 @@ const Permissions: React.FC = () => {
   const handleCreatePermission = async (values: any) => {
     try {
       const token = authService.getToken();
-      const response = await fetch('http://localhost:5000/api/permissions', {
+      const response = await fetch(getApiUrl('/permissions'), {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -79,7 +80,7 @@ const Permissions: React.FC = () => {
 
     try {
       const token = authService.getToken();
-      const response = await fetch(`http://localhost:5000/api/permissions/${editingPermission.id}`, {
+      const response = await fetch(getApiUrl(`/permissions/${editingPermission.id}`), {
         method: 'PUT',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -106,7 +107,7 @@ const Permissions: React.FC = () => {
   const handleDeletePermission = async (id: number) => {
     try {
       const token = authService.getToken();
-      const response = await fetch(`http://localhost:5000/api/permissions/${id}`, {
+      const response = await fetch(getApiUrl(`/permissions/${id}`), {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${token}`,

@@ -10,18 +10,15 @@ public class CollaborationService : ICollaborationService
     private readonly ICollaborationRepository _collaborationRepository;
     private readonly ICollaborationAgentRepository _collaborationAgentRepository;
     private readonly ICollaborationTaskRepository _collaborationTaskRepository;
-    private readonly ITaskAgentRepository _taskAgentRepository;
 
     public CollaborationService(
         ICollaborationRepository collaborationRepository,
         ICollaborationAgentRepository collaborationAgentRepository,
-        ICollaborationTaskRepository collaborationTaskRepository,
-        ITaskAgentRepository taskAgentRepository)
+        ICollaborationTaskRepository collaborationTaskRepository)
     {
         _collaborationRepository = collaborationRepository;
         _collaborationAgentRepository = collaborationAgentRepository;
         _collaborationTaskRepository = collaborationTaskRepository;
-        _taskAgentRepository = taskAgentRepository;
     }
 
     public async Task<List<Collaboration>> GetByUserIdAsync(long userId)
@@ -126,7 +123,7 @@ public class CollaborationService : ICollaborationService
         return await _collaborationTaskRepository.GetByCollaborationIdAsync(collaborationId);
     }
 
-    public async Task<CollaborationTask> CreateTaskAsync(long collaborationId, string title, string? description, long userId, string? prompt = null, string? gitUrl = null, string? gitBranch = null, string? gitToken = null, List<long>? agentIds = null)
+    public async Task<CollaborationTask> CreateTaskAsync(long collaborationId, string title, string? description, long userId, string? prompt = null, string? gitUrl = null, string? gitBranch = null, string? gitToken = null, List<long>? agentIds = null, string? config = null)
     {
         var collaboration = await GetByIdAsync(collaborationId, userId);
         if (collaboration == null)
@@ -142,27 +139,16 @@ public class CollaborationService : ICollaborationService
             CreatedAt = DateTime.UtcNow,
             GitUrl = gitUrl,
             GitBranch = gitBranch,
-            GitCredentials = gitToken
+            GitCredentials = gitToken,
+            Config = config
         };
 
         var createdTask = await _collaborationTaskRepository.CreateAsync(task);
 
-        if (agentIds != null && agentIds.Count > 0)
-        {
-            var taskAgents = agentIds.Select(agentId => new TaskAgent
-            {
-                TaskId = createdTask.Id,
-                AgentId = agentId,
-                CreatedAt = DateTime.UtcNow
-            }).ToList();
-
-            await _taskAgentRepository.CreateBatchAsync(taskAgents);
-        }
-
         return createdTask;
     }
 
-    public async Task<CollaborationTask> UpdateTaskAsync(long taskId, string title, string? description, string? prompt = null, string? gitUrl = null, string? gitBranch = null, string? gitToken = null, List<long>? agentIds = null)
+    public async Task<CollaborationTask> UpdateTaskAsync(long taskId, string title, string? description, string? prompt = null, string? gitUrl = null, string? gitBranch = null, string? gitToken = null, List<long>? agentIds = null, string? config = null)
     {
         var task = await _collaborationTaskRepository.GetByIdAsync(taskId);
         if (task == null)
@@ -177,24 +163,9 @@ public class CollaborationService : ICollaborationService
         {
             task.GitCredentials = gitToken;
         }
+        task.Config = config;
 
         var updatedTask = await _collaborationTaskRepository.UpdateAsync(task);
-
-        if (agentIds != null)
-        {
-            await _taskAgentRepository.DeleteByTaskIdAsync(taskId);
-            if (agentIds.Count > 0)
-            {
-                var taskAgents = agentIds.Select(agentId => new TaskAgent
-                {
-                    TaskId = taskId,
-                    AgentId = agentId,
-                    CreatedAt = DateTime.UtcNow
-                }).ToList();
-
-                await _taskAgentRepository.CreateBatchAsync(taskAgents);
-            }
-        }
 
         return updatedTask;
     }

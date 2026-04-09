@@ -4,6 +4,7 @@ using System.Security.Claims;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Logging;
 using Moq;
 using MAFStudio.Api.Controllers;
 using MAFStudio.Application.DTOs.Requests;
@@ -23,6 +24,7 @@ public class CollaborationsControllerTests : TestBase
     private readonly Mock<IOperationLogService> _mockLogService;
     private readonly Mock<IAgentMessageRepository> _mockAgentMessageRepository;
     private readonly Mock<ITaskAgentRepository> _mockTaskAgentRepository;
+    private readonly Mock<ILogger<CollaborationsController>> _mockLogger;
     private readonly CollaborationsController _controller;
     private readonly long _testUserId = 1000000000000001;
 
@@ -33,13 +35,15 @@ public class CollaborationsControllerTests : TestBase
         _mockLogService = new Mock<IOperationLogService>();
         _mockAgentMessageRepository = new Mock<IAgentMessageRepository>();
         _mockTaskAgentRepository = new Mock<ITaskAgentRepository>();
+        _mockLogger = new Mock<ILogger<CollaborationsController>>();
 
         _controller = new CollaborationsController(
             _mockCollaborationService.Object,
             _mockAuthService.Object,
             _mockLogService.Object,
             _mockAgentMessageRepository.Object,
-            _mockTaskAgentRepository.Object
+            _mockTaskAgentRepository.Object,
+            _mockLogger.Object
         );
 
         var user = new ClaimsPrincipal(new ClaimsIdentity(new Claim[]
@@ -467,5 +471,103 @@ public class CollaborationsControllerTests : TestBase
         var returnedCollaboration = Assert.IsType<Collaboration>(okResult.Value);
         Assert.Equal(request.Name, returnedCollaboration.Name);
         Assert.Equal(config, returnedCollaboration.Config);
+    }
+
+    [Fact]
+    public async Task CreateTask_WithConfig_ShouldSaveConfig()
+    {
+        var collaboration = CreateTestCollaboration("Collaboration1", _testUserId);
+        collaboration.Id = 1009;
+
+        var config = "{\"workflowType\":\"GroupChat\",\"orchestrationMode\":\"Manager\",\"maxIterations\":10,\"managerAgentId\":123,\"managerCustomPrompt\":\"这是一个测试提示词\"}";
+
+        var request = new CreateTaskRequest
+        {
+            Title = "Task With Config",
+            Description = "Task Description",
+            Config = config
+        };
+
+        var createdTask = new CollaborationTask
+        {
+            Id = 4001,
+            CollaborationId = collaboration.Id,
+            Title = request.Title,
+            Description = request.Description,
+            Config = config,
+            Status = CollaborationTaskStatus.Pending,
+            CreatedAt = DateTime.UtcNow
+        };
+
+        _mockCollaborationService
+            .Setup(s => s.CreateTaskAsync(
+                collaboration.Id, 
+                request.Title, 
+                request.Description, 
+                _testUserId, 
+                It.IsAny<string?>(), 
+                It.IsAny<string?>(), 
+                It.IsAny<string?>(), 
+                It.IsAny<string?>(), 
+                It.IsAny<List<long>?>(), 
+                config))
+            .ReturnsAsync(createdTask);
+
+        var result = await _controller.CreateTask(collaboration.Id, request);
+
+        var createdResult = Assert.IsType<CreatedAtActionResult>(result.Result);
+        var returnedTask = Assert.IsType<CollaborationTask>(createdResult.Value);
+        Assert.Equal(request.Title, returnedTask.Title);
+        Assert.Equal(config, returnedTask.Config);
+    }
+
+    [Fact]
+    public async Task UpdateTask_WithConfig_ShouldUpdateConfig()
+    {
+        var collaboration = CreateTestCollaboration("Collaboration1", _testUserId);
+        collaboration.Id = 1010;
+        
+        var task = CreateTestTask(collaboration.Id, "Task1");
+        task.Id = 4002;
+
+        var config = "{\"workflowType\":\"ReviewIterative\",\"orchestrationMode\":\"Manager\",\"maxIterations\":15,\"managerAgentId\":456,\"managerCustomPrompt\":\"更新后的提示词\"}";
+
+        var request = new UpdateTaskRequest
+        {
+            Title = "Task1",
+            Description = "Description",
+            Config = config
+        };
+
+        var updatedTask = new CollaborationTask
+        {
+            Id = task.Id,
+            CollaborationId = task.CollaborationId,
+            Title = request.Title,
+            Description = request.Description,
+            Config = config,
+            Status = CollaborationTaskStatus.Pending,
+            CreatedAt = task.CreatedAt
+        };
+
+        _mockCollaborationService
+            .Setup(s => s.UpdateTaskAsync(
+                task.Id, 
+                request.Title, 
+                request.Description, 
+                It.IsAny<string?>(), 
+                It.IsAny<string?>(), 
+                It.IsAny<string?>(), 
+                It.IsAny<string?>(), 
+                It.IsAny<List<long>?>(), 
+                config))
+            .ReturnsAsync(updatedTask);
+
+        var result = await _controller.UpdateTask(task.Id, request);
+
+        var okResult = Assert.IsType<OkObjectResult>(result.Result);
+        var returnedTask = Assert.IsType<CollaborationTask>(okResult.Value);
+        Assert.Equal(request.Title, returnedTask.Title);
+        Assert.Equal(config, returnedTask.Config);
     }
 }

@@ -10,7 +10,7 @@ namespace MAFStudio.Tests.Workflows;
 
 public class ManagerGroupChatManagerDebugTests
 {
-    private readonly string _logFile = "D:/trae/test_manager_debug_log.txt";
+    private readonly string _logFile = Path.Combine(Path.GetTempPath(), "test_manager_debug_log.txt");
     
     private void Log(string message)
     {

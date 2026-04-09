@@ -43,6 +43,7 @@ public class CollaborationTaskVo
     public string? GitUrl { get; set; }
     public string? GitBranch { get; set; }
     public bool HasGitToken { get; set; }
+    public string? Config { get; set; }
     public DateTime? CompletedAt { get; set; }
     public DateTime CreatedAt { get; set; }
 }

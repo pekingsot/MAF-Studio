@@ -298,5 +298,5 @@ catch (RateLimitException ex)
 
 - 发布日期：2025年10月1日
 - 当前状态：公共预览版
-- 支持 .NET：.NET 8.0+
+- 支持 .NET：.NET 10.0+
 - 支持 Python：3.8+

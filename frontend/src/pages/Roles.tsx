@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Table, Card, Button, Modal, Form, Input, Switch, message, Tag, Space, Popconfirm, Transfer } from 'antd';
 import { PlusOutlined, EditOutlined, DeleteOutlined, SafetyOutlined } from '@ant-design/icons';
 import authService from '../services/authService';
+import { getApiUrl } from '../config/api';
 
 interface Role {
   id: number;
@@ -43,7 +44,7 @@ const Roles: React.FC = () => {
     try {
       setLoading(true);
       const token = authService.getToken();
-      const response = await fetch('http://localhost:5000/api/roles', {
+      const response = await fetch(getApiUrl('/roles'), {
         headers: {
           'Authorization': `Bearer ${token}`,
         },
@@ -65,7 +66,7 @@ const Roles: React.FC = () => {
   const loadPermissions = async () => {
     try {
       const token = authService.getToken();
-      const response = await fetch('http://localhost:5000/api/permissions', {
+      const response = await fetch(getApiUrl('/permissions'), {
         headers: {
           'Authorization': `Bearer ${token}`,
         },
@@ -85,7 +86,7 @@ const Roles: React.FC = () => {
   const handleCreateRole = async (values: any) => {
     try {
       const token = authService.getToken();
-      const response = await fetch('http://localhost:5000/api/roles', {
+      const response = await fetch(getApiUrl('/roles'), {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -113,7 +114,7 @@ const Roles: React.FC = () => {
 
     try {
       const token = authService.getToken();
-      const response = await fetch(`http://localhost:5000/api/roles/${editingRole.id}`, {
+      const response = await fetch(getApiUrl(`/roles/${editingRole.id}`), {
         method: 'PUT',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -140,7 +141,7 @@ const Roles: React.FC = () => {
   const handleDeleteRole = async (id: number) => {
     try {
       const token = authService.getToken();
-      const response = await fetch(`http://localhost:5000/api/roles/${id}`, {
+      const response = await fetch(getApiUrl(`/roles/${id}`), {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -163,7 +164,7 @@ const Roles: React.FC = () => {
     setSelectedRole(role);
     try {
       const token = authService.getToken();
-      const response = await fetch(`http://localhost:5000/api/roles/${role.id}/permissions`, {
+      const response = await fetch(getApiUrl(`/roles/${role.id}/permissions`), {
         headers: {
           'Authorization': `Bearer ${token}`,
         },
@@ -189,7 +190,7 @@ const Roles: React.FC = () => {
       const token = authService.getToken();
       
       // 获取当前角色的权限
-      const currentPermissionsResponse = await fetch(`http://localhost:5000/api/roles/${selectedRole.id}/permissions`, {
+      const currentPermissionsResponse = await fetch(getApiUrl(`/roles/${selectedRole.id}/permissions`), {
         headers: {
           'Authorization': `Bearer ${token}`,
         },
@@ -205,7 +206,7 @@ const Roles: React.FC = () => {
       for (const code of permissionsToAdd) {
         const permission = permissions.find(p => p.code === code);
         if (permission) {
-          await fetch(`http://localhost:5000/api/roles/${selectedRole.id}/permissions/${permission.id}`, {
+          await fetch(getApiUrl(`/roles/${selectedRole.id}/permissions/${permission.id}`), {
             method: 'POST',
             headers: {
               'Authorization': `Bearer ${token}`,
@@ -218,7 +219,7 @@ const Roles: React.FC = () => {
       for (const code of permissionsToRemove) {
         const permission = permissions.find(p => p.code === code);
         if (permission) {
-          await fetch(`http://localhost:5000/api/roles/${selectedRole.id}/permissions/${permission.id}`, {
+          await fetch(getApiUrl(`/roles/${selectedRole.id}/permissions/${permission.id}`), {
             method: 'DELETE',
             headers: {
               'Authorization': `Bearer ${token}`,

@@ -2,11 +2,11 @@
 
 ## 项目简介
 
-MAF Studio 是一个基于 .NET 8.0 的多智能体协作平台，支持创建、管理和协调多个 AI 智能体进行协作任务。平台采用 DDD（领域驱动设计）架构，使用 Dapper 作为 ORM，PostgreSQL 作为数据库。
+MAF Studio 是一个基于 .NET 10.0 的多智能体协作平台，支持创建、管理和协调多个 AI 智能体进行协作任务。平台采用 DDD（领域驱动设计）架构，使用 Dapper 作为 ORM，PostgreSQL 作为数据库。
 
 ## 技术栈
 
-- **后端框架**: .NET 8.0
+- **后端框架**: .NET 10.0
 - **ORM**: Dapper (轻量级高性能 ORM)
 - **数据库**: PostgreSQL 15+
 - **认证**: JWT Bearer Token
@@ -173,7 +173,7 @@ collaborations (
 
 ### 环境要求
 
-- .NET 8.0 SDK
+- .NET 10.0 SDK
 - PostgreSQL 15+
 - Docker (可选)
 

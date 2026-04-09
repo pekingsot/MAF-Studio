@@ -10,7 +10,7 @@ namespace MAFStudio.Tests.Workflows;
 
 public class ManagerGroupChatManagerFullFlowTests
 {
-    private readonly string _logFile = "D:/trae/test_full_flow_log.txt";
+    private readonly string _logFile = Path.Combine(Path.GetTempPath(), "test_full_flow_log.txt");
     
     private void Log(string message)
     {

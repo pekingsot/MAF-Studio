@@ -21,6 +21,22 @@ public partial class CollaborationWorkflowService
         [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
         parameters ??= new GroupChatParameters();
+        TaskConfig? taskConfig = null;
+        
+        if (taskId.HasValue && taskId.Value > 0)
+        {
+            var task = await _taskRepository.GetByIdAsync(taskId.Value);
+            if (task != null && !string.IsNullOrEmpty(task.Config))
+            {
+                taskConfig = TaskConfig.FromJson(task.Config);
+                if (taskConfig != null)
+                {
+                    parameters = taskConfig.ToGroupChatParameters();
+                    _logger.LogInformation("从任务配置加载参数: Mode={Mode}, MaxIterations={MaxIterations}, ManagerAgentId={ManagerAgentId}", 
+                        parameters.OrchestrationMode, parameters.MaxIterations, taskConfig.ManagerAgentId);
+                }
+            }
+        }
         
         var collaboration = await _collaborationRepository.GetByIdAsync(collaborationId);
         if (collaboration == null)
@@ -34,14 +50,41 @@ public partial class CollaborationWorkflowService
             yield break;
         }
 
-        var members = await _collaborationAgentRepository.GetByCollaborationIdAsync(collaborationId);
+        List<CollaborationAgent> members;
+        
+        if (taskId.HasValue && taskId.Value > 0 && taskConfig != null)
+        {
+            var allCollaborationAgents = await _collaborationAgentRepository.GetByCollaborationIdAsync(collaborationId);
+            
+            var selectedAgentIds = new List<long>();
+            
+            if (taskConfig.ManagerAgentId.HasValue)
+            {
+                selectedAgentIds.Add(taskConfig.ManagerAgentId.Value);
+            }
+            
+            if (taskConfig.WorkerAgents != null && taskConfig.WorkerAgents.Count > 0)
+            {
+                selectedAgentIds.AddRange(taskConfig.WorkerAgents.Select(w => w.AgentId));
+            }
+            
+            members = allCollaborationAgents.Where(ca => selectedAgentIds.Contains(ca.AgentId)).ToList();
+            
+            _logger.LogInformation("从任务配置获取Agent: TaskId={TaskId}, ManagerId={ManagerId}, WorkerCount={WorkerCount}, TotalCount={Count}", 
+                taskId.Value, taskConfig.ManagerAgentId, taskConfig.WorkerAgents?.Count ?? 0, members.Count);
+        }
+        else
+        {
+            members = await _collaborationAgentRepository.GetByCollaborationIdAsync(collaborationId);
+            _logger.LogInformation("从团队表获取Agent: CollaborationId={CollaborationId}, AgentCount={Count}", collaborationId, members.Count);
+        }
 
         if (members.Count == 0)
         {
             yield return new ChatMessageDto
             {
                 Sender = "System",
-                Content = "协作中没有Agent",
+                Content = "没有可用的Agent",
                 Role = "system"
             };
             yield break;
@@ -130,20 +173,29 @@ public partial class CollaborationWorkflowService
             {
                 var chatClient = await _agentFactory.CreateAgentAsync(member.AgentId);
                 
-                var basePrompt = member.CustomPrompt ?? agentEntity.SystemPrompt ?? "You are a helpful assistant.";
+                var isManager = member.Role?.Equals("Manager", StringComparison.OrdinalIgnoreCase) == true;
+                
+                string basePrompt;
+                if (isManager && taskConfig?.ManagerCustomPrompt != null)
+                {
+                    basePrompt = taskConfig.ManagerCustomPrompt;
+                    _logger.LogInformation("使用自定义协调者提示词: {Prompt}", basePrompt.Substring(0, Math.Min(100, basePrompt.Length)));
+                }
+                else
+                {
+                    basePrompt = member.CustomPrompt ?? agentEntity.SystemPrompt ?? "You are a helpful assistant.";
+                }
                 
                 var promptBuilder = _promptBuilderFactory.Create(parameters.OrchestrationMode);
                 var systemPrompt = promptBuilder.BuildPrompt(new SystemPromptContext
                 {
                     AgentName = agentEntity.Name,
                     AgentRole = member.Role ?? "Worker",
-                    AgentType = agentEntity.TypeName ?? "",
+                    AgentTypeName = agentEntity.TypeName ?? "",
                     MembersInfo = membersInfo,
                     TaskPrompt = taskPrompt,
                     AgentPrompt = basePrompt
                 });
-                
-                var isManager = member.Role?.Equals("Manager", StringComparison.OrdinalIgnoreCase) == true;
                 
                 var agentDescription = $"专业{agentEntity.TypeName ?? "专家"}";
                 
@@ -442,15 +494,17 @@ public partial class CollaborationWorkflowService
 
     private string BuildMembersInfo(List<(CollaborationAgent Member, Agent Entity)> agentEntities)
     {
-        var members = agentEntities.Select(a => 
-        {
-            var name = a.Entity.Name;
-            var typeName = a.Entity.TypeName ?? "";
-            return string.IsNullOrEmpty(typeName) ? $"- {name}" : $"- {name}（{typeName}）";
-        });
+        var members = agentEntities
+            .Where(a => a.Member.Role?.Equals("Manager", StringComparison.OrdinalIgnoreCase) != true)
+            .Select(a => 
+            {
+                var name = a.Entity.Name;
+                var typeName = a.Entity.TypeName ?? "";
+                return string.IsNullOrEmpty(typeName) ? $"- {name}" : $"- {name}（{typeName}）";
+            });
         
         var result = string.Join("\n", members);
-        _logger.LogInformation("团队成员信息: {Members}", result);
+        _logger.LogInformation("团队成员信息（Worker）: {Members}", result);
         return result;
     }
 }

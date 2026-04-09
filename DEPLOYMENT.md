@@ -4,7 +4,7 @@
 
 - Docker 20.10+
 - Docker Compose 2.0+
-- .NET 8.0 SDK (本地开发)
+- .NET 10.0 SDK (本地开发)
 - Node.js 18+ (本地开发)
 
 ## 快速部署

@@ -1,0 +1,32 @@
+version: '3.8'
+
+services:
+  # ==================== 后端服务（仅使用本地镜像） ====================
+  backend:
+    image: maf-studio-backend:latest
+    container_name: maf-studio-backend
+    restart: unless-stopped
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Production
+      - ASPNETCORE_URLS=http://+:5000
+      - ConnectionStrings__DefaultConnection=Host=192.168.1.250;Port=5433;Database=mafstudio;Username=pekingsot;Password=sunset@123;Timezone=Asia/Shanghai
+      - Workspace__BaseDir=/app/workspace
+      - Jwt__Key=your-super-secret-key-with-at-least-32-characters
+      - Jwt__Issuer=MAFStudio
+      - Jwt__Audience=MAFStudio
+      - Jwt__ExpirationInMinutes=1440
+    ports:
+      - "5001:5000"
+    volumes:
+      - workspace_data:/app/workspace
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+# ==================== 数据卷配置 ====================
+volumes:
+  workspace_data:
+    driver: local

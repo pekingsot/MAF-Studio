@@ -3,6 +3,7 @@
     "/api/auth/login",
     "/api/auth/register",
     "/api/health",
+    "/api/system/environment",
     "/api/index.html",
     "/api/swagger",
     "/api/swagger/*",

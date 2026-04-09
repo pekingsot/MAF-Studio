@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Table, Card, Button, Modal, Form, Input, Select, message, Tag, Space, Popconfirm, Transfer } from 'antd';
 import { UserOutlined, MailOutlined, PlusOutlined, DeleteOutlined, TeamOutlined } from '@ant-design/icons';
 import authService from '../services/authService';
+import { getApiUrl } from '../config/api';
 
 const { Option } = Select;
 
@@ -42,7 +43,7 @@ const Users: React.FC = () => {
     try {
       setLoading(true);
       const token = authService.getToken();
-      const response = await fetch('http://localhost:5000/api/users', {
+      const response = await fetch(getApiUrl('/users'), {
         headers: {
           'Authorization': `Bearer ${token}`,
         },
@@ -64,7 +65,7 @@ const Users: React.FC = () => {
   const loadRoles = async () => {
     try {
       const token = authService.getToken();
-      const response = await fetch('http://localhost:5000/api/roles', {
+      const response = await fetch(getApiUrl('/roles'), {
         headers: {
           'Authorization': `Bearer ${token}`,
         },
@@ -85,7 +86,7 @@ const Users: React.FC = () => {
     setSelectedUser(user);
     try {
       const token = authService.getToken();
-      const response = await fetch(`http://localhost:5000/api/users/${user.id}/roles`, {
+      const response = await fetch(getApiUrl(`/users/${user.id}/roles`), {
         headers: {
           'Authorization': `Bearer ${token}`,
         },
@@ -112,7 +113,7 @@ const Users: React.FC = () => {
       const token = authService.getToken();
       
       // 获取当前用户的角色
-      const currentRolesResponse = await fetch(`http://localhost:5000/api/users/${selectedUser.id}/roles`, {
+      const currentRolesResponse = await fetch(getApiUrl(`/users/${selectedUser.id}/roles`), {
         headers: {
           'Authorization': `Bearer ${token}`,
         },
@@ -128,7 +129,7 @@ const Users: React.FC = () => {
       for (const code of rolesToAdd) {
         const role = roles.find(r => r.code === code);
         if (role) {
-          await fetch(`http://localhost:5000/api/users/${selectedUser.id}/roles/${role.id}`, {
+          await fetch(getApiUrl(`/users/${selectedUser.id}/roles/${role.id}`), {
             method: 'POST',
             headers: {
               'Authorization': `Bearer ${token}`,
@@ -141,7 +142,7 @@ const Users: React.FC = () => {
       for (const code of rolesToRemove) {
         const role = roles.find(r => r.code === code);
         if (role) {
-          await fetch(`http://localhost:5000/api/users/${selectedUser.id}/roles/${role.id}`, {
+          await fetch(getApiUrl(`/users/${selectedUser.id}/roles/${role.id}`), {
             method: 'DELETE',
             headers: {
               'Authorization': `Bearer ${token}`,

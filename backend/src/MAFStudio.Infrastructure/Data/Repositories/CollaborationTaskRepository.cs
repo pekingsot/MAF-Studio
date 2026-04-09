@@ -34,8 +34,8 @@ public class CollaborationTaskRepository : ICollaborationTaskRepository
         using var connection = _context.CreateConnection();
         task.CreatedAt = DateTime.UtcNow;
         const string sql = @"
-            INSERT INTO collaboration_tasks (collaboration_id, title, description, prompt, status, assigned_to, created_at, completed_at, git_url, git_branch, git_credentials)
-            VALUES (@CollaborationId, @Title, @Description, @Prompt, @Status, @AssignedTo, @CreatedAt, @CompletedAt, @GitUrl, @GitBranch, @GitCredentials)
+            INSERT INTO collaboration_tasks (collaboration_id, title, description, prompt, status, assigned_to, created_at, completed_at, git_url, git_branch, git_credentials, config)
+            VALUES (@CollaborationId, @Title, @Description, @Prompt, @Status, @AssignedTo, @CreatedAt, @CompletedAt, @GitUrl, @GitBranch, @GitCredentials, @Config)
             RETURNING *";
         return await connection.QueryFirstAsync<CollaborationTask>(sql, task);
     }
@@ -53,7 +53,8 @@ public class CollaborationTaskRepository : ICollaborationTaskRepository
                 completed_at = @CompletedAt,
                 git_url = @GitUrl,
                 git_branch = @GitBranch,
-                git_credentials = @GitCredentials
+                git_credentials = @GitCredentials,
+                config = @Config
             WHERE id = @Id
             RETURNING *";
         return await connection.QueryFirstAsync<CollaborationTask>(sql, task);

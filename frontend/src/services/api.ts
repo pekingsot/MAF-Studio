@@ -1,6 +1,5 @@
 import axios, { AxiosRequestConfig, AxiosError, InternalAxiosRequestConfig } from 'axios';
-
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
+import API_BASE_URL from '../config/api';
 
 const TOKEN_KEY = 'token';
 const USER_KEY = 'user';

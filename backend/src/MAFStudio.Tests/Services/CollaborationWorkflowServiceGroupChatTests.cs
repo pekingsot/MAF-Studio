@@ -22,7 +22,7 @@ namespace MAFStudio.Tests.Services;
 
 public class CollaborationWorkflowServiceGroupChatTests
 {
-    private readonly string _logFile = "D:/trae/test_log.txt";
+    private readonly string _logFile = Path.Combine(Path.GetTempPath(), "test_log.txt");
     private readonly string _connectionString = "Host=192.168.1.250;Port=5433;Database=mafstudio;Username=pekingsot;Password=sunset@123";
 
     private void Log(string message)

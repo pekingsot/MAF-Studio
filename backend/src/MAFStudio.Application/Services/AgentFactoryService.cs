@@ -75,6 +75,39 @@ public class AgentFactoryService : IAgentFactoryService
         return BuildClientWithCapabilities(baseClient);
     }
 
+    public async Task<IChatClient> CreateManagerClientAsync()
+    {
+        _logger?.LogInformation("创建Magentic Manager客户端");
+        
+        var defaultLlmConfig = await GetDefaultLlmConfigAsync();
+        
+        var baseClient = await _chatClientFactory.CreateClientAsync(
+            defaultLlmConfig.LlmConfigId,
+            defaultLlmConfig.LlmModelConfigId);
+
+        var builder = new ChatClientBuilder(baseClient);
+        
+        builder.UseFunctionInvocation(_loggerFactory, configure: options =>
+        {
+            options.MaximumIterationsPerRequest = 5;
+        });
+
+        return builder.Build();
+    }
+
+    private async Task<(long LlmConfigId, long? LlmModelConfigId)> GetDefaultLlmConfigAsync()
+    {
+        var agents = await _agentRepository.GetAllAsync();
+        var firstAgent = agents.FirstOrDefault(a => a.LlmConfigId.HasValue);
+        
+        if (firstAgent != null && firstAgent.LlmConfigId.HasValue)
+        {
+            return (firstAgent.LlmConfigId.Value, firstAgent.LlmModelConfigId);
+        }
+
+        throw new BusinessException("未找到可用的LLM配置，请先创建Agent");
+    }
+
     /// <summary>
     /// 使用MAF中间件构建带工具调用能力的客户端
     /// 管道顺序: CapabilitiesChatClient(注入工具) -> UseFunctionInvocation(处理工具调用) -> baseClient

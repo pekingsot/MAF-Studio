@@ -10,7 +10,7 @@ namespace MAFStudio.Tests.Workflows;
 
 public class SimpleGroupChatTests
 {
-    private readonly string _logFile = "D:/trae/test_simple_groupchat_log.txt";
+    private readonly string _logFile = Path.Combine(Path.GetTempPath(), "test_simple_groupchat_log.txt");
     
     private void Log(string message)
     {

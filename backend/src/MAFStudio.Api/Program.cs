@@ -10,6 +10,10 @@ using MAFStudio.Api.Services;
 using MAFStudio.Api.Middleware;
 using MAFStudio.Api.Converters;
 using Serilog;
+using OpenTelemetry;
+using OpenTelemetry.Resources;
+using OpenTelemetry.Trace;
+using OpenTelemetry.Metrics;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -83,6 +87,25 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
 
 builder.Services.AddAuthorization();
 
+builder.Services.AddOpenTelemetry()
+    .ConfigureResource(resource => resource
+        .AddService(serviceName: "MAFStudio", serviceVersion: "1.0.0"))
+    .WithTracing(tracing => tracing
+        .AddSource("Microsoft.Agents.*")
+        .AddAspNetCoreInstrumentation()
+        .AddHttpClientInstrumentation()
+        .AddOtlpExporter(options =>
+        {
+            options.Endpoint = new Uri("http://localhost:4317");
+        }))
+    .WithMetrics(metrics => metrics
+        .AddAspNetCoreInstrumentation()
+        .AddHttpClientInstrumentation()
+        .AddOtlpExporter(options =>
+        {
+            options.Endpoint = new Uri("http://localhost:4317");
+        }));
+
 builder.Services.AddInfrastructure();
 builder.Services.AddApplication();
 
@@ -93,7 +116,12 @@ builder.Services.AddCors(options =>
 {
     options.AddDefaultPolicy(policy =>
     {
-        policy.WithOrigins("http://localhost:3000", "http://localhost:5173")
+        policy.WithOrigins(
+                  "http://localhost:3000",
+                  "http://localhost:3001",
+                  "http://localhost:5173",
+                  "http://192.168.1.55:3001"
+              )
               .AllowAnyHeader()
               .AllowAnyMethod()
               .AllowCredentials();
