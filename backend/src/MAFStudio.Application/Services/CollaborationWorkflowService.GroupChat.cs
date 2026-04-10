@@ -41,13 +41,7 @@ public partial class CollaborationWorkflowService
         var collaboration = await _collaborationRepository.GetByIdAsync(collaborationId);
         if (collaboration == null)
         {
-            yield return new ChatMessageDto
-            {
-                Sender = "System",
-                Content = $"协作 {collaborationId} 不存在",
-                Role = "system"
-            };
-            yield break;
+            throw new NotFoundException($"协作 {collaborationId} 不存在");
         }
 
         List<CollaborationAgent> members;
@@ -81,13 +75,7 @@ public partial class CollaborationWorkflowService
 
         if (members.Count == 0)
         {
-            yield return new ChatMessageDto
-            {
-                Sender = "System",
-                Content = "没有可用的Agent",
-                Role = "system"
-            };
-            yield break;
+            throw new InvalidOperationException("没有可用的Agent");
         }
 
         var agentIds = members.Select(m => m.AgentId).ToList();
@@ -212,8 +200,11 @@ public partial class CollaborationWorkflowService
                     agentEntity.Name,
                     agentDescription
                 );
-                
+                if (!isManager)
+                {
+
                 mafAgents.Add(agent);
+                }
                 
                 agentIdToNameMap[agent.Id] = agentEntity.Name;
                 agentIdMap[agent.Id] = member.AgentId;
@@ -270,39 +261,6 @@ public partial class CollaborationWorkflowService
 
             _logger.LogInformation("开始执行GroupChat工作流，模式: {Mode}, 输入: {Input}", 
                 parameters.OrchestrationMode, input);
-
-            var participants = parameters.OrchestrationMode == GroupChatOrchestrationMode.Manager && managerAgent != null
-                ? mafAgents.Where(a => a.Name != managerAgent.Name).Select(a => a.Name)
-                : mafAgents.Select(a => a.Name);
-
-            var agentsInfo = agentEntities.Select(a => new Dictionary<string, object>
-            {
-                ["id"] = a.Entity.Id,
-                ["name"] = a.Entity.Name,
-                ["role"] = a.Member.Role ?? "Worker",
-                ["typeName"] = a.Entity.TypeName ?? "",
-                ["modelName"] = a.Entity.LlmModelName ?? "未配置",
-                ["prompt"] = agentSystemPrompts.GetValueOrDefault(a.Member.AgentId, "You are a helpful assistant.")
-            }).ToList();
-
-            yield return new ChatMessageDto
-            {
-                Sender = "System",
-                Content = $"🎯 **工作流配置**\n\n" +
-                         $"- **模式**: {parameters.OrchestrationMode}\n" +
-                         $"- **最大轮次**: {parameters.MaxIterations}\n" +
-                         $"- **参与者**: {string.Join(", ", participants)}\n" +
-                         (parameters.OrchestrationMode == GroupChatOrchestrationMode.Manager && managerAgent != null 
-                             ? $"- **协调者**: {managerAgent.Name}\n" 
-                             : ""),
-                Timestamp = DateTime.UtcNow,
-                Role = "system",
-                Metadata = new Dictionary<string, object> 
-                { 
-                    ["agents"] = agentsInfo,
-                    ["taskPrompt"] = taskPrompt ?? ""
-                }
-            };
 
             await using var run = await InProcessExecution.RunStreamingAsync(workflow, messages);
             await run.TrySendMessageAsync(new TurnToken(emitEvents: true));
@@ -370,36 +328,6 @@ public partial class CollaborationWorkflowService
                         currentAgentId = executorId;
                         currentAgentContent.Clear();
                         _logger.LogInformation("Agent切换: {ExecutorId}, 名称: {Name}", executorId, GetAgentName(executorId));
-                        
-                        var newAgentName = GetAgentName(executorId);
-                        var member2 = members.FirstOrDefault(m => m.AgentId == agentIdMap.GetValueOrDefault(executorId.TrimStart('_'), 0));
-                        
-                        var thinkingSender = parameters.OrchestrationMode switch
-                        {
-                            GroupChatOrchestrationMode.Manager when managerAgent != null => managerAgent.Name,
-                            GroupChatOrchestrationMode.Intelligent => "AI协调者",
-                            _ => "System"
-                        };
-                        
-                        var thinkingReason = parameters.OrchestrationMode switch
-                        {
-                            GroupChatOrchestrationMode.RoundRobin => "轮询模式，按顺序选择",
-                            GroupChatOrchestrationMode.Manager => "协调者根据任务需求和上下文选择最合适的Agent",
-                            GroupChatOrchestrationMode.Intelligent => "AI分析对话历史，智能选择最优发言者",
-                            _ => "系统选择"
-                        };
-                        
-                        yield return new ChatMessageDto
-                        {
-                            Sender = thinkingSender,
-                            Content = $"🤔 **选择思考**\n\n" +
-                                     $"- **当前轮次**: {roundNumber + 1}\n" +
-                                     $"- **选择Agent**: {newAgentName}\n" +
-                                     $"- **角色**: {member2?.Role ?? "Worker"}\n" +
-                                     $"- **原因**: {thinkingReason}",
-                            Timestamp = DateTime.UtcNow,
-                            Role = "system"
-                        };
                     }
 
                     var update = updateEvent.Update;
@@ -458,67 +386,6 @@ public partial class CollaborationWorkflowService
             {
                 await _workflowSessionRepository.EndSessionAsync(session.Id, conclusion: "工作流完成");
                 _logger.LogInformation("工作流会话结束: {SessionId}, 总轮次: {Rounds}", session.Id, roundNumber);
-            }
-
-            if (taskId.HasValue && taskId.Value > 0 && session != null && orchestratorAgentId > 0 && orchestratorChatClient != null)
-            {
-                _logger.LogInformation("开始让协调者Agent生成群聊总结文档...");
-                
-                yield return new ChatMessageDto
-                {
-                    Sender = "System",
-                    Content = "📝 正在让Agent生成讨论总结文档...",
-                    Timestamp = DateTime.UtcNow,
-                    Role = "system"
-                };
-
-                string? conclusionResult = null;
-                string? errorMessage = null;
-                
-                try
-                {
-                    var sessionMessages = await _messageRepository.GetBySessionIdAsync(session.Id);
-                    
-                    conclusionResult = await _conclusionService.GenerateAndCommitConclusionAsync(
-                        taskId.Value,
-                        collaborationId,
-                        input,
-                        sessionMessages.ToList(),
-                        orchestratorAgentId,
-                        orchestratorAgentName ?? "执行者",
-                        orchestratorAgentType,
-                        orchestratorAgentPrompt,
-                        orchestratorChatClient,
-                        cancellationToken);
-                        
-                    _logger.LogInformation("总结文档结果: {Result}", conclusionResult);
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogError(ex, "生成总结文档失败");
-                    errorMessage = ex.Message;
-                }
-
-                if (!string.IsNullOrEmpty(conclusionResult))
-                {
-                    yield return new ChatMessageDto
-                    {
-                        Sender = "System",
-                        Content = $"📄 {conclusionResult}",
-                        Timestamp = DateTime.UtcNow,
-                        Role = "system"
-                    };
-                }
-                else if (!string.IsNullOrEmpty(errorMessage))
-                {
-                    yield return new ChatMessageDto
-                    {
-                        Sender = "System",
-                        Content = $"⚠️ 总结文档生成失败: {errorMessage}",
-                        Timestamp = DateTime.UtcNow,
-                        Role = "system"
-                    };
-                }
             }
         }
         finally
