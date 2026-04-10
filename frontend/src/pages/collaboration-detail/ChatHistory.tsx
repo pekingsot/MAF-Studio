@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { Table, Avatar, Tag, Empty, Spin, message, Card, Button, Typography, Space, Descriptions, List } from 'antd';
-import { UserOutlined, RobotOutlined, TeamOutlined, ArrowLeftOutlined, PlayCircleOutlined, CheckCircleOutlined, ClockCircleOutlined } from '@ant-design/icons';
+import { Table, Avatar, Tag, Empty, Spin, message, Card, Button, Typography, Space, Descriptions, List, Popconfirm } from 'antd';
+import { UserOutlined, RobotOutlined, TeamOutlined, ArrowLeftOutlined, PlayCircleOutlined, CheckCircleOutlined, ClockCircleOutlined, StopOutlined } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import { collaborationService } from '../../services/collaborationService';
 
@@ -106,6 +106,21 @@ const ChatHistory: React.FC<ChatHistoryProps> = ({ taskId, collaborationId }) =>
   const handleBack = () => {
     setSelectedSession(null);
     setMessages([]);
+  };
+
+  const handleCancelTask = async (sessionId: number, taskId: number | null) => {
+    if (!taskId) {
+      message.warning('此会话没有关联的任务');
+      return;
+    }
+    
+    try {
+      await collaborationService.updateTaskStatus(String(taskId), 'Cancelled');
+      message.success('任务已关闭');
+      loadSessions();
+    } catch (error) {
+      message.error('关闭任务失败');
+    }
   };
 
   const parseMetadata = (metadataStr: string | null): SessionMetadata | null => {
@@ -354,6 +369,39 @@ const ChatHistory: React.FC<ChatHistoryProps> = ({ taskId, collaborationId }) =>
       key: 'startedAt',
       width: 170,
       render: (time: string) => new Date(time).toLocaleString('zh-CN'),
+    },
+    {
+      title: '操作',
+      key: 'action',
+      width: 80,
+      render: (_, record) => {
+        if (record.status.toLowerCase() !== 'running') {
+          return null;
+        }
+        
+        return (
+          <Popconfirm
+            title="确定关闭此任务吗？"
+            description="关闭后将停止任务执行"
+            onConfirm={(e) => {
+              e?.stopPropagation();
+              handleCancelTask(record.id, record.taskId);
+            }}
+            okText="确定"
+            cancelText="取消"
+          >
+            <Button 
+              type="link" 
+              size="small"
+              danger
+              icon={<StopOutlined />}
+              onClick={(e) => e.stopPropagation()}
+            >
+              关闭
+            </Button>
+          </Popconfirm>
+        );
+      },
     },
   ];
 

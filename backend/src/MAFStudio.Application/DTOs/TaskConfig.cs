@@ -17,11 +17,11 @@ public class TaskConfig
     public string WorkflowType { get; set; } = "GroupChat";
 
     /// <summary>
-    /// 群聊协调模式（默认 RoundRobin）
+    /// 群聊协调模式（默认 Manager）
     /// 仅当 WorkflowType = GroupChat 时有效
     /// </summary>
     [JsonPropertyName("orchestrationMode")]
-    public string OrchestrationMode { get; set; } = "RoundRobin";
+    public string OrchestrationMode { get; set; } = "Manager";
 
     /// <summary>
     /// 协调者 Agent ID（Manager 模式需要）

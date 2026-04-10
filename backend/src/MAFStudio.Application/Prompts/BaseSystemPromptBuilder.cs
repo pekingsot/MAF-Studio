@@ -8,11 +8,20 @@ public abstract class BaseSystemPromptBuilder : ISystemPromptBuilder
         
         if (!string.IsNullOrEmpty(context.AgentPrompt))
         {
-            var agentPrompt = ReplaceVariables(context.AgentPrompt, context);
-            prompt += agentPrompt;
+            prompt += context.AgentPrompt;
         }
         
-        return prompt;
+        if (!string.IsNullOrEmpty(context.TaskDescription))
+        {
+            prompt += "\n\n任务描述：\n" + context.TaskDescription;
+        }
+        
+        if (!string.IsNullOrEmpty(context.TaskPrompt))
+        {
+            prompt += "\n\n任务要求：\n" + context.TaskPrompt;
+        }
+        
+        return ReplaceVariables(prompt, context);
     }
     
     protected abstract string BuildModeInstruction();
@@ -23,6 +32,8 @@ public abstract class BaseSystemPromptBuilder : ISystemPromptBuilder
             .Replace("{{agent_name}}", context.AgentName)
             .Replace("{{agent_role}}", context.AgentRole)
             .Replace("{{agent_type}}", context.AgentTypeName)
-            .Replace("{{members}}", context.MembersInfo);
+            .Replace("{{members}}", context.MembersInfo)
+            .Replace("{{taskDescription}}", context.TaskDescription ?? "")
+            .Replace("{{taskPrompt}}", context.TaskPrompt ?? "");
     }
 }

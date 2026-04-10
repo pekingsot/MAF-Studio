@@ -148,6 +148,11 @@ export const collaborationService = {
     await api.delete(`/collaborations/tasks/${taskId}`);
   },
 
+  batchDeleteTasks: async (taskIds: number[]): Promise<{ success: boolean; message: string; successCount: number; failedCount: number }> => {
+    const response = await api.post(`/collaborations/batch-delete-tasks`, { TaskIds: taskIds });
+    return response.data;
+  },
+
   getTaskAgents: async (taskId: string): Promise<number[]> => {
     const response = await api.get<number[]>(`/collaborations/tasks/${taskId}/agents`);
     return response.data;

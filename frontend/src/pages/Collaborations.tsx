@@ -1,16 +1,16 @@
-import React, { useEffect, useState, useRef } from 'react';
-import { Table, Button, Modal, Form, Input, Tag, Space, message, Tabs, Select, Popconfirm, Divider, Row, Col, Alert, Radio, InputNumber, Typography, Card, Tooltip, Transfer, Collapse, Switch } from 'antd';
-import type { RadioChangeEvent } from 'antd';
-import type { TransferProps } from 'antd';
-import { PlusOutlined, EditOutlined, DeleteOutlined, TeamOutlined, UserOutlined, FolderOutlined, PlayCircleOutlined, EyeOutlined, MessageOutlined, SettingOutlined, SwapOutlined, CrownOutlined, BulbOutlined, InfoCircleOutlined, MailOutlined, ApartmentOutlined, DashboardOutlined } from '@ant-design/icons';
+import React, { useState, useRef, useMemo, useCallback } from 'react';
+import { Table, Button, Modal, Form, Input, Tag, Space, message, Tabs, Select, Popconfirm, Row, Col, Alert, Radio, InputNumber, Typography, Tooltip, Transfer, Collapse, Switch } from 'antd';
+import { PlusOutlined, EditOutlined, DeleteOutlined, TeamOutlined, UserOutlined, FolderOutlined, EyeOutlined, SwapOutlined, CrownOutlined, BulbOutlined, InfoCircleOutlined, MailOutlined, ApartmentOutlined, DashboardOutlined, QuestionCircleOutlined, StopOutlined } from '@ant-design/icons';
 import { collaborationService, Collaboration } from '../services/collaborationService';
 import { agentService, Agent } from '../services/agentService';
 import { useNavigate } from 'react-router-dom';
 import ChatHistory from './collaboration-detail/ChatHistory';
 import { getApiUrl } from '../config/api';
+import { useCollaborations } from '../hooks/useCollaborations';
+import CollaborationTasks from '../components/CollaborationTasks';
 
 const { Option } = Select;
-const { Title, Text } = Typography;
+const { Text } = Typography;
 
 const orchestrationModeConfig = {
   roundRobin: {
@@ -35,9 +35,15 @@ const orchestrationModeConfig = {
 
 const Collaborations: React.FC = () => {
   const navigate = useNavigate();
-  const [collaborations, setCollaborations] = useState<Collaboration[]>([]);
-  const [agents, setAgents] = useState<Agent[]>([]);
-  const [loading, setLoading] = useState(false);
+  const {
+    collaborations,
+    agents,
+    loading,
+    loadCollaborationData,
+    refreshCollaboration,
+    setCollaborations,
+  } = useCollaborations();
+  
   const [modalVisible, setModalVisible] = useState(false);
   const [addAgentModalVisible, setAddAgentModalVisible] = useState(false);
   const [createTaskModalVisible, setCreateTaskModalVisible] = useState(false);
@@ -69,66 +75,6 @@ const Collaborations: React.FC = () => {
   const [taskThresholds, setTaskThresholds] = useState<string>('');
   const initializedRef = useRef(false);
 
-  useEffect(() => {
-    if (!initializedRef.current) {
-      initializedRef.current = true;
-      loadData();
-    }
-  }, []);
-
-  const loadData = async () => {
-    try {
-      setLoading(true);
-      const [collaborationsData, agentsResponse] = await Promise.all([
-        collaborationService.getAllCollaborations(),
-        agentService.getAllAgents(),
-      ]);
-      setCollaborations(collaborationsData);
-      setAgents(agentsResponse || []);
-    } catch (error) {
-      message.error('加载数据失败');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const loadCollaborationAgents = async (collaborationId: string) => {
-    try {
-      const agents = await collaborationService.getCollaborationAgents(collaborationId);
-      setCollaborations(prev => 
-        prev.map(c => 
-          c.id === collaborationId 
-            ? { ...c, agents } 
-            : c
-        )
-      );
-    } catch (error) {
-      message.error('加载智能体失败');
-    }
-  };
-
-  const loadCollaborationTasks = async (collaborationId: string) => {
-    try {
-      const tasks = await collaborationService.getCollaborationTasks(collaborationId);
-      setCollaborations(prev => 
-        prev.map(c => 
-          c.id === collaborationId 
-            ? { ...c, tasks } 
-            : c
-        )
-      );
-    } catch (error) {
-      message.error('加载任务失败');
-    }
-  };
-
-  const loadCollaborationData = async (collaborationId: string) => {
-    await Promise.all([
-      loadCollaborationAgents(collaborationId),
-      loadCollaborationTasks(collaborationId),
-    ]);
-  };
-
   const handleCreate = () => {
     setSelectedCollaboration(null);
     form.resetFields();
@@ -139,25 +85,22 @@ const Collaborations: React.FC = () => {
     try {
       const values = await form.validateFields();
       
-      // 将 SMTP 配置转换为 JSON 字符串
       if (values.smtp && values.smtp.server) {
         values.config = JSON.stringify({ smtp: values.smtp });
       }
       delete values.smtp;
       
       if (selectedCollaboration) {
-        // 编辑模式
         await collaborationService.updateCollaboration(selectedCollaboration.id, values);
         message.success('更新成功');
       } else {
-        // 创建模式
         await collaborationService.createCollaboration(values);
         message.success('创建成功');
       }
       
       setModalVisible(false);
       setSelectedCollaboration(null);
-      loadData();
+      await loadCollaborationData(selectedCollaboration?.id || '');
     } catch (error) {
       message.error(selectedCollaboration ? '更新失败' : '创建失败');
     }
@@ -177,7 +120,7 @@ const Collaborations: React.FC = () => {
         await collaborationService.addAgentToCollaboration(selectedCollaboration.id, values);
         message.success('添加成功');
         setAddAgentModalVisible(false);
-        loadCollaborationAgents(selectedCollaboration.id);
+        await refreshCollaboration(selectedCollaboration.id);
       }
     } catch (error: any) {
       const errorMessage = error?.response?.data?.message || error?.message || '添加失败';
@@ -189,7 +132,6 @@ const Collaborations: React.FC = () => {
     setSelectedAgentId(agentId);
     const selectedAgent = agents.find(a => a.id === agentId);
     
-    // 自动填充系统提示词到自定义提示词
     const customPrompt = selectedAgent?.systemPrompt || '';
     
     addAgentForm.setFieldsValue({ 
@@ -202,8 +144,12 @@ const Collaborations: React.FC = () => {
     setSelectedCollaboration(collaboration);
     createTaskForm.resetFields();
     setSelectedTaskAgents([]);
-    setTaskOrchestrationMode('RoundRobin');
-    setTaskManagerAgentId(null);
+    
+    const defaultManager = collaboration.agents?.find(a => a.role === 'Manager');
+    const defaultMode = defaultManager ? 'Manager' : 'RoundRobin';
+    
+    setTaskOrchestrationMode(defaultMode);
+    setTaskManagerAgentId(defaultManager?.agentId || null);
     setTaskManagerCustomPrompt('');
     setTaskMaxIterations(10);
     setCreateTaskModalVisible(true);
@@ -259,7 +205,7 @@ const Collaborations: React.FC = () => {
         await collaborationService.createTask(selectedCollaboration.id, values);
         message.success('创建成功');
         handleCloseCreateTask();
-        loadCollaborationTasks(selectedCollaboration.id);
+        await refreshCollaboration(selectedCollaboration.id);
       }
     } catch (error) {
       message.error('创建失败');
@@ -270,7 +216,6 @@ const Collaborations: React.FC = () => {
     try {
       await collaborationService.deleteCollaboration(id);
       message.success('删除成功');
-      loadData();
     } catch (error) {
       message.error('删除失败');
     }
@@ -280,7 +225,7 @@ const Collaborations: React.FC = () => {
     try {
       await collaborationService.removeAgentFromCollaboration(collaborationId, agentId);
       message.success('移除成功');
-      loadCollaborationAgents(collaborationId);
+      await refreshCollaboration(collaborationId);
     } catch (error) {
       message.error('移除失败');
     }
@@ -397,7 +342,7 @@ const Collaborations: React.FC = () => {
       await collaborationService.updateTask(editingTask.id, values);
       message.success('任务更新成功');
       handleCloseEditTask();
-      loadCollaborationTasks(editingTask.collaborationId);
+      await refreshCollaboration(editingTask.collaborationId);
     } catch (error) {
       message.error('更新任务失败');
     }
@@ -407,7 +352,7 @@ const Collaborations: React.FC = () => {
     try {
       await collaborationService.deleteTask(task.id);
       message.success('任务删除成功');
-      loadCollaborationTasks(task.collaborationId);
+      await refreshCollaboration(task.collaborationId);
     } catch (error) {
       message.error('删除任务失败');
     }
@@ -561,7 +506,9 @@ const Collaborations: React.FC = () => {
                 setExecutionMessages(prev => [...prev, {
                   sender: data.sender,
                   content: data.content,
-                  timestamp: data.timestamp || new Date().toISOString()
+                  timestamp: data.timestamp || new Date().toISOString(),
+                  role: data.role || 'assistant',
+                  metadata: data.metadata
                 }]);
               }
             } catch {}
@@ -603,7 +550,7 @@ const Collaborations: React.FC = () => {
         );
         message.success('更新成功');
         setEditAgentModalVisible(false);
-        loadCollaborationAgents(selectedCollaboration.id);
+        await refreshCollaboration(selectedCollaboration.id);
       }
     } catch (error) {
       message.error('更新失败');
@@ -721,107 +668,7 @@ const Collaborations: React.FC = () => {
     },
   ];
 
-  const taskColumns = [
-    {
-      title: 'ID',
-      dataIndex: 'id',
-      key: 'id',
-      width: '6%',
-    },
-    {
-      title: '标题',
-      dataIndex: 'title',
-      key: 'title',
-      width: '20%',
-      ellipsis: true,
-    },
-    {
-      title: '描述',
-      dataIndex: 'description',
-      key: 'description',
-      width: '32%',
-      ellipsis: true,
-    },
-    {
-      title: '状态',
-      dataIndex: 'status',
-      key: 'status',
-      width: '8%',
-      render: (status: string) => {
-        const colorMap: Record<string, string> = {
-          Pending: 'default',
-          InProgress: 'processing',
-          Completed: 'success',
-          Failed: 'error',
-        };
-        const textMap: Record<string, string> = {
-          Pending: '待处理',
-          InProgress: '进行中',
-          Completed: '已完成',
-          Failed: '失败',
-        };
-        return <Tag color={colorMap[status]}>{textMap[status] || status}</Tag>;
-      },
-    },
-    {
-      title: '创建时间',
-      dataIndex: 'createdAt',
-      key: 'createdAt',
-      width: '15%',
-      render: (date: string) => new Date(date).toLocaleString('zh-CN'),
-    },
-    {
-      title: '操作',
-      key: 'action',
-      width: '19%',
-      render: (_: any, record: any) => (
-        <Space size="small" wrap>
-          <Button 
-            type="link" 
-            size="small"
-            icon={<PlayCircleOutlined />}
-            onClick={() => handleExecuteTask(record)}
-          >
-            执行
-          </Button>
-          <Button 
-            type="link" 
-            size="small"
-            icon={<EditOutlined />}
-            onClick={() => handleEditTask(record)}
-          >
-            编辑
-          </Button>
-          <Button 
-            type="link" 
-            size="small"
-            icon={<MessageOutlined />}
-            onClick={() => handleViewChatHistory(record)}
-          >
-            团队协作过程
-          </Button>
-          <Popconfirm
-            title="确定删除此任务吗？"
-            description="删除后将无法恢复"
-            onConfirm={() => handleDeleteTask(record)}
-            okText="确定"
-            cancelText="取消"
-          >
-            <Button 
-              type="link" 
-              size="small"
-              danger
-              icon={<DeleteOutlined />}
-            >
-              删除
-            </Button>
-          </Popconfirm>
-        </Space>
-      ),
-    },
-  ];
-
-  const expandedRowRender = (record: Collaboration) => {
+  const expandedRowRender = useCallback((record: Collaboration) => {
     return (
       <Tabs
         defaultActiveKey="agents"
@@ -953,27 +800,32 @@ const Collaborations: React.FC = () => {
             key: 'tasks',
             label: '任务',
             children: (
-              <div>
-                <Button
-                  type="primary"
-                  onClick={() => handleCreateTask(record)}
-                  style={{ marginBottom: 16 }}
-                >
-                  创建任务
-                </Button>
-                <Table
-                  dataSource={record.tasks}
-                  columns={taskColumns}
-                  rowKey="id"
-                  pagination={false}
-                />
-              </div>
+              <CollaborationTasks
+                collaborationId={record.id}
+                tasks={record.tasks}
+                onCreate={() => handleCreateTask(record)}
+                onExecute={handleExecuteTask}
+                onEdit={handleEditTask}
+                onViewHistory={handleViewChatHistory}
+                onDelete={handleDeleteTask}
+                onRefresh={() => refreshCollaboration(record.id)}
+              />
             ),
           },
         ]}
       />
     );
-  };
+  }, [
+    handleAddAgent,
+    handleRemoveAgent,
+    handleEditAgent,
+    handleCreateTask,
+    handleExecuteTask,
+    handleEditTask,
+    handleViewChatHistory,
+    handleDeleteTask,
+    refreshCollaboration,
+  ]);
 
   return (
     <div>
@@ -1384,6 +1236,19 @@ const Collaborations: React.FC = () => {
           </Form.Item>
           
           <Form.Item 
+            label="任务提示词" 
+            name="prompt"
+            tooltip="任务的具体要求和目标，Agent会根据此提示词执行任务"
+          >
+            <Input.TextArea 
+              rows={4} 
+              placeholder="请输入任务提示词，详细描述任务要求和目标" 
+              showCount
+              maxLength={2000}
+            />
+          </Form.Item>
+          
+          <Form.Item 
             label={<span><TeamOutlined style={{ color: '#1890ff', marginRight: 4 }} />队员（Worker类型）</span>}
             required
             tooltip="至少选择一个Worker类型的Agent"
@@ -1435,7 +1300,19 @@ const Collaborations: React.FC = () => {
                             <Space>
                               <BulbOutlined style={{ color: '#722ed1' }} />
                               <span>Magentic智能工作流</span>
-                              <Text type="secondary" style={{ fontSize: 12 }}>MagenticManager动态协调Worker</Text>
+                              <Tooltip title={
+                                <div>
+                                  <p><strong>框架将使用所选的协调者，负责：</strong></p>
+                                  <ul style={{ marginTop: 8, marginBottom: 8, paddingLeft: 20 }}>
+                                    <li><strong>规划：</strong>分析任务，制定执行计划，维护任务账本</li>
+                                    <li><strong>分派：</strong>根据当前进度决定由哪个Worker执行下一步</li>
+                                    <li><strong>反思：</strong>检查Worker的产出是否达标，维护进度账本</li>
+                                  </ul>
+                                  <p style={{ marginTop: 8, color: '#1890ff' }}>所有团队成员都作为Worker参与执行，不需要指定Manager Agent</p>
+                                </div>
+                              }>
+                                <QuestionCircleOutlined style={{ color: '#1890ff', cursor: 'pointer' }} />
+                              </Tooltip>
                             </Space>
                           </Radio>
                         </Space>
@@ -1445,44 +1322,70 @@ const Collaborations: React.FC = () => {
                     <Form.Item 
                       label={<span><CrownOutlined style={{ color: '#faad14', marginRight: 4 }} />协调者（Manager类型）</span>}
                       required
-                      tooltip="协调者负责引导整个工作流的流转"
                     >
-                      <Select
-                        placeholder="请选择协调者（Manager类型）"
-                        value={taskManagerAgentId}
-                        onChange={(value) => setTaskManagerAgentId(value)}
-                        style={{ width: '100%' }}
-                      >
-                        {selectedCollaboration?.agents?.filter(agent => agent.role === 'Manager').map(agent => (
-                          <Option key={agent.agentId} value={agent.agentId}>
-                            <Space>
-                              <CrownOutlined style={{ color: '#faad14' }} />
-                              {agent.agentName}
-                              <Tag color="gold">Manager</Tag>
-                            </Space>
-                          </Option>
-                        ))}
-                      </Select>
+                      <Row gutter={16}>
+                        <Col span={12}>
+                          <Select
+                            placeholder="请选择协调者（Manager类型）"
+                            value={taskManagerAgentId}
+                            onChange={(value) => setTaskManagerAgentId(value)}
+                            style={{ width: '100%' }}
+                          >
+                            {selectedCollaboration?.agents?.filter(agent => agent.role === 'Manager').map(agent => (
+                              <Option key={agent.agentId} value={agent.agentId}>
+                                <Space>
+                                  <CrownOutlined style={{ color: '#faad14' }} />
+                                  {agent.agentName}
+                                  <Tag color="gold">Manager</Tag>
+                                </Space>
+                              </Option>
+                            ))}
+                          </Select>
+                        </Col>
+                        <Col span={12}>
+                          <Space>
+                            <Text>最大迭代次数：</Text>
+                            <InputNumber 
+                              min={1} 
+                              max={50} 
+                              value={taskMaxIterations}
+                              onChange={(value) => setTaskMaxIterations(value || 10)}
+                              style={{ width: 100 }}
+                            />
+                            <Tooltip title="Agent发言的最大轮次，超过此轮次后工作流将自动停止">
+                              <QuestionCircleOutlined style={{ color: '#ff4d4f', cursor: 'pointer' }} />
+                            </Tooltip>
+                          </Space>
+                        </Col>
+                      </Row>
                     </Form.Item>
                     
-                    <Alert
-                      message="协调者提示词"
-                      description={
-                        <div>
-                          <p>协调者的提示词将影响整个工作流的流转逻辑，请仔细编写！</p>
-                          <p style={{ marginTop: 8, fontSize: 12, color: '#666' }}>
-                            留空则使用协调者Agent的默认提示词
-                          </p>
-                        </div>
+                    <Form.Item 
+                      label={
+                        <Space>
+                          <span>自定义协调者提示词</span>
+                          <Tooltip title={
+                            <div>
+                              <p><strong>协调者的提示词将影响整个工作流的流转逻辑，请仔细编写！</strong></p>
+                              <p style={{ marginTop: 8 }}>协调者负责：</p>
+                              <ul style={{ marginTop: 4, marginBottom: 4, paddingLeft: 20 }}>
+                                <li>分析当前讨论内容</li>
+                                <li>决定下一个发言的Agent</li>
+                                <li>确保讨论不偏离主题</li>
+                                <li>引导工作流顺利完成</li>
+                              </ul>
+                              <p style={{ marginTop: 8, color: '#ff4d4f' }}>⚠️ 此字段为必填项，不能为空！</p>
+                            </div>
+                          }>
+                            <QuestionCircleOutlined style={{ color: '#ff4d4f', cursor: 'pointer' }} />
+                          </Tooltip>
+                        </Space>
                       }
-                      type="warning"
-                      showIcon
-                      style={{ marginBottom: 12 }}
-                    />
-                    
-                    <Form.Item label="自定义协调者提示词（可选）">
+                      required
+                      rules={[{ required: true, message: '请输入自定义协调者提示词' }]}
+                    >
                       <Input.TextArea
-                        rows={6}
+                        rows={8}
                         placeholder={`自定义协调者提示词，将覆盖协调者Agent的默认提示词。
 
 示例：
@@ -1491,7 +1394,13 @@ const Collaborations: React.FC = () => {
 你的职责：
 1. 分析当前讨论内容
 2. 决定下一个发言的Agent
-3. 确保讨论不偏离主题`}
+3. 确保讨论不偏离主题
+4. 引导工作流顺利完成
+
+注意事项：
+- 根据任务需求和Agent专长选择合适的发言者
+- 确保讨论有序进行，避免重复发言
+- 在合适的时机总结讨论成果`}
                         value={taskManagerCustomPrompt}
                         onChange={(e) => setTaskManagerCustomPrompt(e.target.value)}
                       />
@@ -1499,27 +1408,6 @@ const Collaborations: React.FC = () => {
 
                     {taskWorkflowType === 'ReviewIterative' && (
                       <>
-                        <Alert
-                          message="Magentic智能工作流"
-                          description={
-                            <div>
-                              <p>框架将自动创建独立的<strong>MagenticManager</strong>作为协调者，负责：</p>
-                              <ul style={{ marginTop: 8, marginBottom: 0 }}>
-                                <li>规划：分析任务，制定执行计划，维护任务账本（Task Ledger）</li>
-                                <li>分派：根据当前进度决定由哪个Worker执行下一步</li>
-                                <li>反思：检查Worker的产出是否达标，维护进度账本（Progress Ledger）</li>
-                              </ul>
-                              <p style={{ marginTop: 8, color: '#1890ff' }}>
-                                <InfoCircleOutlined style={{ marginRight: 4 }} />
-                                所有团队成员都作为Worker参与执行，不需要指定Manager Agent
-                              </p>
-                            </div>
-                          }
-                          type="info"
-                          showIcon
-                          style={{ marginBottom: 16 }}
-                        />
-                        
                         <Form.Item 
                           label={<span><ApartmentOutlined style={{ marginRight: 4 }} />工作流计划</span>}
                           help="可选：选择已有的工作流计划，或留空让MagenticManager动态生成"
@@ -1567,46 +1455,7 @@ const Collaborations: React.FC = () => {
                         </Form.Item>
                       </>
                     )}
-                    
-                    <Form.Item label="最大迭代次数">
-                      <InputNumber 
-                        min={1} 
-                        max={50} 
-                        value={taskMaxIterations}
-                        onChange={(value) => setTaskMaxIterations(value || 10)}
-                        style={{ width: 120 }}
-                      />
-                      <Text type="secondary" style={{ marginLeft: 8, fontSize: 12 }}>
-                        {taskWorkflowType === 'GroupChat' ? 'Agent发言的最大轮次' : 'Manager审阅的最大轮次'}
-                      </Text>
-                    </Form.Item>
                   </>
-                )
-              },
-              {
-                key: 'prompt',
-                label: '任务提示词',
-                children: (
-                  <Form.Item 
-                    label={<span style={{ display: 'none' }}>任务提示词</span>}
-                    name="prompt"
-                    tooltip="任务级别的提示词，所有参与此任务的Agent都会收到这段提示词"
-                  >
-                    <Input.TextArea 
-                      rows={6} 
-                      placeholder={`【任务要求】
-请各位团队成员根据任务描述，积极参与讨论并提交自己的专业观点。
-
-【Git提交要求】
-讨论结束后，每个成员必须将自己的观点文档提交到Git仓库。
-
-【注意事项】
-- 文档内容要体现专业见解
-- 必须真实调用Git工具提交
-
-支持变量: {{agent_name}}, {{agent_role}}, {{agent_type}}, {{members}}`}
-                    />
-                  </Form.Item>
                 )
               }
             ]}
@@ -1633,6 +1482,19 @@ const Collaborations: React.FC = () => {
           
           <Form.Item label="描述" name="description">
             <Input.TextArea rows={2} placeholder="请输入任务描述" />
+          </Form.Item>
+          
+          <Form.Item 
+            label="任务提示词" 
+            name="prompt"
+            tooltip="任务的具体要求和目标，Agent会根据此提示词执行任务"
+          >
+            <Input.TextArea 
+              rows={4} 
+              placeholder="请输入任务提示词，详细描述任务要求和目标" 
+              showCount
+              maxLength={2000}
+            />
           </Form.Item>
           
           <Form.Item 
@@ -1687,7 +1549,19 @@ const Collaborations: React.FC = () => {
                             <Space>
                               <BulbOutlined style={{ color: '#722ed1' }} />
                               <span>Magentic智能工作流</span>
-                              <Text type="secondary" style={{ fontSize: 12 }}>MagenticManager动态协调Worker</Text>
+                              <Tooltip title={
+                                <div>
+                                  <p><strong>框架将使用所选的协调者，负责：</strong></p>
+                                  <ul style={{ marginTop: 8, marginBottom: 8, paddingLeft: 20 }}>
+                                    <li><strong>规划：</strong>分析任务，制定执行计划，维护任务账本</li>
+                                    <li><strong>分派：</strong>根据当前进度决定由哪个Worker执行下一步</li>
+                                    <li><strong>反思：</strong>检查Worker的产出是否达标，维护进度账本</li>
+                                  </ul>
+                                  <p style={{ marginTop: 8, color: '#1890ff' }}>所有团队成员都作为Worker参与执行，不需要指定Manager Agent</p>
+                                </div>
+                              }>
+                                <QuestionCircleOutlined style={{ color: '#1890ff', cursor: 'pointer' }} />
+                              </Tooltip>
                             </Space>
                           </Radio>
                         </Space>
@@ -1697,44 +1571,70 @@ const Collaborations: React.FC = () => {
                     <Form.Item 
                       label={<span><CrownOutlined style={{ color: '#faad14', marginRight: 4 }} />协调者（Manager类型）</span>}
                       required
-                      tooltip="协调者负责引导整个工作流的流转"
                     >
-                      <Select
-                        placeholder="请选择协调者（Manager类型）"
-                        value={taskManagerAgentId}
-                        onChange={(value) => setTaskManagerAgentId(value)}
-                        style={{ width: '100%' }}
-                      >
-                        {selectedCollaboration?.agents?.filter(agent => agent.role === 'Manager').map(agent => (
-                          <Option key={agent.agentId} value={agent.agentId}>
-                            <Space>
-                              <CrownOutlined style={{ color: '#faad14' }} />
-                              {agent.agentName}
-                              <Tag color="gold">Manager</Tag>
-                            </Space>
-                          </Option>
-                        ))}
-                      </Select>
+                      <Row gutter={16}>
+                        <Col span={12}>
+                          <Select
+                            placeholder="请选择协调者（Manager类型）"
+                            value={taskManagerAgentId}
+                            onChange={(value) => setTaskManagerAgentId(value)}
+                            style={{ width: '100%' }}
+                          >
+                            {selectedCollaboration?.agents?.filter(agent => agent.role === 'Manager').map(agent => (
+                              <Option key={agent.agentId} value={agent.agentId}>
+                                <Space>
+                                  <CrownOutlined style={{ color: '#faad14' }} />
+                                  {agent.agentName}
+                                  <Tag color="gold">Manager</Tag>
+                                </Space>
+                              </Option>
+                            ))}
+                          </Select>
+                        </Col>
+                        <Col span={12}>
+                          <Space>
+                            <Text>最大迭代次数：</Text>
+                            <InputNumber 
+                              min={1} 
+                              max={50} 
+                              value={taskMaxIterations}
+                              onChange={(value) => setTaskMaxIterations(value || 10)}
+                              style={{ width: 100 }}
+                            />
+                            <Tooltip title="Agent发言的最大轮次，超过此轮次后工作流将自动停止">
+                              <QuestionCircleOutlined style={{ color: '#ff4d4f', cursor: 'pointer' }} />
+                            </Tooltip>
+                          </Space>
+                        </Col>
+                      </Row>
                     </Form.Item>
                     
-                    <Alert
-                      message="协调者提示词"
-                      description={
-                        <div>
-                          <p>协调者的提示词将影响整个工作流的流转逻辑，请仔细编写！</p>
-                          <p style={{ marginTop: 8, fontSize: 12, color: '#666' }}>
-                            留空则使用协调者Agent的默认提示词
-                          </p>
-                        </div>
+                    <Form.Item 
+                      label={
+                        <Space>
+                          <span>自定义协调者提示词</span>
+                          <Tooltip title={
+                            <div>
+                              <p><strong>协调者的提示词将影响整个工作流的流转逻辑，请仔细编写！</strong></p>
+                              <p style={{ marginTop: 8 }}>协调者负责：</p>
+                              <ul style={{ marginTop: 4, marginBottom: 4, paddingLeft: 20 }}>
+                                <li>分析当前讨论内容</li>
+                                <li>决定下一个发言的Agent</li>
+                                <li>确保讨论不偏离主题</li>
+                                <li>引导工作流顺利完成</li>
+                              </ul>
+                              <p style={{ marginTop: 8, color: '#ff4d4f' }}>⚠️ 此字段为必填项，不能为空！</p>
+                            </div>
+                          }>
+                            <QuestionCircleOutlined style={{ color: '#ff4d4f', cursor: 'pointer' }} />
+                          </Tooltip>
+                        </Space>
                       }
-                      type="warning"
-                      showIcon
-                      style={{ marginBottom: 12 }}
-                    />
-                    
-                    <Form.Item label="自定义协调者提示词（可选）">
+                      required
+                      rules={[{ required: true, message: '请输入自定义协调者提示词' }]}
+                    >
                       <Input.TextArea
-                        rows={6}
+                        rows={8}
                         placeholder={`自定义协调者提示词，将覆盖协调者Agent的默认提示词。
 
 示例：
@@ -1743,7 +1643,13 @@ const Collaborations: React.FC = () => {
 你的职责：
 1. 分析当前讨论内容
 2. 决定下一个发言的Agent
-3. 确保讨论不偏离主题`}
+3. 确保讨论不偏离主题
+4. 引导工作流顺利完成
+
+注意事项：
+- 根据任务需求和Agent专长选择合适的发言者
+- 确保讨论有序进行，避免重复发言
+- 在合适的时机总结讨论成果`}
                         value={taskManagerCustomPrompt}
                         onChange={(e) => setTaskManagerCustomPrompt(e.target.value)}
                       />
@@ -1751,14 +1657,6 @@ const Collaborations: React.FC = () => {
 
                     {taskWorkflowType === 'ReviewIterative' && (
                       <>
-                        <Alert
-                          message="Magentic智能工作流"
-                          description="Manager Agent将动态生成工作流计划，并根据任务账本和进度账本进行双环规划。"
-                          type="info"
-                          showIcon
-                          style={{ marginBottom: 16 }}
-                        />
-                        
                         <Form.Item 
                           label={<span><ApartmentOutlined style={{ marginRight: 4 }} />工作流计划</span>}
                           help="可选：选择已有的工作流计划，或留空让Manager动态生成"
@@ -1806,46 +1704,7 @@ const Collaborations: React.FC = () => {
                         </Form.Item>
                       </>
                     )}
-                    
-                    <Form.Item label="最大迭代次数">
-                      <InputNumber 
-                        min={1} 
-                        max={50} 
-                        value={taskMaxIterations}
-                        onChange={(value) => setTaskMaxIterations(value || 10)}
-                        style={{ width: 120 }}
-                      />
-                      <Text type="secondary" style={{ marginLeft: 8, fontSize: 12 }}>
-                        {taskWorkflowType === 'GroupChat' ? 'Agent发言的最大轮次' : 'Manager审阅的最大轮次'}
-                      </Text>
-                    </Form.Item>
                   </>
-                )
-              },
-              {
-                key: 'prompt',
-                label: '任务提示词',
-                children: (
-                  <Form.Item 
-                    label={<span style={{ display: 'none' }}>任务提示词</span>}
-                    name="prompt"
-                    tooltip="任务级别的提示词，所有参与此任务的Agent都会收到这段提示词"
-                  >
-                    <Input.TextArea 
-                      rows={6} 
-                      placeholder={`【任务要求】
-请各位团队成员根据任务描述，积极参与讨论并提交自己的专业观点。
-
-【Git提交要求】
-讨论结束后，每个成员必须将自己的观点文档提交到Git仓库。
-
-【注意事项】
-- 文档内容要体现专业见解
-- 必须真实调用Git工具提交
-
-支持变量: {{agent_name}}, {{agent_role}}, {{agent_type}}, {{members}}`}
-                    />
-                  </Form.Item>
                 )
               }
             ]}
@@ -2015,26 +1874,79 @@ const Collaborations: React.FC = () => {
             </div>
           )}
           
-          {executionMessages.map((msg, index) => (
-            <div key={index} style={{ 
-              marginBottom: 16, 
-              padding: 12, 
-              backgroundColor: '#f5f5f5', 
-              borderRadius: 8 
-            }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-                <Tag color={msg.role === 'system' ? 'purple' : 'blue'}>
-                  {msg.sender || 'Agent'}
-                </Tag>
-                <Text type="secondary" style={{ fontSize: 12 }}>
-                  {msg.timestamp ? new Date(msg.timestamp).toLocaleString('zh-CN') : ''}
-                </Text>
+          {executionMessages.map((msg, index) => {
+            let agentsInfo: any[] = [];
+            
+            if (msg.role === 'system' && msg.metadata) {
+              try {
+                const metadata = typeof msg.metadata === 'string' ? JSON.parse(msg.metadata) : msg.metadata;
+                agentsInfo = metadata.agents || [];
+              } catch (e) {
+                console.error('Failed to parse metadata:', e);
+              }
+            }
+            
+            return (
+              <div key={index} style={{ 
+                marginBottom: 16, 
+                padding: 12, 
+                backgroundColor: '#f5f5f5', 
+                borderRadius: 8 
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                  <Tag color={msg.role === 'system' ? 'purple' : 'blue'}>
+                    {msg.sender || 'Agent'}
+                  </Tag>
+                  <Text type="secondary" style={{ fontSize: 12 }}>
+                    {msg.timestamp ? new Date(msg.timestamp).toLocaleString('zh-CN') : ''}
+                  </Text>
+                </div>
+                <div style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
+                  {msg.content}
+                </div>
+                {agentsInfo.length > 0 && (
+                  <div style={{ marginTop: 12 }}>
+                    <Text strong style={{ display: 'block', marginBottom: 8 }}>🤖 参与Agent：</Text>
+                    <Space wrap>
+                      {agentsInfo.map((agent: any) => (
+                        <Tooltip 
+                          key={agent.id}
+                          title={
+                            <div>
+                              <div><strong>角色：</strong>{agent.role}</div>
+                              <div><strong>类型：</strong>{agent.typeName || '未设置'}</div>
+                              <div><strong>模型：</strong>{agent.modelName}</div>
+                              <div style={{ marginTop: 8 }}><strong>最终提示词：</strong></div>
+                              <div style={{ 
+                                maxWidth: 400, 
+                                maxHeight: 300, 
+                                overflow: 'auto',
+                                whiteSpace: 'pre-wrap',
+                                wordBreak: 'break-word'
+                              }}>
+                                {agent.prompt}
+                              </div>
+                            </div>
+                          }
+                          placement="topLeft"
+                          overlayStyle={{ maxWidth: 600 }}
+                        >
+                          <Tag 
+                            color={agent.role === 'Manager' ? 'gold' : 'blue'}
+                            icon={agent.role === 'Manager' ? <CrownOutlined /> : <UserOutlined />}
+                            style={{ cursor: 'pointer' }}
+                          >
+                            {agent.name}
+                            {agent.role === 'Manager' && ' (协调者)'}
+                          </Tag>
+                        </Tooltip>
+                      ))}
+                    </Space>
+                  </div>
+                )}
               </div>
-              <div style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
-                {msg.content}
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </Modal>
     </div>

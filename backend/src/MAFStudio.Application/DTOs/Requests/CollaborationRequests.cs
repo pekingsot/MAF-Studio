@@ -71,6 +71,11 @@ public class UpdateTaskStatusRequest
     public string Status { get; set; } = "Pending";
 }
 
+public class BatchDeleteTasksRequest
+{
+    public List<long> TaskIds { get; set; } = new();
+}
+
 public class SendMessageRequest
 {
     public string Content { get; set; } = string.Empty;

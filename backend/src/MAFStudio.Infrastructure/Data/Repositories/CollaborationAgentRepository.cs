@@ -17,8 +17,9 @@ public class CollaborationAgentRepository : ICollaborationAgentRepository
     public async Task<List<CollaborationAgent>> GetByCollaborationIdAsync(long collaborationId)
     {
         using var connection = _context.CreateConnection();
-        var sql = @"
-            SELECT * FROM collaboration_agents 
+        const string sql = @"
+            SELECT id, collaboration_id, agent_id, role, custom_prompt, joined_at
+            FROM collaboration_agents 
             WHERE collaboration_id = @CollaborationId 
             ORDER BY id";
         
@@ -29,25 +30,23 @@ public class CollaborationAgentRepository : ICollaborationAgentRepository
     public async Task<List<CollaborationAgentWithDetails>> GetWithAgentDetailsByCollaborationIdAsync(long collaborationId)
     {
         using var connection = _context.CreateConnection();
-        var sql = @"
+        const string sql = @"
             SELECT 
-                ca.id,
-                ca.collaboration_id,
-                ca.agent_id,
-                ca.role,
-                ca.custom_prompt as CustomPrompt,
-                ca.joined_at,
-                a.name as agent_name,
-                a.type_name as agent_type,
+                ca.agent_id AS AgentId,
+                a.name AS AgentName,
+                a.type_name AS AgentType,
                 CASE a.status
                     WHEN 0 THEN 'Inactive'
                     WHEN 1 THEN 'Active'
                     WHEN 2 THEN 'Busy'
                     WHEN 3 THEN 'Error'
                     ELSE 'Inactive'
-                END as agent_status,
-                a.avatar as agent_avatar,
-                a.system_prompt as system_prompt
+                END AS AgentStatus,
+                a.avatar AS AgentAvatar,
+                ca.role AS Role,
+                ca.custom_prompt AS CustomPrompt,
+                a.system_prompt AS SystemPrompt,
+                ca.joined_at AS JoinedAt
             FROM collaboration_agents ca
             INNER JOIN agents a ON ca.agent_id = a.id
             WHERE ca.collaboration_id = @CollaborationId 

@@ -289,6 +289,34 @@ public class CollaborationsController : ControllerBase
         return CreatedAtAction(nameof(GetCollaboration), new { id }, task);
     }
 
+    [HttpPost("batch-delete-tasks")]
+    public async Task<ActionResult> BatchDeleteTasks([FromBody] BatchDeleteTasksRequest request)
+    {
+        var userId = User.GetUserId();
+        var successCount = 0;
+        var failedCount = 0;
+        
+        foreach (var taskId in request.TaskIds)
+        {
+            var result = await _collaborationService.DeleteTaskAsync(taskId, userId);
+            if (result)
+            {
+                successCount++;
+            }
+            else
+            {
+                failedCount++;
+            }
+        }
+        
+        return Ok(new { 
+            success = true, 
+            message = $"成功删除 {successCount} 个任务，失败 {failedCount} 个",
+            successCount,
+            failedCount
+        });
+    }
+
     [HttpPut("tasks/{taskId}")]
     public async Task<ActionResult<Core.Entities.CollaborationTask>> UpdateTask(long taskId, [FromBody] UpdateTaskRequest request)
     {

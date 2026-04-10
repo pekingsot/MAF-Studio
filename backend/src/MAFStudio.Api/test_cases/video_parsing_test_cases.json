@@ -1,0 +1,20 @@
+﻿[
+  {
+    "platform": "抖音",
+    "valid_url": "https://www.douyin.com/video/123456",
+    "invalid_url": "https://www.douyin.com/video/invalid",
+    "expected_result": {
+      "hd_url": "https://cdn.douyin.com/hd/123456.mp4",
+      "watermark": false
+    }
+  },
+  {
+    "platform": "快手",
+    "valid_url": "https://www.kuaishou.com/video/789012",
+    "invalid_url": "https://www.kuaishou.com/video/invalid",
+    "expected_result": {
+      "hd_url": "https://cdn.kuaishou.com/hd/789012.mp4",
+      "watermark": false
+    }
+  }
+]

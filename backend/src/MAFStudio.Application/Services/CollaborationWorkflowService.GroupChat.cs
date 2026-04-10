@@ -149,19 +149,23 @@ public partial class CollaborationWorkflowService
 
             var membersInfo = BuildMembersInfo(agentEntities);
 
+            string? taskDescription = null;
             string? taskPrompt = null;
             if (taskId.HasValue && taskId.Value > 0)
             {
                 var task = await _taskRepository.GetByIdAsync(taskId.Value);
                 if (task != null)
                 {
+                    taskDescription = task.Description;
                     taskPrompt = task.Prompt;
-                    _logger.LogInformation("任务提示词: HasPrompt={HasPrompt}", !string.IsNullOrEmpty(taskPrompt));
+                    _logger.LogInformation("任务描述: HasDescription={HasDescription}, 任务提示词: HasPrompt={HasPrompt}", 
+                        !string.IsNullOrEmpty(taskDescription), !string.IsNullOrEmpty(taskPrompt));
                 }
             }
 
             var mafAgents = new List<ChatClientAgent>();
             var agentIdToNameMap = new Dictionary<string, string>();
+            var agentSystemPrompts = new Dictionary<long, string>();
             ChatClientAgent? managerAgent = null;
             IChatClient? orchestratorChatClient = null;
             string? orchestratorAgentPrompt = null;
@@ -193,9 +197,12 @@ public partial class CollaborationWorkflowService
                     AgentRole = member.Role ?? "Worker",
                     AgentTypeName = agentEntity.TypeName ?? "",
                     MembersInfo = membersInfo,
+                    TaskDescription = taskDescription,
                     TaskPrompt = taskPrompt,
                     AgentPrompt = basePrompt
                 });
+                
+                agentSystemPrompts[member.AgentId] = systemPrompt;
                 
                 var agentDescription = $"专业{agentEntity.TypeName ?? "专家"}";
                 
@@ -264,6 +271,39 @@ public partial class CollaborationWorkflowService
             _logger.LogInformation("开始执行GroupChat工作流，模式: {Mode}, 输入: {Input}", 
                 parameters.OrchestrationMode, input);
 
+            var participants = parameters.OrchestrationMode == GroupChatOrchestrationMode.Manager && managerAgent != null
+                ? mafAgents.Where(a => a.Name != managerAgent.Name).Select(a => a.Name)
+                : mafAgents.Select(a => a.Name);
+
+            var agentsInfo = agentEntities.Select(a => new Dictionary<string, object>
+            {
+                ["id"] = a.Entity.Id,
+                ["name"] = a.Entity.Name,
+                ["role"] = a.Member.Role ?? "Worker",
+                ["typeName"] = a.Entity.TypeName ?? "",
+                ["modelName"] = a.Entity.LlmModelName ?? "未配置",
+                ["prompt"] = agentSystemPrompts.GetValueOrDefault(a.Member.AgentId, "You are a helpful assistant.")
+            }).ToList();
+
+            yield return new ChatMessageDto
+            {
+                Sender = "System",
+                Content = $"🎯 **工作流配置**\n\n" +
+                         $"- **模式**: {parameters.OrchestrationMode}\n" +
+                         $"- **最大轮次**: {parameters.MaxIterations}\n" +
+                         $"- **参与者**: {string.Join(", ", participants)}\n" +
+                         (parameters.OrchestrationMode == GroupChatOrchestrationMode.Manager && managerAgent != null 
+                             ? $"- **协调者**: {managerAgent.Name}\n" 
+                             : ""),
+                Timestamp = DateTime.UtcNow,
+                Role = "system",
+                Metadata = new Dictionary<string, object> 
+                { 
+                    ["agents"] = agentsInfo,
+                    ["taskPrompt"] = taskPrompt ?? ""
+                }
+            };
+
             await using var run = await InProcessExecution.RunStreamingAsync(workflow, messages);
             await run.TrySendMessageAsync(new TurnToken(emitEvents: true));
 
@@ -330,6 +370,36 @@ public partial class CollaborationWorkflowService
                         currentAgentId = executorId;
                         currentAgentContent.Clear();
                         _logger.LogInformation("Agent切换: {ExecutorId}, 名称: {Name}", executorId, GetAgentName(executorId));
+                        
+                        var newAgentName = GetAgentName(executorId);
+                        var member2 = members.FirstOrDefault(m => m.AgentId == agentIdMap.GetValueOrDefault(executorId.TrimStart('_'), 0));
+                        
+                        var thinkingSender = parameters.OrchestrationMode switch
+                        {
+                            GroupChatOrchestrationMode.Manager when managerAgent != null => managerAgent.Name,
+                            GroupChatOrchestrationMode.Intelligent => "AI协调者",
+                            _ => "System"
+                        };
+                        
+                        var thinkingReason = parameters.OrchestrationMode switch
+                        {
+                            GroupChatOrchestrationMode.RoundRobin => "轮询模式，按顺序选择",
+                            GroupChatOrchestrationMode.Manager => "协调者根据任务需求和上下文选择最合适的Agent",
+                            GroupChatOrchestrationMode.Intelligent => "AI分析对话历史，智能选择最优发言者",
+                            _ => "系统选择"
+                        };
+                        
+                        yield return new ChatMessageDto
+                        {
+                            Sender = thinkingSender,
+                            Content = $"🤔 **选择思考**\n\n" +
+                                     $"- **当前轮次**: {roundNumber + 1}\n" +
+                                     $"- **选择Agent**: {newAgentName}\n" +
+                                     $"- **角色**: {member2?.Role ?? "Worker"}\n" +
+                                     $"- **原因**: {thinkingReason}",
+                            Timestamp = DateTime.UtcNow,
+                            Role = "system"
+                        };
                     }
 
                     var update = updateEvent.Update;
@@ -499,8 +569,8 @@ public partial class CollaborationWorkflowService
             .Select(a => 
             {
                 var name = a.Entity.Name;
-                var typeName = a.Entity.TypeName ?? "";
-                return string.IsNullOrEmpty(typeName) ? $"- {name}" : $"- {name}（{typeName}）";
+                var typeName = a.Entity.TypeName ?? "成员";
+                return $"- {name}：负责{typeName}";
             });
         
         var result = string.Join("\n", members);

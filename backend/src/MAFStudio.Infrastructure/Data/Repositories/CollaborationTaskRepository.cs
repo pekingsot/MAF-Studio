@@ -2,6 +2,7 @@ using Dapper;
 using MAFStudio.Core.Entities;
 using MAFStudio.Core.Enums;
 using MAFStudio.Core.Interfaces.Repositories;
+using MAFStudio.Infrastructure.Data;
 
 namespace MAFStudio.Infrastructure.Data.Repositories;
 
@@ -17,14 +18,24 @@ public class CollaborationTaskRepository : ICollaborationTaskRepository
     public async Task<CollaborationTask?> GetByIdAsync(long id)
     {
         using var connection = _context.CreateConnection();
-        const string sql = "SELECT * FROM collaboration_tasks WHERE id = @Id";
+        const string sql = @"
+            SELECT id, collaboration_id, title, description, prompt, status, assigned_to, 
+                   created_at, completed_at, git_url, git_branch, config
+            FROM collaboration_tasks 
+            WHERE id = @Id";
         return await connection.QueryFirstOrDefaultAsync<CollaborationTask>(sql, new { Id = id });
     }
 
     public async Task<List<CollaborationTask>> GetByCollaborationIdAsync(long collaborationId)
     {
         using var connection = _context.CreateConnection();
-        const string sql = "SELECT * FROM collaboration_tasks WHERE collaboration_id = @CollaborationId ORDER BY created_at DESC";
+        const string sql = @"
+            SELECT id, collaboration_id, title, description, prompt, status, assigned_to, 
+                   created_at, completed_at, git_url, git_branch, config
+            FROM collaboration_tasks 
+            WHERE collaboration_id = @CollaborationId 
+            ORDER BY created_at DESC";
+        
         var result = await connection.QueryAsync<CollaborationTask>(sql, new { CollaborationId = collaborationId });
         return result.ToList();
     }
