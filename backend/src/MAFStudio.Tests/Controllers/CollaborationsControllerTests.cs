@@ -23,7 +23,6 @@ public class CollaborationsControllerTests : TestBase
     private readonly Mock<IAuthService> _mockAuthService;
     private readonly Mock<IOperationLogService> _mockLogService;
     private readonly Mock<IAgentMessageRepository> _mockAgentMessageRepository;
-    private readonly Mock<ITaskAgentRepository> _mockTaskAgentRepository;
     private readonly Mock<ILogger<CollaborationsController>> _mockLogger;
     private readonly CollaborationsController _controller;
     private readonly long _testUserId = 1000000000000001;
@@ -34,7 +33,6 @@ public class CollaborationsControllerTests : TestBase
         _mockAuthService = new Mock<IAuthService>();
         _mockLogService = new Mock<IOperationLogService>();
         _mockAgentMessageRepository = new Mock<IAgentMessageRepository>();
-        _mockTaskAgentRepository = new Mock<ITaskAgentRepository>();
         _mockLogger = new Mock<ILogger<CollaborationsController>>();
 
         _controller = new CollaborationsController(
@@ -42,7 +40,6 @@ public class CollaborationsControllerTests : TestBase
             _mockAuthService.Object,
             _mockLogService.Object,
             _mockAgentMessageRepository.Object,
-            _mockTaskAgentRepository.Object,
             _mockLogger.Object
         );
 

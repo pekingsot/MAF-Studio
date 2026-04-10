@@ -33,7 +33,6 @@ public class TaskConfigIntegrationTests
     {
         var context = CreateDapperContext();
         var taskRepository = new CollaborationTaskRepository(context);
-        var taskAgentRepository = new TaskAgentRepository(context);
         var collaborationRepository = new CollaborationRepository(context);
         var collaborationAgentRepository = new CollaborationAgentRepository(context);
         
@@ -99,7 +98,6 @@ public class TaskConfigIntegrationTests
     {
         var context = CreateDapperContext();
         var taskRepository = new CollaborationTaskRepository(context);
-        var taskAgentRepository = new TaskAgentRepository(context);
         var collaborationRepository = new CollaborationRepository(context);
         var collaborationAgentRepository = new CollaborationAgentRepository(context);
         

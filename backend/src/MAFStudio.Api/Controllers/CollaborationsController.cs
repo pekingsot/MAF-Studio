@@ -20,7 +20,6 @@ public class CollaborationsController : ControllerBase
     private readonly IAuthService _authService;
     private readonly IOperationLogService _logService;
     private readonly IAgentMessageRepository _agentMessageRepository;
-    private readonly ITaskAgentRepository _taskAgentRepository;
     private readonly ILogger<CollaborationsController> _logger;
 
     public CollaborationsController(
@@ -28,14 +27,12 @@ public class CollaborationsController : ControllerBase
         IAuthService authService, 
         IOperationLogService logService,
         IAgentMessageRepository agentMessageRepository,
-        ITaskAgentRepository taskAgentRepository,
         ILogger<CollaborationsController> logger)
     {
         _collaborationService = collaborationService;
         _authService = authService;
         _logService = logService;
         _agentMessageRepository = agentMessageRepository;
-        _taskAgentRepository = taskAgentRepository;
         _logger = logger;
     }
 
@@ -346,14 +343,6 @@ public class CollaborationsController : ControllerBase
         }
         
         return NoContent();
-    }
-
-    [HttpGet("tasks/{taskId}/agents")]
-    public async Task<ActionResult<List<long>>> GetTaskAgents(long taskId)
-    {
-        var taskAgents = await _taskAgentRepository.GetByTaskIdAsync(taskId);
-        var agentIds = taskAgents.Select(ta => ta.AgentId).ToList();
-        return Ok(agentIds);
     }
 
     [HttpPatch("tasks/{taskId}/status")]
