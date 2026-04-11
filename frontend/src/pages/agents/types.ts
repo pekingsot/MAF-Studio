@@ -1,4 +1,4 @@
-import { Agent, AgentType, FallbackModel } from '../../services/agentService';
+import { Agent, AgentType, LlmConfigInfo } from '../../services/agentService';
 import { AgentRuntimeStatus } from '../../services/agentRuntimeService';
 
 export interface LLMConfig {
@@ -22,6 +22,9 @@ export interface LlmModel {
   isDefault: boolean;
   isEnabled: boolean;
   sortOrder: number;
+  lastTestTime?: string;
+  availabilityStatus: number;
+  testResult?: string;
 }
 
 export interface SelectedModel {
@@ -30,6 +33,7 @@ export interface SelectedModel {
   llmModelConfigId: number;
   modelName: string;
   provider: string;
+  isPrimary?: boolean;
 }
 
 export interface AgentFormData {
@@ -40,14 +44,10 @@ export interface AgentFormData {
   systemPrompt?: string;
   llmConfigId: number;
   llmModelConfigId: number;
-  fallbackModels?: FallbackModelRequest[];
+  llmConfigs?: string;
 }
 
-export interface FallbackModelRequest {
-  llmConfigId: number;
-  llmModelConfigId: number;
-  priority: number;
-}
+export type { LlmConfigInfo };
 
 export interface AgentTableProps {
   agents: Agent[];
@@ -75,8 +75,31 @@ export interface AgentFormModalProps {
 }
 
 export const AVATAR_OPTIONS = [
-  '🤖', '🧠', '💻', '🎯', '📊', '🔬', '🚀', '⚡', '🌟', '🎨',
-  '🦾', '🤝', '🔮', '💡', '🎭', '🦸', '🌈', '🎪', '🎠', '🎡'
+  // 人物-活动（男女交替）
+  '🧘', '🧘‍♀️', '🧗', '🧗‍♀️', '🏊', '🏊‍♀️', '🏃', '🏃‍♀️', '💃', '🕺', '👯', '👯‍♀️',
+  // 人物-角色（男女交替）
+  '🦸', '🦸‍♀️', '🧙', '🧙‍♀️', '🧛', '🧛‍♀️', '🧜', '🧜‍♀️', '🧚', '🧚‍♀️',
+  // 动物
+  '🦊', '🐱', '🐶', '🦁', '🐯', '🐻', '🐼', '🐨', '🦄', '🐲',
+  '🦋', '🦅', '🐬', '🐳', '🦈', '🐙', '🦀', '🐢', '🦎', '🐍',
+  // 植物
+  '🌸', '🌺', '🌻', '🌹', '🍀', '🌴', '🎄', '🌲', '⛰️', '🌊',
+  // 汽车
+  '🚗', '🚕', '🚙', '🚌', '🚎', '🏎️', '🚓', '🚑', '🚒', '🚐',
+  // 自然元素
+  '🔥', '❄️', '💧', '🌪️', '☄️', '🌙', '☀️', '⭐', '💫', '✨', '🌈',
+  // 机器人/科技
+  '🤖', '🧠', '💻', '🔬', '🚀', '⚡', '🌟', '🦾', '🔮', '💡',
+  // 表演娱乐
+  '🎭', '🎪', '🎠', '🎡',
+  // 音乐游戏
+  '🎮', '🎲', '🎸', '🎺', '🎻', '🎹', '🥁', '🎤', '🎧', '🕹️',
+  // 文具
+  '📚', '📖', '📝', '✏️', '🖊️', '📎', '📌', '📍', '🔖', '🏷️',
+  // 工具武器
+  '🛠️', '🔧', '🔨', '⚒️', '🛡️', '⚔️', '🏹', '🎯', '📊', '🎨',
+  // 其他
+  '🤝'
 ];
 
 export const AGENT_STATUS_MAP: Record<string, { color: string; label: string }> = {

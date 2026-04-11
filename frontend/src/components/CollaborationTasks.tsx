@@ -1,6 +1,6 @@
 import React, { useState, useCallback, useMemo } from 'react';
-import { Table, Button, Space, Popconfirm, Tag, message } from 'antd';
-import { PlayCircleOutlined, EditOutlined, MessageOutlined, DeleteOutlined } from '@ant-design/icons';
+import { Table, Button, Space, Popconfirm, Tag, message, Tooltip } from 'antd';
+import { PlayCircleOutlined, EditOutlined, MessageOutlined, DeleteOutlined, GithubOutlined } from '@ant-design/icons';
 import type { Key } from 'react';
 import { collaborationService } from '../services/collaborationService';
 
@@ -11,6 +11,9 @@ interface Task {
   status: string;
   createdAt: string;
   collaborationId: string;
+  gitUrl?: string;
+  gitBranch?: string;
+  gitToken?: string;
 }
 
 interface CollaborationTasksProps {
@@ -99,6 +102,30 @@ const CollaborationTasks: React.FC<CollaborationTasksProps> = ({
           Cancelled: '已关闭',
         };
         return <Tag color={colorMap[status]}>{textMap[status] || status}</Tag>;
+      },
+    },
+    {
+      title: 'Git配置',
+      key: 'git',
+      width: '10%',
+      render: (_: any, record: Task) => {
+        if (!record.gitUrl) {
+          return <Tag color="default">无</Tag>;
+        }
+        
+        return (
+          <Tooltip title={
+            <div>
+              <div>仓库: {record.gitUrl}</div>
+              {record.gitBranch && <div>分支: {record.gitBranch}</div>}
+              {record.gitToken && <div>已配置访问令牌</div>}
+            </div>
+          }>
+            <Tag color="blue" icon={<GithubOutlined />}>
+              {record.gitBranch || 'main'}
+            </Tag>
+          </Tooltip>
+        );
       },
     },
     {

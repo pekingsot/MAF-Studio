@@ -48,3 +48,5 @@
    - **Agent/Workflow 编排**: 展示如何使用 MAF API 构建图或 Agent。
    - **DI 注册**: 展示如何在 .NET 10 中注册服务。
 3. **MAF 特性说明**: 指出代码中哪里体现了 MAF 的核心概念（如 `AgentSession`, `FunctionTool` 等）。
+# 数据库设计
+字段命名必须按照 snake_case 规则。

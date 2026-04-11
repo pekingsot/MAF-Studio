@@ -49,20 +49,50 @@ public class AgentFactoryService : IAgentFactoryService
             throw new NotFoundException($"Agent {agentId} not found");
         }
 
-        if (!agent.LlmConfigId.HasValue)
+        long llmConfigId;
+        long? llmModelConfigId;
+        List<FallbackModelConfig>? fallbackModels = null;
+
+        if (!string.IsNullOrEmpty(agent.LlmConfigs))
         {
-            throw new BusinessException("Agent缺少LLM配置");
+            var llmConfigs = ParseLlmConfigs(agent.LlmConfigs);
+            if (llmConfigs == null || llmConfigs.Count == 0)
+            {
+                throw new BusinessException("Agent的LlmConfigs配置无效");
+            }
+
+            var primaryModel = llmConfigs.FirstOrDefault(c => c.IsPrimary) ?? llmConfigs.First();
+            llmConfigId = primaryModel.LlmConfigId;
+            llmModelConfigId = primaryModel.LlmModelConfigId;
+
+            fallbackModels = llmConfigs
+                .Where(c => !c.IsPrimary && c.LlmConfigId != primaryModel.LlmConfigId)
+                .OrderBy(c => c.Priority)
+                .Select(c => new FallbackModelConfig
+                {
+                    LlmConfigId = c.LlmConfigId,
+                    LlmModelConfigId = c.LlmModelConfigId,
+                    Priority = c.Priority
+                })
+                .ToList();
+
+            if (fallbackModels.Count == 0)
+            {
+                fallbackModels = null;
+            }
+
+            _logger?.LogInformation(
+                "创建Agent客户端(从LlmConfigs): AgentId={AgentId}, 主模型LlmConfigId={LlmConfigId}, 副模型数量={FallbackCount}",
+                agentId, llmConfigId, fallbackModels?.Count ?? 0);
+        }
+        else
+        {
+            throw new BusinessException("Agent缺少LLM配置，请先配置大模型");
         }
 
-        var fallbackModels = ParseFallbackModels(agent.FallbackModels);
-
-        _logger?.LogInformation(
-            "创建Agent客户端: AgentId={AgentId}, 主模型LlmConfigId={LlmConfigId}, 副模型数量={FallbackCount}",
-            agentId, agent.LlmConfigId.Value, fallbackModels?.Count ?? 0);
-
         var baseClient = await _chatClientFactory.CreateClientWithFallbackAsync(
-            agent.LlmConfigId.Value,
-            agent.LlmModelConfigId,
+            llmConfigId,
+            llmModelConfigId,
             fallbackModels);
 
         return BuildClientWithCapabilities(baseClient);
@@ -98,11 +128,16 @@ public class AgentFactoryService : IAgentFactoryService
     private async Task<(long LlmConfigId, long? LlmModelConfigId)> GetDefaultLlmConfigAsync()
     {
         var agents = await _agentRepository.GetAllAsync();
-        var firstAgent = agents.FirstOrDefault(a => a.LlmConfigId.HasValue);
+        var firstAgent = agents.FirstOrDefault(a => !string.IsNullOrEmpty(a.LlmConfigs));
         
-        if (firstAgent != null && firstAgent.LlmConfigId.HasValue)
+        if (firstAgent != null && !string.IsNullOrEmpty(firstAgent.LlmConfigs))
         {
-            return (firstAgent.LlmConfigId.Value, firstAgent.LlmModelConfigId);
+            var llmConfigs = ParseLlmConfigs(firstAgent.LlmConfigs);
+            if (llmConfigs != null && llmConfigs.Count > 0)
+            {
+                var primaryModel = llmConfigs.FirstOrDefault(c => c.IsPrimary) ?? llmConfigs.First();
+                return (primaryModel.LlmConfigId, primaryModel.LlmModelConfigId);
+            }
         }
 
         throw new BusinessException("未找到可用的LLM配置，请先创建Agent");
@@ -155,6 +190,30 @@ public class AgentFactoryService : IAgentFactoryService
             return null;
         }
     }
+
+    private List<LlmConfigVo>? ParseLlmConfigs(string? llmConfigsJson)
+    {
+        if (string.IsNullOrEmpty(llmConfigsJson))
+        {
+            return null;
+        }
+
+        try
+        {
+            var vos = JsonSerializer.Deserialize<List<LlmConfigVo>>(llmConfigsJson, JsonOptions);
+            if (vos == null || vos.Count == 0)
+            {
+                return null;
+            }
+
+            return vos;
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogWarning(ex, "解析LlmConfigs失败: {Json}", llmConfigsJson);
+            return null;
+        }
+    }
 }
 
 internal class FallbackModelVo
@@ -162,6 +221,18 @@ internal class FallbackModelVo
     public long LlmConfigId { get; set; }
     public long? LlmModelConfigId { get; set; }
     public int Priority { get; set; }
+}
+
+internal class LlmConfigVo
+{
+    public long LlmConfigId { get; set; }
+    public string LlmConfigName { get; set; } = string.Empty;
+    public long? LlmModelConfigId { get; set; }
+    public string ModelName { get; set; } = string.Empty;
+    public bool IsPrimary { get; set; }
+    public int Priority { get; set; }
+    public bool IsValid { get; set; }
+    public string Msg { get; set; } = string.Empty;
 }
 
 public class NotFoundException : Exception

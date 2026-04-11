@@ -47,9 +47,9 @@ public class AgentRepository : IAgentRepository
         agent.CreatedAt = DateTime.UtcNow;
         const string sql = @"
             INSERT INTO agents (name, description, type, type_name, system_prompt, avatar, user_id, status, 
-                llm_config_id, llm_config_name, llm_model_config_id, llm_model_name, fallback_models, created_at, updated_at)
+                llm_configs, created_at, updated_at)
             VALUES (@Name, @Description, @Type, @TypeName, @SystemPrompt, @Avatar, @UserId, @Status, 
-                @LlmConfigId, @LlmConfigName, @LlmModelConfigId, @LlmModelName, @FallbackModels, @CreatedAt, @UpdatedAt)
+                @LlmConfigs, @CreatedAt, @UpdatedAt)
             RETURNING *";
         return await connection.QueryFirstAsync<Agent>(sql, agent);
     }
@@ -66,11 +66,7 @@ public class AgentRepository : IAgentRepository
                 type_name = @TypeName,
                 system_prompt = @SystemPrompt,
                 avatar = @Avatar,
-                llm_config_id = @LlmConfigId,
-                llm_config_name = @LlmConfigName,
-                llm_model_config_id = @LlmModelConfigId,
-                llm_model_name = @LlmModelName,
-                fallback_models = @FallbackModels,
+                llm_configs = @LlmConfigs,
                 updated_at = @UpdatedAt
             WHERE id = @Id
             RETURNING *";

@@ -80,7 +80,7 @@ public class CollaborationsController : ControllerBase
             AssignedTo = t.AssignedTo,
             GitUrl = t.GitUrl,
             GitBranch = t.GitBranch,
-            HasGitToken = !string.IsNullOrEmpty(t.GitCredentials),
+            GitToken = t.GitCredentials,
             Config = t.Config,
             CompletedAt = t.CompletedAt,
             CreatedAt = t.CreatedAt
@@ -126,7 +126,7 @@ public class CollaborationsController : ControllerBase
             AssignedTo = t.AssignedTo,
             GitUrl = t.GitUrl,
             GitBranch = t.GitBranch,
-            HasGitToken = !string.IsNullOrEmpty(t.GitCredentials),
+            GitToken = t.GitCredentials,
             Config = t.Config,
             CompletedAt = t.CompletedAt,
             CreatedAt = t.CreatedAt

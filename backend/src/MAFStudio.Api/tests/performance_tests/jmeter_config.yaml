@@ -1,0 +1,147 @@
+﻿# JMeter压力测试配置文件 - video_parser.jmx.xml (简化版)
+
+<?xml version="1.0" encoding="UTF-8"?>
+<jmeterTestPlan>
+  <hashTree>
+    <TestPlan>
+      <name>视频解析性能测试</name>
+      <guiclass>TestPlanGui</guiclass>
+      <testclass>TestPlan</testclass>
+      <property name="TestPlan.num_threads">1000</property>
+      <property name="TestPlan.ramp_time">60</property>
+      <property name="TestPlan.duration">300</property>
+    </TestPlan>
+    
+    <hashTree>
+      <!-- HTTP请求默认值 -->
+      <HTTPDefaults>
+        <name>HTTP Request Defaults</name>
+        <baseURL>http://localhost:8080/api</baseURL>
+        <protocol>http</protocol>
+      </HTTPDefaults>
+      
+      <hashTree>
+        <!-- 抖音视频解析请求 -->
+        <HTTPSamplerProxy>
+          <name>Douyin Video Parse</name>
+          <path>/parse</path>
+          <method>POST</method>
+          <BodyData>{"url": "https://v.douyin.com/ixJ8xLk/", "platform": "douyin"}</BodyData>
+          <contentType>application/json</contentType>
+          
+          <hashTree>
+            <ResponseAssertion>
+              <assertion_test_classname>ResponseAssertion</assertion_test_classname>
+              <HA>
+                <boolprop name="Assertion.test_type">2</boolprop>
+                <stringprop name="Assertion.test_text">{success:true}</stringprop>
+              </HA>
+            </ResponseAssertion>
+            
+            <TransactionController>
+              <name>Parse Response Time</name>
+            </TransactionController>
+          </hashTree>
+        </HTTPSamplerProxy>
+        
+        <hashTree/>
+        
+        <!-- 快手视频解析请求 -->
+        <HTTPSamplerProxy>
+          <name>Kuaishou Video Parse</name>
+          <path>/parse</path>
+          <method>POST</method>
+          <BodyData>{"url": "https://v.kuaishou.com/xyz123", "platform": "kuaishou"}</BodyData>
+          <contentType>application/json</contentType>
+          
+          <hashTree>
+            <ResponseAssertion>
+              <assertion_test_classname>ResponseAssertion</assertion_test_classname>
+              <HA>
+                <boolprop name="Assertion.test_type">2</boolprop>
+                <stringprop name="Assertion.test_text">{success:true}</stringprop>
+              </HA>
+            </ResponseAssertion>
+          </hashTree>
+        </HTTPSamplerProxy>
+        
+        <hashTree/>
+        
+        <!-- 广告观看请求 -->
+        <HTTPSamplerProxy>
+          <name>Ad Service Check</name>
+          <path>/check_access</path>
+          <method>POST</method>
+          <BodyData>{"user_id": "test_user_{{__Random()}}", "ad_watched_today": false}</BodyData>
+          <contentType>application/json</contentType>
+          
+          <hashTree>
+            <ResponseAssertion>
+              <assertion_test_classname>ResponseAssertion</assertion_test_classname>
+              <HA>
+                <boolprop name="Assertion.test_type">2</boolprop>
+                <stringprop name="Assertion.test_text">{can_use_infinite:false}</stringprop>
+              </HA>
+            </ResponseAssertion>
+          </hashTree>
+        </HTTPSamplerProxy>
+        
+        <hashTree/>
+      </hashTree>
+    </hashTree>
+    
+    <!-- 汇总报告 -->
+    <ResultCollector>
+      <name>Summary Report</name>
+    </ResultCollector>
+    
+    <hashTree>
+      <StatisticsGenerator>
+        <name>统计信息生成器</name>
+      </StatisticsGenerator>
+    </hashTree>
+  </hashTree>
+</jmeterTestPlan>
+
+---
+## 测试指标配置说明
+
+### 性能阈值要求
+```yaml
+并发用户数: 1000
+Ramp-up时间: 60秒
+测试时长: 300秒
+
+性能指标:
+  平均响应时间: < 2.0秒
+  P95响应时间: < 3.0秒  
+  P99响应时间: < 5.0秒
+  成功率: > 99%
+  TPS: > 500
+  CPU使用率: < 70%
+  内存使用: < 512MB
+  
+失败条件:
+  - 错误率超过 1%
+  - 平均响应时间超过 5秒
+  - TPS低于 100
+  - 服务器CPU使用率超过 85%
+```
+
+### 监控告警规则
+```python
+# Prometheus监控配置示例
+groups:
+  - name: api_metrics
+    rules:
+      - alert: HighErrorRate
+        expr: rate(http_requests_total{status="error"}[5m]) > 0.01
+        for: 2m
+        annotations:
+          summary: "API错误率过高"
+          
+      - alert: SlowResponseTime
+        expr: histogram_quantile(0.95, rate(http_request_duration_seconds_bucket[5m])) > 3
+        annotations:
+          summary: "95%请求响应时间超过3秒"
+```

@@ -9,10 +9,6 @@ export interface Agent {
   systemPrompt?: string;
   avatar?: string;
   userId?: string;
-  llmConfigId?: number;
-  llmModelConfigId?: number;
-  llmConfigName?: string;
-  primaryModelName?: string;
   llmConfig?: {
     id: number;
     name: string;
@@ -23,21 +19,19 @@ export interface Agent {
   createdAt: string;
   updatedAt?: string;
   lastActiveAt?: string;
-  fallbackModels?: FallbackModel[];
+  llmConfigs?: LlmConfigInfo[];
 }
 
-export interface FallbackModel {
+export interface LlmConfigInfo {
   llmConfigId: number;
-  llmConfigName?: string;
+  llmConfigName: string;
   llmModelConfigId?: number;
-  modelName?: string;
+  modelName: string;
+  isPrimary: boolean;
   priority: number;
-}
-
-export interface FallbackModelRequest {
-  llmConfigId: number;
-  llmModelConfigId?: number;
-  priority: number;
+  isValid: boolean;
+  lastChecked?: string;
+  msg: string;
 }
 
 export interface CreateAgentRequest {
@@ -48,7 +42,7 @@ export interface CreateAgentRequest {
   avatar?: string;
   llmConfigId?: number;
   llmModelConfigId?: number;
-  fallbackModels?: FallbackModelRequest[];
+  llmConfigs?: string;
 }
 
 export interface UpdateAgentRequest {
@@ -58,7 +52,7 @@ export interface UpdateAgentRequest {
   avatar?: string;
   llmConfigId?: number;
   llmModelConfigId?: number;
-  fallbackModels?: FallbackModelRequest[];
+  llmConfigs?: string;
 }
 
 export interface AgentType {

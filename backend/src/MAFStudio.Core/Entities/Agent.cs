@@ -1,4 +1,5 @@
 using MAFStudio.Core.Enums;
+using System.ComponentModel.DataAnnotations.Schema;
 
 namespace MAFStudio.Core.Entities;
 
@@ -31,31 +32,23 @@ public class Agent : BaseEntityWithUpdate
     public AgentStatus Status { get; set; } = AgentStatus.Inactive;
 
     /// <summary>
-    /// 主模型配置ID
+    /// 大模型选择（JSON格式，包含主模型和副模型）
+    /// 格式：[
+    ///   {
+    ///     "llmConfigId": 123,
+    ///     "llmConfigName": "阿里云-通义千问3.5",
+    ///     "llmModelConfigId": 456,
+    ///     "modelName": "qwen3.5-35b-a3b",
+    ///     "isPrimary": true,
+    ///     "priority": 1,
+    ///     "isValid": true,
+    ///     "lastChecked": "2026-04-11T10:00:00Z",
+    ///     "msg": "250ms"
+    ///   }
+    /// ]
     /// </summary>
-    public long? LlmConfigId { get; set; }
-
-    /// <summary>
-    /// 主模型配置名称（冗余字段，优化查询性能）
-    /// </summary>
-    public string? LlmConfigName { get; set; }
-
-    /// <summary>
-    /// 主模型的具体模型ID
-    /// </summary>
-    public long? LlmModelConfigId { get; set; }
-
-    /// <summary>
-    /// 主模型名称（冗余字段，优化查询性能）
-    /// </summary>
-    public string? LlmModelName { get; set; }
-
-    /// <summary>
-    /// 副模型配置列表（JSON格式，用于故障转移）
-    /// 格式：[{"llmConfigId":123,"llmConfigName":"配置名","llmModelConfigId":456,"modelName":"模型名","priority":1}]
-    /// 包含冗余字段（llmConfigName、modelName）优化查询性能
-    /// </summary>
-    public string? FallbackModels { get; set; }
+    [Column("llm_configs")]
+    public string? LlmConfigs { get; set; }
 
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 

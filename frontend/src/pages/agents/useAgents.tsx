@@ -3,7 +3,7 @@ import { message, Modal } from 'antd';
 import { agentService, Agent, AgentType } from '../../services/agentService';
 import { agentRuntimeService, AgentRuntimeStatus } from '../../services/agentRuntimeService';
 import api from '../../services/api';
-import { LLMConfig, SelectedModel, FallbackModelRequest } from './types';
+import { LLMConfig, SelectedModel } from './types';
 
 export const useAgents = () => {
   const [agents, setAgents] = useState<Agent[]>([]);
@@ -154,12 +154,10 @@ export const useAgentForm = (
   llmConfigs: LLMConfig[],
   loadLLMConfigs: () => Promise<LLMConfig[]>
 ) => {
-  const [selectedPrimaryModel, setSelectedPrimaryModel] = useState<SelectedModel | null>(null);
-  const [selectedFallbackModels, setSelectedFallbackModels] = useState<SelectedModel[]>([]);
+  const [selectedModels, setSelectedModels] = useState<SelectedModel[]>([]);
 
   const initFormForCreate = useCallback(() => {
-    setSelectedPrimaryModel(null);
-    setSelectedFallbackModels([]);
+    setSelectedModels([]);
   }, []);
 
   const initFormForEdit = useCallback(async (agent: Agent) => {
@@ -168,64 +166,59 @@ export const useAgentForm = (
       currentLlmConfigs = await loadLLMConfigs();
     }
     
-    if (agent.llmConfigId && agent.llmModelConfigId) {
-      const config = currentLlmConfigs.find(c => c.id === agent.llmConfigId);
-      const model = config?.models?.find(m => m.id === agent.llmModelConfigId);
-      
-      if (config && model) {
-        setSelectedPrimaryModel({
-          llmConfigId: config.id,
-          llmConfigName: config.name,
-          llmModelConfigId: model.id,
-          modelName: model.displayName || model.modelName,
-          provider: config.provider,
-        });
-      } else {
-        setSelectedPrimaryModel({
-          llmConfigId: agent.llmConfigId,
-          llmConfigName: agent.llmConfigName || '',
-          llmModelConfigId: agent.llmModelConfigId,
-          modelName: agent.primaryModelName || '',
+    const models: SelectedModel[] = [];
+    
+    if (agent.llmConfigs && agent.llmConfigs.length > 0) {
+      agent.llmConfigs.forEach((lc, index) => {
+        models.push({
+          llmConfigId: lc.llmConfigId,
+          llmConfigName: lc.llmConfigName,
+          llmModelConfigId: lc.llmModelConfigId || 0,
+          modelName: lc.modelName,
           provider: '',
+          isPrimary: lc.isPrimary,
         });
-      }
-    } else {
-      setSelectedPrimaryModel(null);
+      });
     }
     
-    if (agent.fallbackModels && agent.fallbackModels.length > 0) {
-      const fallbackConfigs: SelectedModel[] = agent.fallbackModels.map(fm => {
-        const config = currentLlmConfigs.find(c => c.id === fm.llmConfigId);
-        const model = config?.models?.find(m => m.id === fm.llmModelConfigId);
-        
-        if (config && model) {
-          return {
-            llmConfigId: config.id,
-            llmConfigName: config.name,
-            llmModelConfigId: model.id,
-            modelName: model.displayName || model.modelName,
-            provider: config.provider,
-          };
-        } else {
-          return {
-            llmConfigId: fm.llmConfigId,
-            llmConfigName: fm.llmConfigName || '',
-            llmModelConfigId: fm.llmModelConfigId || 0,
-            modelName: fm.modelName || '',
-            provider: '',
-          };
-        }
-      }).filter(m => m.llmConfigId && m.llmModelConfigId) as SelectedModel[];
-      
-      setSelectedFallbackModels(fallbackConfigs);
-    } else {
-      setSelectedFallbackModels([]);
-    }
+    setSelectedModels(models);
   }, [llmConfigs, loadLLMConfigs]);
 
+  const handleAddModel = useCallback((model: SelectedModel) => {
+    setSelectedModels(prev => {
+      const exists = prev.some(m => 
+        m.llmConfigId === model.llmConfigId && 
+        m.llmModelConfigId === model.llmModelConfigId
+      );
+      
+      if (exists) {
+        return prev;
+      }
+      
+      if (prev.length === 0) {
+        return [{ ...model, isPrimary: true }];
+      }
+      
+      return [...prev, { ...model, isPrimary: false }];
+    });
+  }, []);
+
+  const handleSetPrimary = useCallback((index: number) => {
+    setSelectedModels(prev => {
+      const newModels = [...prev];
+      const [selectedModel] = newModels.splice(index, 1);
+      newModels.unshift({ ...selectedModel, isPrimary: true });
+      
+      return newModels.map((m, i) => ({
+        ...m,
+        isPrimary: i === 0,
+      }));
+    });
+  }, []);
+
   const handleMoveUp = useCallback((index: number) => {
-    if (index > 0) {
-      setSelectedFallbackModels(prev => {
+    if (index > 1) {
+      setSelectedModels(prev => {
         const newModels = [...prev];
         [newModels[index - 1], newModels[index]] = [newModels[index], newModels[index - 1]];
         return newModels;
@@ -234,8 +227,8 @@ export const useAgentForm = (
   }, []);
 
   const handleMoveDown = useCallback((index: number) => {
-    setSelectedFallbackModels(prev => {
-      if (index < prev.length - 1) {
+    setSelectedModels(prev => {
+      if (index > 0 && index < prev.length - 1) {
         const newModels = [...prev];
         [newModels[index], newModels[index + 1]] = [newModels[index + 1], newModels[index]];
         return newModels;
@@ -244,28 +237,43 @@ export const useAgentForm = (
     });
   }, []);
 
-  const handleRemoveFallbackModel = useCallback((modelId: string) => {
-    setSelectedFallbackModels(prev => prev.filter(m => `${m.llmConfigId}_${m.llmModelConfigId}` !== modelId));
+  const handleRemoveModel = useCallback((modelId: string) => {
+    setSelectedModels(prev => {
+      const filtered = prev.filter(m => `${m.llmConfigId}_${m.llmModelConfigId}` !== modelId);
+      
+      if (filtered.length > 0 && !filtered.some(m => m.isPrimary)) {
+        filtered[0].isPrimary = true;
+      }
+      
+      return filtered;
+    });
   }, []);
 
-  const buildFallbackModelsRequest = useCallback((): FallbackModelRequest[] => {
-    return selectedFallbackModels.map((model, index) => ({
+  const buildLlmConfigsRequest = useCallback((): string => {
+    const llmConfigs = selectedModels.map((model, index) => ({
       llmConfigId: model.llmConfigId,
+      llmConfigName: model.llmConfigName,
       llmModelConfigId: model.llmModelConfigId,
-      priority: index + 1,
+      modelName: model.modelName,
+      isPrimary: index === 0,
+      priority: index === 0 ? 0 : index,
+      isValid: true,
+      msg: '',
     }));
-  }, [selectedFallbackModels]);
+    
+    return JSON.stringify(llmConfigs);
+  }, [selectedModels]);
 
   return {
-    selectedPrimaryModel,
-    setSelectedPrimaryModel,
-    selectedFallbackModels,
-    setSelectedFallbackModels,
+    selectedModels,
+    setSelectedModels,
     initFormForCreate,
     initFormForEdit,
+    handleAddModel,
+    handleSetPrimary,
     handleMoveUp,
     handleMoveDown,
-    handleRemoveFallbackModel,
-    buildFallbackModelsRequest,
+    handleRemoveModel,
+    buildLlmConfigsRequest,
   };
 };

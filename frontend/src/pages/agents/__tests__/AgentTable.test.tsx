@@ -36,10 +36,18 @@ const mockAgents: Agent[] = [
     description: '测试描述',
     systemPrompt: '测试提示词',
     status: 'Active',
-    llmConfigId: 1,
-    llmConfigName: '测试配置',
-    primaryModelName: 'gpt-4',
-    fallbackModels: [],
+    llmConfigs: [
+      {
+        llmConfigId: 1,
+        llmConfigName: '测试配置',
+        llmModelConfigId: 1,
+        modelName: 'gpt-4',
+        isPrimary: true,
+        priority: 0,
+        isValid: true,
+        msg: '测试通过'
+      }
+    ],
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
   },
@@ -51,11 +59,27 @@ const mockAgents: Agent[] = [
     description: '测试描述2',
     systemPrompt: '测试提示词2',
     status: 'Inactive',
-    llmConfigId: 1,
-    llmConfigName: '测试配置',
-    primaryModelName: 'gpt-3.5',
-    fallbackModels: [
-      { llmConfigId: 2, llmConfigName: '备用配置', modelName: 'gpt-3.5-turbo' }
+    llmConfigs: [
+      {
+        llmConfigId: 1,
+        llmConfigName: '测试配置',
+        llmModelConfigId: 1,
+        modelName: 'gpt-3.5',
+        isPrimary: true,
+        priority: 0,
+        isValid: true,
+        msg: '测试通过'
+      },
+      {
+        llmConfigId: 2,
+        llmConfigName: '备用配置',
+        llmModelConfigId: 2,
+        modelName: 'gpt-3.5-turbo',
+        isPrimary: false,
+        priority: 1,
+        isValid: true,
+        msg: '测试通过'
+      }
     ],
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
@@ -63,7 +87,7 @@ const mockAgents: Agent[] = [
 ];
 
 const mockAgentTypes = [
-  { id: 1, code: 'assistant', name: '助手', description: 'AI助手', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
+  { id: 1, code: 'assistant', name: '助手', description: 'AI助手', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), isEnabled: true, sortOrder: 1 },
 ];
 
 const mockLLMConfigs = [
@@ -72,8 +96,8 @@ const mockLLMConfigs = [
 ];
 
 const mockRuntimeStatuses: Record<string, AgentRuntimeStatus> = {
-  '1': { agentId: 1, state: 'Ready', isAlive: true },
-  '2': { agentId: 2, state: 'Uninitialized', isAlive: false },
+  '1': { agentId: 1, state: 'Ready', isAlive: true, taskCount: 0 },
+  '2': { agentId: 2, state: 'Uninitialized', isAlive: false, taskCount: 0 },
 };
 
 const mockHandlers = {
@@ -93,7 +117,7 @@ describe('AgentTable 组件测试', () => {
   describe('状态显示测试', () => {
     it('应该正确显示"未初始化"状态', () => {
       const statuses: Record<string, AgentRuntimeStatus> = {
-        '1': { agentId: 1, state: 'Uninitialized', isAlive: false },
+        '1': { agentId: 1, state: 'Uninitialized', isAlive: false, taskCount: 0 },
       };
       
       renderWithRouter(
@@ -115,7 +139,7 @@ describe('AgentTable 组件测试', () => {
 
     it('应该正确显示"可用"状态', () => {
       const statuses: Record<string, AgentRuntimeStatus> = {
-        '1': { agentId: 1, state: 'Ready', isAlive: true },
+        '1': { agentId: 1, state: 'Ready', isAlive: true, taskCount: 0 },
       };
       
       renderWithRouter(
@@ -137,7 +161,7 @@ describe('AgentTable 组件测试', () => {
 
     it('应该正确显示"忙碌"状态', () => {
       const statuses: Record<string, AgentRuntimeStatus> = {
-        '1': { agentId: 1, state: 'Busy', isAlive: true },
+        '1': { agentId: 1, state: 'Busy', isAlive: true, taskCount: 0 },
       };
       
       renderWithRouter(
@@ -159,7 +183,7 @@ describe('AgentTable 组件测试', () => {
 
     it('应该正确显示"错误"状态', () => {
       const statuses: Record<string, AgentRuntimeStatus> = {
-        '1': { agentId: 1, state: 'Error', isAlive: false },
+        '1': { agentId: 1, state: 'Error', isAlive: false, taskCount: 0 },
       };
       
       renderWithRouter(
@@ -183,7 +207,7 @@ describe('AgentTable 组件测试', () => {
   describe('操作按钮测试', () => {
     it('未初始化状态应该显示"激活"按钮', () => {
       const statuses: Record<string, AgentRuntimeStatus> = {
-        '1': { agentId: 1, state: 'Uninitialized', isAlive: false },
+        '1': { agentId: 1, state: 'Uninitialized', isAlive: false, taskCount: 0 },
       };
       
       renderWithRouter(
@@ -205,7 +229,7 @@ describe('AgentTable 组件测试', () => {
 
     it('可用状态应该显示"测试"和"关闭"按钮', () => {
       const statuses: Record<string, AgentRuntimeStatus> = {
-        '1': { agentId: 1, state: 'Ready', isAlive: true },
+        '1': { agentId: 1, state: 'Ready', isAlive: true, taskCount: 0 },
       };
       
       renderWithRouter(
@@ -228,7 +252,7 @@ describe('AgentTable 组件测试', () => {
 
     it('忙碌状态应该显示"执行中..."', () => {
       const statuses: Record<string, AgentRuntimeStatus> = {
-        '1': { agentId: 1, state: 'Busy', isAlive: true },
+        '1': { agentId: 1, state: 'Busy', isAlive: true, taskCount: 0 },
       };
       
       renderWithRouter(
@@ -250,7 +274,7 @@ describe('AgentTable 组件测试', () => {
 
     it('错误状态应该显示"关闭"按钮', () => {
       const statuses: Record<string, AgentRuntimeStatus> = {
-        '1': { agentId: 1, state: 'Error', isAlive: false },
+        '1': { agentId: 1, state: 'Error', isAlive: false, taskCount: 0 },
       };
       
       renderWithRouter(
@@ -272,7 +296,7 @@ describe('AgentTable 组件测试', () => {
 
     it('点击激活按钮应该调用onActivate', () => {
       const statuses: Record<string, AgentRuntimeStatus> = {
-        '1': { agentId: 1, state: 'Uninitialized', isAlive: false },
+        '1': { agentId: 1, state: 'Uninitialized', isAlive: false, taskCount: 0 },
       };
       
       renderWithRouter(
@@ -295,7 +319,7 @@ describe('AgentTable 组件测试', () => {
 
     it('点击测试按钮应该调用onTest', () => {
       const statuses: Record<string, AgentRuntimeStatus> = {
-        '1': { agentId: 1, state: 'Ready', isAlive: true },
+        '1': { agentId: 1, state: 'Ready', isAlive: true, taskCount: 0 },
       };
       
       renderWithRouter(
@@ -318,7 +342,7 @@ describe('AgentTable 组件测试', () => {
 
     it('点击编辑按钮应该调用onEdit', () => {
       const statuses: Record<string, AgentRuntimeStatus> = {
-        '1': { agentId: 1, state: 'Ready', isAlive: true },
+        '1': { agentId: 1, state: 'Ready', isAlive: true, taskCount: 0 },
       };
       
       renderWithRouter(

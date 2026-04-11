@@ -419,6 +419,71 @@ public class LlmConfigsController : ControllerBase
             return Ok(new { success = false, message = ex.Message });
         }
     }
+
+    [HttpPost("test-all-models")]
+    public async Task<ActionResult> TestAllModelsGlobal()
+    {
+        try
+        {
+            var userId = User.GetUserId();
+            var isAdmin = await _authService.IsAdminAsync(userId);
+            
+            var configs = isAdmin 
+                ? await _llmConfigService.GetAllAsync()
+                : await _llmConfigService.GetByUserIdAsync(userId);
+            
+            var allModels = configs.SelectMany(c => c.Models ?? new List<Core.Entities.LlmModelConfig>()).ToList();
+            
+            _logger.LogInformation("开始批量测试所有模型，共 {Count} 个", allModels.Count);
+            
+            var testTasks = allModels.Select(async model =>
+            {
+                try
+                {
+                    var result = await _llmConfigService.TestModelConnectionAsync(model.LlmConfigId, model.Id);
+                    var updatedModel = await _modelConfigRepository.GetByIdAsync(model.Id);
+                    
+                    return (object)new
+                    {
+                        configId = model.LlmConfigId,
+                        modelId = model.Id,
+                        modelName = model.ModelName,
+                        success = result.Success,
+                        message = result.Message,
+                        latencyMs = result.LatencyMs,
+                        model = updatedModel?.ToVo()
+                    };
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "测试模型失败: {ModelId}", model.Id);
+                    return (object)new
+                    {
+                        configId = model.LlmConfigId,
+                        modelId = model.Id,
+                        modelName = model.ModelName,
+                        success = false,
+                        message = ex.Message,
+                        latencyMs = 0,
+                        model = (object?)null
+                    };
+                }
+            }).ToArray();
+
+            var results = await Task.WhenAll(testTasks);
+            
+            _logger.LogInformation("批量测试完成，成功: {Success}，失败: {Failed}", 
+                results.Count(r => ((dynamic)r).success), 
+                results.Count(r => !((dynamic)r).success));
+
+            return Ok(new { results });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "批量测试所有模型失败");
+            return Ok(new { success = false, message = ex.Message });
+        }
+    }
 }
 
 public class ProviderInfo

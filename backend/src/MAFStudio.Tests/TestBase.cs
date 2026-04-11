@@ -53,8 +53,7 @@ public abstract class TestBase : IDisposable
             Type = "Assistant",
             SystemPrompt = "Test system prompt",
             UserId = userId,
-            Status = AgentStatus.Inactive,
-            LlmConfigId = llmConfigId
+            Status = AgentStatus.Inactive
         };
     }
 

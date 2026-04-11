@@ -5,18 +5,16 @@ using Microsoft.Extensions.Logging;
 
 namespace MAFStudio.Application.Workflows;
 
-/// <summary>
-/// 协调者模式的群聊管理器
-/// Manager负责协调Worker之间的对话
-/// </summary>
 public class ManagerGroupChatManager : GroupChatManager
 {
+    private readonly AIAgent _managerAgent;
     private readonly string _managerAgentName;
     private readonly List<string> _workerAgentNames;
     private readonly Dictionary<string, AIAgent> _agentMap;
     private readonly ILogger<ManagerGroupChatManager>? _logger;
     private int _currentWorkerIndex = 0;
-    private bool _managerJustSpoke = false;
+    
+    public event EventHandler<ManagerThinkingEventArgs>? ManagerThinking;
 
     public ManagerGroupChatManager(
         AIAgent managerAgent,
@@ -24,6 +22,7 @@ public class ManagerGroupChatManager : GroupChatManager
         int maximumIterationCount = 10,
         ILogger<ManagerGroupChatManager>? logger = null)
     {
+        _managerAgent = managerAgent;
         _managerAgentName = managerAgent.Name ?? "Manager";
         _agentMap = allAgents
             .Where(a => a.Name != null)
@@ -44,48 +43,64 @@ public class ManagerGroupChatManager : GroupChatManager
         IReadOnlyList<ChatMessage> history,
         CancellationToken cancellationToken = default)
     {
-        _logger?.LogInformation("[ManagerGroupChatManager] IterationCount: {IterationCount}, ManagerJustSpoke: {ManagerJustSpoke}", 
-            IterationCount, _managerJustSpoke);
+        _logger?.LogInformation("[ManagerGroupChatManager] IterationCount: {IterationCount}", IterationCount);
+
+        string thinking;
+        string? selectedWorkerName = null;
 
         if (IterationCount == 0)
         {
-            _managerJustSpoke = true;
-            _logger?.LogInformation("[ManagerGroupChatManager] 第一轮，选择 Manager: {Manager}", _managerAgentName);
-            return new ValueTask<AIAgent?>(_agentMap[_managerAgentName]);
+            thinking = $"【任务启动】我是{_managerAgentName}，现在开始协调团队工作。\n\n" +
+                      $"团队成员：{string.Join("、", _workerAgentNames)}\n\n" +
+                      $"首先请 {_workerAgentNames.FirstOrDefault()} 发言，分享你的观点。";
+            
+            if (_workerAgentNames.Count > 0)
+            {
+                selectedWorkerName = _workerAgentNames[0];
+                var firstWorker = _agentMap[selectedWorkerName];
+                
+                OnManagerThinking(thinking, selectedWorkerName);
+                
+                return new ValueTask<AIAgent?>(firstWorker!);
+            }
+            
+            OnManagerThinking(thinking, null);
+            return new ValueTask<AIAgent?>((AIAgent?)null);
         }
 
-        if (_managerJustSpoke)
+        var lastMessage = history.LastOrDefault();
+        var lastMessageText = lastMessage?.Text ?? "";
+        
+        _logger?.LogInformation("[ManagerGroupChatManager] 最后一条消息: {Message}", 
+            lastMessageText.Substring(0, Math.Min(200, lastMessageText.Length)));
+        
+        var mentionedAgent = FindMentionedAgent(lastMessageText);
+        if (mentionedAgent != null)
         {
-            _managerJustSpoke = false;
+            thinking = $"【协调决策】检测到 @{mentionedAgent} 被提及，现在请 {mentionedAgent} 继续发言。";
+            selectedWorkerName = mentionedAgent;
             
-            if (_workerAgentNames.Count == 0)
-            {
-                _logger?.LogInformation("[ManagerGroupChatManager] 没有Worker，选择 Manager: {Manager}", _managerAgentName);
-                return new ValueTask<AIAgent?>(_agentMap[_managerAgentName]);
-            }
-
-            var lastMessage = history.LastOrDefault();
-            var lastMessageText = lastMessage?.Text ?? "";
+            OnManagerThinking(thinking, selectedWorkerName);
             
-            _logger?.LogInformation("[ManagerGroupChatManager] 最后一条消息: {Message}", 
-                lastMessageText.Substring(0, Math.Min(200, lastMessageText.Length)));
-            
-            var mentionedAgent = FindMentionedAgent(lastMessageText);
-            if (mentionedAgent != null)
-            {
-                _logger?.LogInformation("[ManagerGroupChatManager] 检测到@提及，选择: {Agent}", mentionedAgent);
-                return new ValueTask<AIAgent?>(_agentMap[mentionedAgent]);
-            }
-
-            var nextWorkerName = _workerAgentNames[_currentWorkerIndex % _workerAgentNames.Count];
-            _currentWorkerIndex++;
-            _logger?.LogInformation("[ManagerGroupChatManager] 无@提及，轮询选择 Worker: {Worker}", nextWorkerName);
-            return new ValueTask<AIAgent?>(_agentMap[nextWorkerName]);
+            var agent = _agentMap[mentionedAgent];
+            return new ValueTask<AIAgent?>(agent!);
         }
 
-        _managerJustSpoke = true;
-        _logger?.LogInformation("[ManagerGroupChatManager] Worker发言后，选择 Manager: {Manager}", _managerAgentName);
-        return new ValueTask<AIAgent?>(_agentMap[_managerAgentName]);
+        var nextWorkerName = _workerAgentNames[_currentWorkerIndex % _workerAgentNames.Count];
+        _currentWorkerIndex++;
+        
+        thinking = $"【协调决策】根据轮询规则，现在请 {nextWorkerName} 发言。";
+        selectedWorkerName = nextWorkerName;
+        
+        OnManagerThinking(thinking, selectedWorkerName);
+        
+        var nextWorker = _agentMap[nextWorkerName];
+        return new ValueTask<AIAgent?>(nextWorker!);
+    }
+
+    protected virtual void OnManagerThinking(string thinking, string? selectedAgent)
+    {
+        ManagerThinking?.Invoke(this, new ManagerThinkingEventArgs(_managerAgentName, thinking, selectedAgent, IterationCount));
     }
 
     private string? FindMentionedAgent(string message)
@@ -151,6 +166,5 @@ public class ManagerGroupChatManager : GroupChatManager
     {
         base.Reset();
         _currentWorkerIndex = 0;
-        _managerJustSpoke = false;
     }
 }

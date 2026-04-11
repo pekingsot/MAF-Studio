@@ -1,11 +1,12 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Table, Button, Tag, Space, Tooltip, Typography, Modal, Input, message, Select } from 'antd';
-import { EditOutlined, DeleteOutlined, PlayCircleOutlined, ThunderboltOutlined, SendOutlined } from '@ant-design/icons';
+import { EditOutlined, DeleteOutlined, PlayCircleOutlined, ThunderboltOutlined, SendOutlined, StarOutlined, StarFilled, ArrowUpOutlined, ArrowDownOutlined } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import { Agent } from '../../services/agentService';
 import { AgentRuntimeStatus, agentRuntimeService } from '../../services/agentRuntimeService';
 import { AgentType } from '../../services/agentService';
 import { LLMConfig, RUNTIME_STATE_MAP } from './types';
+import { agentService } from '../../services/agentService';
 
 const { Text } = Typography;
 const { TextArea } = Input;
@@ -48,6 +49,141 @@ const AgentTable: React.FC<AgentTableProps> = ({
   const [testResponse, setTestResponse] = useState<string>('');
   const [testLoading, setTestLoading] = useState(false);
   const [selectedModel, setSelectedModel] = useState<string>('primary');
+  const [updatedLlmConfigs, setUpdatedLlmConfigs] = useState<Record<number, any[]>>({});
+  const [expandedAgents, setExpandedAgents] = useState<Set<number>>(new Set());
+
+  const mergedAgents = useMemo(() => {
+    return agents.map(agent => {
+      if (updatedLlmConfigs[agent.id]) {
+        return { ...agent, llmConfigs: updatedLlmConfigs[agent.id] };
+      }
+      return agent;
+    });
+  }, [agents, updatedLlmConfigs]);
+
+  const handleSetPrimaryModel = async (agentId: number, llmConfigId: number, llmModelConfigId: number) => {
+    try {
+      const agent = mergedAgents.find(a => a.id === agentId);
+      if (!agent || !agent.llmConfigs) {
+        message.error('智能体信息不存在');
+        return;
+      }
+
+      const updatedConfigs = agent.llmConfigs.map(lc => ({
+        ...lc,
+        isPrimary: lc.llmConfigId === llmConfigId && lc.llmModelConfigId === llmModelConfigId,
+      }));
+
+      const primaryModelIndex = updatedConfigs.findIndex(lc => lc.isPrimary);
+      if (primaryModelIndex === -1) {
+        message.error('未找到主模型');
+        return;
+      }
+
+      const primaryModel = updatedConfigs[primaryModelIndex];
+      const reorderedConfigs = [
+        primaryModel,
+        ...updatedConfigs.filter((_, index) => index !== primaryModelIndex)
+      ].map((lc, index) => ({
+        ...lc,
+        priority: index === 0 ? 0 : index,
+      }));
+
+      await agentService.updateAgent(agentId, {
+        name: agent.name,
+        description: agent.description,
+        systemPrompt: agent.systemPrompt,
+        avatar: agent.avatar,
+        llmConfigId: primaryModel.llmConfigId,
+        llmModelConfigId: primaryModel.llmModelConfigId || 0,
+        llmConfigs: JSON.stringify(reorderedConfigs),
+      });
+
+      setUpdatedLlmConfigs(prev => ({
+        ...prev,
+        [agentId]: reorderedConfigs,
+      }));
+
+      message.success('主模型设置成功');
+    } catch (error: any) {
+      console.error('设置主模型失败:', error);
+      message.error(`设置主模型失败: ${error.message || '未知错误'}`);
+    }
+  };
+
+  const handleMoveUp = async (agentId: number, index: number) => {
+    try {
+      const agent = mergedAgents.find(a => a.id === agentId);
+      if (!agent || !agent.llmConfigs || index <= 1) {
+        return;
+      }
+
+      const newConfigs = [...agent.llmConfigs];
+      [newConfigs[index - 1], newConfigs[index]] = [newConfigs[index], newConfigs[index - 1]];
+
+      const reorderedConfigs = newConfigs.map((lc, idx) => ({
+        ...lc,
+        priority: idx === 0 ? 0 : idx,
+      }));
+
+      await agentService.updateAgent(agentId, {
+        name: agent.name,
+        description: agent.description,
+        systemPrompt: agent.systemPrompt,
+        avatar: agent.avatar,
+        llmConfigId: reorderedConfigs[0].llmConfigId,
+        llmModelConfigId: reorderedConfigs[0].llmModelConfigId || 0,
+        llmConfigs: JSON.stringify(reorderedConfigs),
+      });
+
+      setUpdatedLlmConfigs(prev => ({
+        ...prev,
+        [agentId]: reorderedConfigs,
+      }));
+
+      message.success('上移成功');
+    } catch (error: any) {
+      console.error('上移失败:', error);
+      message.error(`上移失败: ${error.message || '未知错误'}`);
+    }
+  };
+
+  const handleMoveDown = async (agentId: number, index: number) => {
+    try {
+      const agent = mergedAgents.find(a => a.id === agentId);
+      if (!agent || !agent.llmConfigs || index <= 0 || index >= agent.llmConfigs.length - 1) {
+        return;
+      }
+
+      const newConfigs = [...agent.llmConfigs];
+      [newConfigs[index], newConfigs[index + 1]] = [newConfigs[index + 1], newConfigs[index]];
+
+      const reorderedConfigs = newConfigs.map((lc, idx) => ({
+        ...lc,
+        priority: idx === 0 ? 0 : idx,
+      }));
+
+      await agentService.updateAgent(agentId, {
+        name: agent.name,
+        description: agent.description,
+        systemPrompt: agent.systemPrompt,
+        avatar: agent.avatar,
+        llmConfigId: reorderedConfigs[0].llmConfigId,
+        llmModelConfigId: reorderedConfigs[0].llmModelConfigId || 0,
+        llmConfigs: JSON.stringify(reorderedConfigs),
+      });
+
+      setUpdatedLlmConfigs(prev => ({
+        ...prev,
+        [agentId]: reorderedConfigs,
+      }));
+
+      message.success('下移成功');
+    } catch (error: any) {
+      console.error('下移失败:', error);
+      message.error(`下移失败: ${error.message || '未知错误'}`);
+    }
+  };
 
   const handleOpenTestModal = (agent: Agent) => {
     setTestingAgentId(agent.id);
@@ -59,26 +195,20 @@ const AgentTable: React.FC<AgentTableProps> = ({
   };
 
   const getModelOptions = (agent: Agent) => {
-    const options = [];
+    const options: Array<{
+      value: string;
+      label: string;
+      llmConfigId: number;
+      llmModelConfigId: number;
+    }> = [];
     
-    // 主模型
-    if (agent.llmConfigId && agent.llmModelConfigId) {
-      options.push({
-        value: 'primary',
-        label: `主模型: ${agent.llmConfigName || '配置'} - ${agent.primaryModelName || '模型'}`,
-        llmConfigId: agent.llmConfigId,
-        llmModelConfigId: agent.llmModelConfigId,
-      });
-    }
-    
-    // 副模型
-    if (agent.fallbackModels && agent.fallbackModels.length > 0) {
-      agent.fallbackModels.forEach((fm, index) => {
+    if (agent.llmConfigs && agent.llmConfigs.length > 0) {
+      agent.llmConfigs.forEach((lc, index) => {
         options.push({
-          value: `fallback_${index}`,
-          label: `副模型${index + 1}: ${fm.llmConfigName || '配置'} - ${fm.modelName || '模型'}`,
-          llmConfigId: fm.llmConfigId,
-          llmModelConfigId: fm.llmModelConfigId || 0,
+          value: lc.isPrimary ? 'primary' : `fallback_${index}`,
+          label: `${lc.isPrimary ? '主模型' : `副模型${index + 1}`}: ${lc.llmConfigName} - ${lc.modelName}`,
+          llmConfigId: lc.llmConfigId,
+          llmModelConfigId: lc.llmModelConfigId || 0,
         });
       });
     }
@@ -142,7 +272,7 @@ const AgentTable: React.FC<AgentTableProps> = ({
       title: '名称',
       dataIndex: 'name',
       key: 'name',
-      width: 70,
+      width: 120,
       render: (name: string) => <Text strong>{name}</Text>,
     },
     {
@@ -156,43 +286,171 @@ const AgentTable: React.FC<AgentTableProps> = ({
       },
     },
     {
-      title: '主模型',
-      key: 'llmConfig',
-      width: 120,
+      title: '大模型配置',
+      key: 'llmConfigs',
+      width: 280,
       render: (_: unknown, record: Agent) => {
-        if (record.primaryModelName && record.llmConfigName) {
-          return (
-            <Tooltip title={`${record.llmConfigName} - ${record.primaryModelName}`}>
-              <Tag color="green">{record.llmConfigName}</Tag>
-              <div style={{ fontSize: 11, color: '#666', marginTop: 2 }}>
-                {record.primaryModelName}
-              </div>
-            </Tooltip>
-          );
+        const models: Array<{
+          llmConfigName: string;
+          modelName: string;
+          isPrimary: boolean;
+          isValid: boolean;
+          msg: string;
+        }> = [];
+        
+        if (record.llmConfigs && record.llmConfigs.length > 0) {
+          record.llmConfigs.forEach(lc => {
+            models.push({
+              llmConfigName: lc.llmConfigName,
+              modelName: lc.modelName,
+              isPrimary: lc.isPrimary,
+              isValid: lc.isValid,
+              msg: lc.msg,
+            });
+          });
         }
-        return <Tag color="red">未配置</Tag>;
-      },
-    },
-    {
-      title: '副模型',
-      key: 'fallbackModels',
-      width: 200,
-      render: (_: unknown, record: Agent) => {
-        if (!record.fallbackModels || record.fallbackModels.length === 0) {
-          return <Text type="secondary" style={{ fontSize: 12 }}>无</Text>;
+        
+        if (models.length === 0) {
+          return <Tag color="red">未配置</Tag>;
         }
+        
+        const isExpanded = expandedAgents.has(record.id);
+        const defaultShowCount = 3;
+        const displayModels = isExpanded ? models : models.slice(0, defaultShowCount);
+        const hasMore = models.length > defaultShowCount;
+        
         return (
-          <div>
-            {record.fallbackModels.map((fm, index) => (
-              <div key={index} style={{ marginBottom: index < record.fallbackModels!.length - 1 ? '8px' : 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <Tag color="blue" style={{ margin: 0 }}>{fm.llmConfigName || `配置:${fm.llmConfigId}`}</Tag>
-                {fm.modelName && (
-                  <span style={{ fontSize: 11, color: '#666' }}>
-                    {fm.modelName}
-                  </span>
-                )}
-              </div>
-            ))}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            {displayModels.map((model, index) => {
+              const msgDisplay = model.msg.length > 20 
+                ? `${model.msg.substring(0, 20)}...` 
+                : model.msg;
+              
+              const tagColor = model.isPrimary 
+                ? 'green' 
+                : (model.isValid ? 'blue' : 'red');
+              
+              return (
+                <React.Fragment key={index}>
+                  <div style={{ 
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    gap: '8px',
+                    padding: '4px 0',
+                  }}>
+                    <Tooltip title={model.isPrimary ? '主模型' : '点击设为主模型'}>
+                      {model.isPrimary ? (
+                        <StarFilled 
+                          style={{ 
+                            color: '#ff4d4f', 
+                            fontSize: 14,
+                            cursor: 'default',
+                          }}
+                        />
+                      ) : (
+                        <StarOutlined 
+                          style={{ 
+                            color: '#1890ff', 
+                            fontSize: 14,
+                            cursor: 'pointer',
+                          }}
+                          onClick={() => {
+                            if (record.llmConfigs) {
+                              const llmConfig = record.llmConfigs[index];
+                              handleSetPrimaryModel(record.id, llmConfig.llmConfigId, llmConfig.llmModelConfigId || 0);
+                            }
+                          }}
+                        />
+                      )}
+                    </Tooltip>
+                    {model.isPrimary ? (
+                      <span style={{ fontSize: 12, color: '#ff4d4f', fontWeight: 500 }}>主模型</span>
+                    ) : (
+                      <>
+                        <Tooltip title="上移">
+                          <ArrowUpOutlined 
+                            style={{ 
+                              fontSize: 12, 
+                              color: '#999',
+                              cursor: index === 1 ? 'not-allowed' : 'pointer',
+                              opacity: index === 1 ? 0.3 : 1,
+                            }}
+                            onClick={() => {
+                              if (index > 1) {
+                                handleMoveUp(record.id, index);
+                              }
+                            }}
+                          />
+                        </Tooltip>
+                        <Tooltip title="下移">
+                          <ArrowDownOutlined 
+                            style={{ 
+                              fontSize: 12, 
+                              color: '#999',
+                              cursor: record.llmConfigs && index === record.llmConfigs.length - 1 ? 'not-allowed' : 'pointer',
+                              opacity: record.llmConfigs && index === record.llmConfigs.length - 1 ? 0.3 : 1,
+                            }}
+                            onClick={() => {
+                              if (record.llmConfigs && index < record.llmConfigs.length - 1) {
+                                handleMoveDown(record.id, index);
+                              }
+                            }}
+                          />
+                        </Tooltip>
+                      </>
+                    )}
+                    <Tag color={tagColor} style={{ margin: 0, minWidth: 60 }}>
+                      {model.llmConfigName}
+                    </Tag>
+                    <span style={{ fontSize: 12, color: '#666' }}>
+                      {model.modelName}
+                    </span>
+                    {model.msg && (
+                      <Tooltip title={model.msg}>
+                        <span style={{ 
+                          fontSize: 11, 
+                          color: model.isValid ? '#52c41a' : '#ff4d4f',
+                          marginLeft: '32px',
+                          maxWidth: 100,
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                          whiteSpace: 'nowrap',
+                        }}>
+                          {msgDisplay}
+                        </span>
+                      </Tooltip>
+                    )}
+                  </div>
+                  {model.isPrimary && models.length > 1 && (
+                    <div style={{ 
+                      borderBottom: '1px solid #1890ff', 
+                      margin: '4px 0',
+                      width: '100%',
+                    }} />
+                  )}
+                </React.Fragment>
+              );
+            })}
+            {hasMore && (
+              <Button 
+                type="link" 
+                size="small"
+                style={{ padding: 0, height: 'auto', fontSize: 12 }}
+                onClick={() => {
+                  setExpandedAgents(prev => {
+                    const newSet = new Set(prev);
+                    if (newSet.has(record.id)) {
+                      newSet.delete(record.id);
+                    } else {
+                      newSet.add(record.id);
+                    }
+                    return newSet;
+                  });
+                }}
+              >
+                {isExpanded ? '收起' : `查看更多 (${models.length - defaultShowCount}个)`}
+              </Button>
+            )}
           </div>
         );
       },
@@ -206,18 +464,19 @@ const AgentTable: React.FC<AgentTableProps> = ({
         if (!prompt) return <Text type="secondary" style={{ fontSize: 12 }}>-</Text>;
         
         return (
-          <Tooltip title={<div style={{ whiteSpace: 'pre-wrap', maxWidth: 400 }}>{prompt}</div>} placement="topLeft">
+          <Tooltip 
+            overlayStyle={{ maxWidth: 800 }}
+            title={<div style={{ whiteSpace: 'pre-wrap' }}>{prompt}</div>} 
+            placement="topLeft"
+          >
             <div style={{ 
               whiteSpace: 'pre-wrap',
               wordBreak: 'break-word',
               overflow: 'hidden',
               fontSize: 12,
               color: '#666',
-              maxHeight: 60,
               lineHeight: '20px',
-              display: '-webkit-box',
-              WebkitLineClamp: 3,
-              WebkitBoxOrient: 'vertical' as const,
+              maxHeight: '200px',
             }}>
               {prompt}
             </div>
@@ -228,7 +487,7 @@ const AgentTable: React.FC<AgentTableProps> = ({
     {
       title: '状态',
       key: 'status',
-      width: 100,
+      width: 80,
       render: (_: unknown, record: Agent) => {
         const runtimeStatus = runtimeStatuses[record.id];
         const stateInfo = RUNTIME_STATE_MAP[runtimeStatus?.state || 'Uninitialized'];
@@ -307,7 +566,7 @@ const AgentTable: React.FC<AgentTableProps> = ({
     <>
       <Table
         columns={columns}
-        dataSource={agents}
+        dataSource={mergedAgents}
         rowKey="id"
         loading={loading}
         scroll={{ x: 1500 }}

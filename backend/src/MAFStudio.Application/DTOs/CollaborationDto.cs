@@ -53,6 +53,7 @@ public class ChatMessageDto
     public string Role { get; set; } = "assistant";
     public DateTime Timestamp { get; set; } = DateTime.UtcNow;
     public Dictionary<string, object>? Metadata { get; set; }
+    public bool IsStreaming { get; set; } = false;
 }
 
 /// <summary>

@@ -3,11 +3,14 @@ using MAFStudio.Application.Capabilities;
 using MAFStudio.Application.Clients;
 using MAFStudio.Application.Interfaces;
 using MAFStudio.Application.Services;
+using MAFStudio.Core.Entities;
 using MAFStudio.Core.Interfaces.Repositories;
+using MAFStudio.Core.Interfaces.Services;
 using MAFStudio.Infrastructure.Data;
 using MAFStudio.Infrastructure.Data.Repositories;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Moq;
 using Npgsql;
@@ -124,7 +127,11 @@ public class ToolCallingIntegrationTests
             modelConfigRepository,
             chatClientFactoryLogger);
 
-        var capabilityManager = new CapabilityManager();
+        var mockServiceProvider = new Mock<IServiceProvider>();
+        var mockTaskContext = new Mock<ITaskContextService>();
+        mockServiceProvider.Setup(x => x.GetService(typeof(ITaskContextService))).Returns(mockTaskContext.Object);
+        
+        var capabilityManager = new CapabilityManager(mockServiceProvider.Object);
 
         Log("\n========== 注册的能力 ==========");
         foreach (var capability in capabilityManager.GetAllCapabilities())
@@ -219,7 +226,11 @@ public class ToolCallingIntegrationTests
             modelConfigRepository,
             chatClientFactoryLogger);
 
-        var capabilityManager = new CapabilityManager();
+        var mockServiceProvider = new Mock<IServiceProvider>();
+        var mockTaskContext = new Mock<ITaskContextService>();
+        mockServiceProvider.Setup(x => x.GetService(typeof(ITaskContextService))).Returns(mockTaskContext.Object);
+        
+        var capabilityManager = new CapabilityManager(mockServiceProvider.Object);
         var agentFactory = new AgentFactoryService(
             agentRepository,
             chatClientFactory,
@@ -349,7 +360,21 @@ public class ToolCallingIntegrationTests
             return;
         }
 
-        var gitCapability = new GitCapability();
+        var mockTaskContext = new Mock<ITaskContextService>();
+        var taskEntity = new CollaborationTask
+        {
+            GitUrl = task.git_url?.ToString(),
+            GitBranch = task.git_branch?.ToString(),
+            GitCredentials = task.git_credentials?.ToString()
+        };
+        mockTaskContext.Setup(x => x.GetGitConfig()).Returns(new GitConfig
+        {
+            Url = taskEntity.GitUrl,
+            Branch = taskEntity.GitBranch,
+            Token = taskEntity.GitCredentials
+        });
+
+        var gitCapability = new GitCapability(mockTaskContext.Object);
         Log("\nGit 能力方法:");
         foreach (var method in gitCapability.GetTools())
         {
@@ -368,7 +393,7 @@ public class ToolCallingIntegrationTests
             Log($"\n尝试克隆仓库: {gitUrl}");
             Log($"分支: {gitBranch}");
 
-            var cloneResult = gitCapability.CloneRepository(gitUrl, testDir);
+            var cloneResult = gitCapability.CloneRepository(testDir);
             Log($"克隆结果: {cloneResult}");
 
             if (Directory.Exists(testDir))

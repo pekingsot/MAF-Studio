@@ -92,15 +92,7 @@ public class AgentsController : ControllerBase
     {
         var userId = User.GetUserId();
         
-        _logger.LogInformation("创建智能体请求: LlmConfigId={LlmConfigId}, LlmModelConfigId={LlmModelConfigId}", 
-            request.LlmConfigId, request.LlmModelConfigId);
-        
-        var fallbackModelsJson = await BuildFallbackModelsJsonAsync(request.FallbackModels);
-        
-        var (llmConfigName, llmModelName) = await GetLlmNamesAsync(request.LlmConfigId, request.LlmModelConfigId);
-        
-        _logger.LogInformation("查询到的名称: llmConfigName={LlmConfigName}, llmModelName={LlmModelName}", 
-            llmConfigName, llmModelName);
+        _logger.LogInformation("创建智能体请求");
         
         var typeName = await GetTypeNameAsync(request.Type);
         
@@ -111,12 +103,8 @@ public class AgentsController : ControllerBase
             request.SystemPrompt,
             request.Avatar,
             userId,
-            request.LlmConfigId,
-            request.LlmModelConfigId,
-            fallbackModelsJson,
-            typeName,
-            llmConfigName,
-            llmModelName
+            request.LlmConfigs,
+            typeName
         );
         
         await _logService.LogAsync(userId, "创建", "智能体", $"创建智能体: {request.Name}", 
@@ -142,10 +130,6 @@ public class AgentsController : ControllerBase
             return Forbid();
         }
         
-        var fallbackModelsJson = await BuildFallbackModelsJsonAsync(request.FallbackModels);
-        
-        var (llmConfigName, llmModelName) = await GetLlmNamesAsync(request.LlmConfigId, request.LlmModelConfigId);
-        
         var typeName = await GetTypeNameAsync(existingAgent.Type);
         
         var agent = await _agentService.UpdateAsync(
@@ -153,13 +137,9 @@ public class AgentsController : ControllerBase
             request.Name, 
             request.Description, 
             request.SystemPrompt, 
-            request.Avatar, 
-            request.LlmConfigId, 
-            request.LlmModelConfigId,
-            fallbackModelsJson,
-            typeName,
-            llmConfigName,
-            llmModelName);
+            request.Avatar,
+            request.LlmConfigs,
+            typeName);
         
         await _logService.LogAsync(userId, "修改", "智能体", $"修改智能体: {request.Name}",
             JsonSerializer.Serialize(request));
@@ -247,34 +227,5 @@ public class AgentsController : ControllerBase
         var type = types.FirstOrDefault(t => t.Code == typeCode);
         return type?.Name;
     }
-
-    private async Task<string?> BuildFallbackModelsJsonAsync(List<FallbackModelRequest>? fallbackModels)
-    {
-        if (fallbackModels == null || fallbackModels.Count == 0)
-        {
-            return null;
-        }
-
-        var fallbackModelsDetail = new List<object>();
-        foreach (var fm in fallbackModels)
-        {
-            var config = await _llmConfigRepository.GetByIdAsync(fm.LlmConfigId);
-            LlmModelConfig? model = null;
-            if (fm.LlmModelConfigId.HasValue)
-            {
-                model = await _llmModelConfigRepository.GetByIdAsync(fm.LlmModelConfigId.Value);
-            }
-
-            fallbackModelsDetail.Add(new
-            {
-                llmConfigId = fm.LlmConfigId,
-                llmConfigName = config?.Name,
-                llmModelConfigId = fm.LlmModelConfigId,
-                modelName = model?.DisplayName ?? model?.ModelName,
-                priority = fm.Priority
-            });
-        }
-
-        return JsonSerializer.Serialize(fallbackModelsDetail, JsonOptions);
-    }
 }
+

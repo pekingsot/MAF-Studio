@@ -244,6 +244,9 @@ const Collaborations: React.FC = () => {
       title: task.title,
       description: task.description,
       prompt: task.prompt,
+      gitUrl: task.gitUrl,
+      gitBranch: task.gitBranch,
+      gitToken: task.gitToken,
     });
     
     if (task.config) {
@@ -1460,6 +1463,49 @@ const Collaborations: React.FC = () => {
               }
             ]}
           />
+          
+          <Collapse 
+            defaultActiveKey={[]} 
+            style={{ marginBottom: 16 }}
+            items={[
+              {
+                key: 'git',
+                label: 'Git配置（可选）',
+                children: (
+                  <>
+                    <Row gutter={16}>
+                      <Col span={16}>
+                        <Form.Item 
+                          label="Git仓库地址" 
+                          name="gitUrl"
+                          tooltip="Git仓库的完整URL，例如：https://github.com/user/repo.git"
+                        >
+                          <Input placeholder="https://github.com/user/repo.git" />
+                        </Form.Item>
+                      </Col>
+                      <Col span={8}>
+                        <Form.Item 
+                          label="目标分支" 
+                          name="gitBranch"
+                          tooltip="任务执行时使用的Git分支"
+                        >
+                          <Input placeholder="main" />
+                        </Form.Item>
+                      </Col>
+                    </Row>
+                    
+                    <Form.Item 
+                      label="Git访问令牌" 
+                      name="gitToken"
+                      tooltip="私有仓库需要提供访问令牌，公开仓库可留空"
+                    >
+                      <Input placeholder="ghp_xxxxxxxxxxxx" />
+                    </Form.Item>
+                  </>
+                )
+              }
+            ]}
+          />
         </Form>
       </Modal>
 
@@ -1704,6 +1750,49 @@ const Collaborations: React.FC = () => {
                         </Form.Item>
                       </>
                     )}
+                  </>
+                )
+              }
+            ]}
+          />
+          
+          <Collapse 
+            defaultActiveKey={[]} 
+            style={{ marginBottom: 16 }}
+            items={[
+              {
+                key: 'git',
+                label: 'Git配置（可选）',
+                children: (
+                  <>
+                    <Row gutter={16}>
+                      <Col span={16}>
+                        <Form.Item 
+                          label="Git仓库地址" 
+                          name="gitUrl"
+                          tooltip="Git仓库的完整URL，例如：https://github.com/user/repo.git"
+                        >
+                          <Input placeholder="https://github.com/user/repo.git" />
+                        </Form.Item>
+                      </Col>
+                      <Col span={8}>
+                        <Form.Item 
+                          label="目标分支" 
+                          name="gitBranch"
+                          tooltip="任务执行时使用的Git分支"
+                        >
+                          <Input placeholder="main" />
+                        </Form.Item>
+                      </Col>
+                    </Row>
+                    
+                    <Form.Item 
+                      label="Git访问令牌" 
+                      name="gitToken"
+                      tooltip="私有仓库需要提供访问令牌，公开仓库可留空"
+                    >
+                      <Input placeholder="ghp_xxxxxxxxxxxx" />
+                    </Form.Item>
                   </>
                 )
               }

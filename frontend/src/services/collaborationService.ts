@@ -38,7 +38,7 @@ export interface CollaborationTask {
   status: 'Pending' | 'InProgress' | 'Completed' | 'Failed';
   gitUrl?: string;
   gitBranch?: string;
-  hasGitToken?: boolean;
+  gitToken?: string;
   createdAt: string;
   completedAt?: string;
 }

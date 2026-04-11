@@ -21,6 +21,8 @@ public static class DependencyInjection
         services.AddScoped<ISystemLogService, SystemLogService>();
         services.AddScoped<IPermissionService, PermissionService>();
         
+        services.AddScoped<ITaskContextService, TaskContextService>();
+        
         services.AddScoped<IChatClientFactory, ChatClientFactory>();
         services.AddScoped<IChatService, ChatService>();
         

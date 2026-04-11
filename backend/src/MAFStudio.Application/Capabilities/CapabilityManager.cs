@@ -1,4 +1,5 @@
 using System.Reflection;
+using Microsoft.Extensions.DependencyInjection;
 using MAFStudio.Application.Services;
 
 namespace MAFStudio.Application.Capabilities;
@@ -6,16 +7,18 @@ namespace MAFStudio.Application.Capabilities;
 public class CapabilityManager
 {
     private readonly List<ICapability> _capabilities = new();
+    private readonly IServiceProvider _serviceProvider;
 
-    public CapabilityManager()
+    public CapabilityManager(IServiceProvider serviceProvider)
     {
+        _serviceProvider = serviceProvider;
         RegisterBuiltInCapabilities();
     }
 
     private void RegisterBuiltInCapabilities()
     {
         RegisterCapability(new FileCapability());
-        RegisterCapability(new GitCapability());
+        RegisterCapability(ActivatorUtilities.CreateInstance<GitCapability>(_serviceProvider));
         RegisterCapability(new DocumentCapability());
         RegisterCapability(new WebCapability());
         RegisterCapability(new CodeCapability());

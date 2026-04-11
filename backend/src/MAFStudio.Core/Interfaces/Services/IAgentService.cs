@@ -14,24 +14,16 @@ public interface IAgentService
         string? systemPrompt, 
         string? avatar, 
         long userId, 
-        long? llmConfigId = null, 
-        long? llmModelConfigId = null,
-        string? fallbackModelsJson = null,
-        string? typeName = null,
-        string? llmConfigName = null,
-        string? llmModelName = null);
+        string? llmConfigsJson = null,
+        string? typeName = null);
     Task<Agent> UpdateAsync(
         long id, 
         string name, 
         string? description, 
         string? systemPrompt, 
         string? avatar, 
-        long? llmConfigId = null, 
-        long? llmModelConfigId = null,
-        string? fallbackModelsJson = null,
-        string? typeName = null,
-        string? llmConfigName = null,
-        string? llmModelName = null);
+        string? llmConfigsJson = null,
+        string? typeName = null);
     Task<bool> DeleteAsync(long id);
     Task<bool> UpdateStatusAsync(long id, Core.Enums.AgentStatus status);
 }

@@ -30,15 +30,16 @@ const Agents: React.FC = () => {
   } = useAgents();
 
   const {
-    selectedPrimaryModel,
-    setSelectedPrimaryModel,
-    selectedFallbackModels,
-    setSelectedFallbackModels,
+    selectedModels,
+    setSelectedModels,
     initFormForCreate,
     initFormForEdit,
+    handleAddModel,
+    handleSetPrimary,
     handleMoveUp,
     handleMoveDown,
-    handleRemoveFallbackModel,
+    handleRemoveModel,
+    buildLlmConfigsRequest,
   } = useAgentForm(llmConfigs, loadLLMConfigs);
 
   const handleCreate = useCallback(async () => {
@@ -70,15 +71,19 @@ const Agents: React.FC = () => {
 
   const handleSubmit = useCallback(async (data: AgentFormData) => {
     console.log('提交数据:', data);
-    console.log('当前主模型:', selectedPrimaryModel);
-    console.log('当前副模型:', selectedFallbackModels);
+    console.log('当前选中的模型:', selectedModels);
+    
+    const submitData = {
+      ...data,
+      llmConfigs: buildLlmConfigsRequest(),
+    };
     
     try {
       if (editingAgent) {
-        await agentService.updateAgent(editingAgent.id, data);
+        await agentService.updateAgent(editingAgent.id, submitData);
         message.success('更新成功');
       } else {
-        await agentService.createAgent(data);
+        await agentService.createAgent(submitData);
         message.success('创建成功');
       }
       setModalVisible(false);
@@ -87,7 +92,7 @@ const Agents: React.FC = () => {
       console.error('提交失败:', error);
       message.error('操作失败');
     }
-  }, [editingAgent, loadAgents]);
+  }, [editingAgent, loadAgents, selectedModels, buildLlmConfigsRequest]);
 
   const handleTypeChange = useCallback((typeCode: string) => {
     const selectedType = agentTypes.find(t => t.code === typeCode);
@@ -134,16 +139,16 @@ const Agents: React.FC = () => {
         editingAgent={editingAgent}
         agentTypes={agentTypes}
         llmConfigs={llmConfigs}
-        selectedPrimaryModel={selectedPrimaryModel}
-        selectedFallbackModels={selectedFallbackModels}
-        onPrimaryModelChange={setSelectedPrimaryModel}
-        onFallbackModelsChange={setSelectedFallbackModels}
+        selectedModels={selectedModels}
+        onAddModel={handleAddModel}
+        onSetPrimary={handleSetPrimary}
         onMoveUp={handleMoveUp}
         onMoveDown={handleMoveDown}
-        onRemoveFallbackModel={handleRemoveFallbackModel}
+        onRemoveModel={handleRemoveModel}
         onCancel={handleCancel}
         onSubmit={handleSubmit}
         onTypeChange={handleTypeChange}
+        onRefreshModels={loadLLMConfigs}
       />
     </div>
   );

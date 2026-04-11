@@ -15,13 +15,13 @@ public static class EntityMapper
 
     public static AgentVo ToVo(this Agent agent)
     {
-        List<FallbackModelVo>? fallbackModels = null;
+        List<LlmConfigInfoVo>? llmConfigs = null;
         
-        if (!string.IsNullOrEmpty(agent.FallbackModels))
+        if (!string.IsNullOrEmpty(agent.LlmConfigs))
         {
             try
             {
-                fallbackModels = JsonSerializer.Deserialize<List<FallbackModelVo>>(agent.FallbackModels, JsonOptions);
+                llmConfigs = JsonSerializer.Deserialize<List<LlmConfigInfoVo>>(agent.LlmConfigs, JsonOptions);
             }
             catch
             {
@@ -39,25 +39,21 @@ public static class EntityMapper
             Avatar = agent.Avatar,
             UserId = agent.UserId,
             Status = agent.Status,
-            LlmConfigId = agent.LlmConfigId,
-            LlmModelConfigId = agent.LlmModelConfigId,
-            LlmConfigName = agent.LlmConfigName,
-            PrimaryModelName = agent.LlmModelName,
             CreatedAt = agent.CreatedAt,
             LlmConfig = agent.LlmConfig?.ToVo(),
-            FallbackModels = fallbackModels
+            LlmConfigs = llmConfigs
         };
     }
 
     public static AgentListItemVo ToListItemVo(this Agent agent)
     {
-        List<FallbackModelVo>? fallbackModels = null;
+        List<LlmConfigInfoVo>? llmConfigs = null;
         
-        if (!string.IsNullOrEmpty(agent.FallbackModels))
+        if (!string.IsNullOrEmpty(agent.LlmConfigs))
         {
             try
             {
-                fallbackModels = JsonSerializer.Deserialize<List<FallbackModelVo>>(agent.FallbackModels, JsonOptions);
+                llmConfigs = JsonSerializer.Deserialize<List<LlmConfigInfoVo>>(agent.LlmConfigs, JsonOptions);
             }
             catch
             {
@@ -73,11 +69,7 @@ public static class EntityMapper
             TypeName = agent.TypeName,
             Avatar = agent.Avatar,
             Status = agent.Status,
-            LlmConfigId = agent.LlmConfigId,
-            LlmModelConfigId = agent.LlmModelConfigId,
-            LlmConfigName = agent.LlmConfigName,
-            PrimaryModelName = agent.LlmModelName,
-            FallbackModels = fallbackModels,
+            LlmConfigs = llmConfigs,
             CreatedAt = agent.CreatedAt,
             SystemPrompt = agent.SystemPrompt
         };

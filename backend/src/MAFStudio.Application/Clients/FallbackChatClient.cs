@@ -92,7 +92,13 @@ public class FallbackChatClient : DelegatingChatClient
         }
 
         var allErrors = string.Join("; ", errors.Select(e => e.Message));
-        throw new AggregateException($"所有模型调用失败: {allErrors}", errors);
+        var failureDetails = _clients
+            .Zip(errors.Take(_clients.Count * _maxRetries))
+            .Select((pair, idx) => new ModelFailureDetail(pair.First.ModelName, pair.Second.Message, pair.First.Priority))
+            .GroupBy(d => d.ModelName)
+            .Select(g => g.First())
+            .ToList();
+        throw new ModelCallFailedException($"所有模型调用失败: {allErrors}", failureDetails);
     }
 
     public override async IAsyncEnumerable<ChatResponseUpdate> GetStreamingResponseAsync(
@@ -111,8 +117,46 @@ public class FallbackChatClient : DelegatingChatClient
             yield break;
         }
 
+        _logger?.LogWarning("所有模型流式调用失败，降级为非流式调用...");
+
+        List<ChatResponseUpdate>? fallbackUpdates = null;
+        try
+        {
+            var response = await GetResponseAsync(messages, options, cancellationToken);
+            var text = response.Text ?? "";
+            if (!string.IsNullOrEmpty(text))
+            {
+                fallbackUpdates = new List<ChatResponseUpdate>
+                {
+                    new(ChatRole.Assistant, text)
+                    {
+                        ResponseId = response.ResponseId,
+                        ModelId = response.ModelId
+                    }
+                };
+            }
+        }
+        catch (Exception fallbackEx)
+        {
+            errors.Add(new Exception($"非流式降级调用也失败: {fallbackEx.Message}", fallbackEx));
+        }
+
+        if (fallbackUpdates != null)
+        {
+            foreach (var update in fallbackUpdates)
+            {
+                yield return update;
+            }
+            yield break;
+        }
+
         var allErrors = string.Join("; ", errors.Select(e => e.Message));
-        throw new AggregateException($"所有模型流式调用失败: {allErrors}", errors);
+        var failureDetails = errors
+            .Select((e, idx) => new ModelFailureDetail($"模型{(idx / _maxRetries) + 1}", e.Message, idx / _maxRetries + 1))
+            .GroupBy(d => d.ModelName)
+            .Select(g => g.First())
+            .ToList();
+        throw new ModelCallFailedException($"所有模型调用失败（流式+非流式）: {allErrors}", failureDetails);
     }
 
     private async Task<(bool Success, List<ChatResponseUpdate>? Updates, List<Exception> Errors)> TryGetStreamingResponseAsync(

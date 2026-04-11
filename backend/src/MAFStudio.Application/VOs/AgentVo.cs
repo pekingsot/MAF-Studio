@@ -29,16 +29,12 @@ public class AgentVo
     public string? Avatar { get; set; }
     public long UserId { get; set; }
     public AgentStatus Status { get; set; }
-    public long? LlmConfigId { get; set; }
-    public long? LlmModelConfigId { get; set; }
-    public string? LlmConfigName { get; set; }
-    public string? PrimaryModelName { get; set; }
     public LlmConfigVo? LlmConfig { get; set; }
     
     /// <summary>
-    /// 副模型配置列表（用于故障转移）
+    /// 大模型选择配置（包含主模型和副模型，带验证状态）
     /// </summary>
-    public List<FallbackModelVo>? FallbackModels { get; set; }
+    public List<LlmConfigInfoVo>? LlmConfigs { get; set; }
     
     public DateTime CreatedAt { get; set; }
     public DateTime? UpdatedAt { get; set; }
@@ -53,23 +49,7 @@ public class AgentListItemVo
     public string? TypeName { get; set; }
     public string? Avatar { get; set; }
     public AgentStatus Status { get; set; }
-    public long? LlmConfigId { get; set; }
-    public long? LlmModelConfigId { get; set; }
-    public string? LlmConfigName { get; set; }
-    public string? PrimaryModelName { get; set; }
-    public List<FallbackModelVo>? FallbackModels { get; set; }
+    public List<LlmConfigInfoVo>? LlmConfigs { get; set; }
     public DateTime CreatedAt { get; set; }
     public string? SystemPrompt { get; set; }
-}
-
-/// <summary>
-/// 副模型配置VO
-/// </summary>
-public class FallbackModelVo
-{
-    public long LlmConfigId { get; set; }
-    public string? LlmConfigName { get; set; }
-    public long? LlmModelConfigId { get; set; }
-    public string? ModelName { get; set; }
-    public int Priority { get; set; }
 }

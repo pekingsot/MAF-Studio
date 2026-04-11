@@ -20,7 +20,7 @@ public class CollaborationTaskRepository : ICollaborationTaskRepository
         using var connection = _context.CreateConnection();
         const string sql = @"
             SELECT id, collaboration_id, title, description, prompt, status, assigned_to, 
-                   created_at, completed_at, git_url, git_branch, config
+                   created_at, completed_at, git_url, git_branch, git_credentials, config
             FROM collaboration_tasks 
             WHERE id = @Id";
         return await connection.QueryFirstOrDefaultAsync<CollaborationTask>(sql, new { Id = id });
@@ -31,7 +31,7 @@ public class CollaborationTaskRepository : ICollaborationTaskRepository
         using var connection = _context.CreateConnection();
         const string sql = @"
             SELECT id, collaboration_id, title, description, prompt, status, assigned_to, 
-                   created_at, completed_at, git_url, git_branch, config
+                   created_at, completed_at, git_url, git_branch, git_credentials, config
             FROM collaboration_tasks 
             WHERE collaboration_id = @CollaborationId 
             ORDER BY created_at DESC";

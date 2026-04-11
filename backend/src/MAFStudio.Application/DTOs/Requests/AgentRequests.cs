@@ -11,9 +11,9 @@ public class CreateAgentRequest
     public long? LlmModelConfigId { get; set; }
     
     /// <summary>
-    /// 副模型配置列表（用于故障转移）
+    /// 大模型选择配置（包含主模型和副模型，带验证状态）
     /// </summary>
-    public List<FallbackModelRequest>? FallbackModels { get; set; }
+    public string? LlmConfigs { get; set; }
 }
 
 public class UpdateAgentRequest
@@ -26,19 +26,9 @@ public class UpdateAgentRequest
     public long? LlmModelConfigId { get; set; }
     
     /// <summary>
-    /// 副模型配置列表（用于故障转移）
+    /// 大模型选择配置（包含主模型和副模型，带验证状态）
     /// </summary>
-    public List<FallbackModelRequest>? FallbackModels { get; set; }
-}
-
-/// <summary>
-/// 副模型配置请求
-/// </summary>
-public class FallbackModelRequest
-{
-    public long LlmConfigId { get; set; }
-    public long? LlmModelConfigId { get; set; }
-    public int Priority { get; set; }
+    public string? LlmConfigs { get; set; }
 }
 
 public class UpdateAgentStatusRequest
