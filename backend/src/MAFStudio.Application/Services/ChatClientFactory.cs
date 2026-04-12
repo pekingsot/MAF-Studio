@@ -178,6 +178,14 @@ public class ChatClientFactory : IChatClientFactory
 
             foreach (var fallback in sortedFallbacks)
             {
+                if (fallback.LlmConfigId == primaryLlmConfigId && 
+                    fallback.LlmModelConfigId == primaryModelConfigId)
+                {
+                    _logger.LogInformation("跳过副模型中的主模型: LlmConfigId={LlmConfigId}, LlmModelConfigId={LlmModelConfigId}",
+                        fallback.LlmConfigId, fallback.LlmModelConfigId);
+                    continue;
+                }
+
                 try
                 {
                     var (fallbackClient, fallbackModelName) = await CreateClientInternalAsync(
@@ -193,8 +201,8 @@ public class ChatClientFactory : IChatClientFactory
                         LlmModelConfigId = fallback.LlmModelConfigId
                     });
 
-                    _logger.LogInformation("添加副模型客户端: LlmConfigId={LlmConfigId}, Model={Model}, Priority={Priority}",
-                        fallback.LlmConfigId, fallbackModelName, fallback.Priority);
+                    _logger.LogInformation("添加副模型客户端: LlmConfigId={LlmConfigId}, LlmModelConfigId={LlmModelConfigId}, Model={Model}, Priority={Priority}",
+                        fallback.LlmConfigId, fallback.LlmModelConfigId, fallbackModelName, fallback.Priority);
                 }
                 catch (Exception ex)
                 {

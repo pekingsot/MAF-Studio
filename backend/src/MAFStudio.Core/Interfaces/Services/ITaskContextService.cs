@@ -10,6 +10,7 @@ public class GitConfig
 public interface ITaskContextService
 {
     void SetCurrentTask(Core.Entities.CollaborationTask task);
+    Core.Entities.CollaborationTask? GetCurrentTask();
     GitConfig? GetGitConfig();
     void Clear();
 }

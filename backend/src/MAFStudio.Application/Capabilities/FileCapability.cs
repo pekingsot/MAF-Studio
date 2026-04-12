@@ -1,3 +1,4 @@
+using System.ComponentModel;
 using System.Reflection;
 using System.Text;
 
@@ -14,8 +15,9 @@ public class FileCapability : ICapability
             .Where(m => m.GetCustomAttribute<ToolAttribute>() != null);
     }
 
-    [Tool("读取文件内容")]
-    public string ReadFile(string filePath)
+    [Tool("Read the entire content of a text file. Returns the file content as a string.")]
+    public string ReadFile(
+        [Description("Absolute path to the file to read, e.g. '/home/user/project/src/Program.cs'")] string filePath)
     {
         try
         {
@@ -30,8 +32,10 @@ public class FileCapability : ICapability
         }
     }
 
-    [Tool("写入文件内容")]
-    public string WriteFile(string filePath, string content)
+    [Tool("Write content to a file, creating the file and any parent directories if they do not exist. This will overwrite the existing file content.")]
+    public string WriteFile(
+        [Description("Absolute path to the file to write, e.g. '/home/user/project/src/newfile.cs'")] string filePath,
+        [Description("The text content to write into the file")] string content)
     {
         try
         {
@@ -50,8 +54,10 @@ public class FileCapability : ICapability
         }
     }
 
-    [Tool("追加文件内容")]
-    public string AppendFile(string filePath, string content)
+    [Tool("Append content to the end of an existing file.")]
+    public string AppendFile(
+        [Description("Absolute path to the file to append content to")] string filePath,
+        [Description("The text content to append to the end of the file")] string content)
     {
         try
         {
@@ -64,8 +70,9 @@ public class FileCapability : ICapability
         }
     }
 
-    [Tool("删除文件")]
-    public string DeleteFile(string filePath)
+    [Tool("Delete a file.")]
+    public string DeleteFile(
+        [Description("Absolute path to the file to delete")] string filePath)
     {
         try
         {
@@ -81,8 +88,10 @@ public class FileCapability : ICapability
         }
     }
 
-    [Tool("列出目录下的文件")]
-    public string ListFiles(string directoryPath, string searchPattern = "*")
+    [Tool("List files in a directory.")]
+    public string ListFiles(
+        [Description("Absolute path to the directory to list files from")] string directoryPath,
+        [Description("Glob pattern to filter files, e.g. '*.cs' for C# files. Default '*' shows all files")] string searchPattern = "*")
     {
         try
         {
@@ -105,8 +114,9 @@ public class FileCapability : ICapability
         }
     }
 
-    [Tool("创建目录")]
-    public string CreateDirectory(string directoryPath)
+    [Tool("Create a directory and all parent directories if needed.")]
+    public string CreateDirectory(
+        [Description("Absolute path of the directory to create, e.g. '/home/user/project/newdir'")] string directoryPath)
     {
         try
         {
@@ -119,8 +129,10 @@ public class FileCapability : ICapability
         }
     }
 
-    [Tool("删除目录")]
-    public string DeleteDirectory(string directoryPath, bool recursive = true)
+    [Tool("Delete a directory.")]
+    public string DeleteDirectory(
+        [Description("Absolute path of the directory to delete")] string directoryPath,
+        [Description("Whether to delete subdirectories and files recursively. Default true")] bool recursive = true)
     {
         try
         {
@@ -136,8 +148,11 @@ public class FileCapability : ICapability
         }
     }
 
-    [Tool("复制文件")]
-    public string CopyFile(string sourceFile, string destinationFile, bool overwrite = false)
+    [Tool("Copy a file to a new location.")]
+    public string CopyFile(
+        [Description("Absolute path of the source file to copy")] string sourceFile,
+        [Description("Absolute path for the destination copy")] string destinationFile,
+        [Description("Whether to overwrite an existing file at the destination. Default false")] bool overwrite = false)
     {
         try
         {
@@ -153,8 +168,10 @@ public class FileCapability : ICapability
         }
     }
 
-    [Tool("移动文件")]
-    public string MoveFile(string sourceFile, string destinationFile)
+    [Tool("Move a file to a new location.")]
+    public string MoveFile(
+        [Description("Absolute path of the source file to move")] string sourceFile,
+        [Description("Absolute path for the destination")] string destinationFile)
     {
         try
         {

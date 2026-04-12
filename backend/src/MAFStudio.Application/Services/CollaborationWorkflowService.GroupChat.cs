@@ -209,6 +209,8 @@ public partial class CollaborationWorkflowService
                 agentIdToNameMap[agent.Id] = agentEntity.Name;
                 agentIdMap[agent.Id] = member.AgentId;
                 
+                mafAgents.Add(agent);
+                
                 if (isManager)
                 {
                     managerAgent = agent;
@@ -217,12 +219,10 @@ public partial class CollaborationWorkflowService
                     orchestratorAgentName = agentEntity.Name;
                     orchestratorAgentType = agentEntity.TypeName;
                     orchestratorChatClient = chatClient;
-                    _logger.LogInformation("识别主Agent: Id={Id}, Name={Name}, DBId={DBId} (不添加到Participants)", agent.Id, agentEntity.Name, member.AgentId);
+                    _logger.LogInformation("识别主Agent: Id={Id}, Name={Name}, DBId={DBId}", agent.Id, agentEntity.Name, member.AgentId);
                 }
                 else
                 {
-                    mafAgents.Add(agent);
-                    
                     if (orchestratorChatClient == null)
                     {
                         orchestratorAgentId = member.AgentId;
@@ -237,19 +237,28 @@ public partial class CollaborationWorkflowService
 
             var managerThinkingQueue = new System.Collections.Concurrent.ConcurrentQueue<ManagerThinkingEventArgs>();
             
+            _logger.LogInformation("创建工作流: OrchestrationMode={Mode}, ManagerAgent={Manager}, OrchestratorChatClient={HasClient}", 
+                parameters.OrchestrationMode, managerAgent?.Name ?? "null", orchestratorChatClient != null ? "有" : "无");
+            
             var workflow = AgentWorkflowBuilder
                 .CreateGroupChatBuilderWith(agents =>
                 {
                     var allAgents = new List<AIAgent>(agents);
                     if (managerAgent != null && !allAgents.Contains(managerAgent))
                     {
-                        allAgents.Insert(0, managerAgent);
+                        if (!allAgents.Any(a => a.Name == managerAgent.Name))
+                        {
+                            allAgents.Insert(0, managerAgent);
+                        }
                     }
+                    
+                    _logger.LogInformation("选择GroupChatManager: Mode={Mode}, ManagerAgent={Manager}, OrchestratorChatClient={HasClient}", 
+                        parameters.OrchestrationMode, managerAgent?.Name ?? "null", orchestratorChatClient != null ? "有" : "无");
                     
                     return parameters.OrchestrationMode switch
                     {
                         GroupChatOrchestrationMode.Intelligent when managerAgent != null && orchestratorChatClient != null =>
-                            CreateIntelligentManager(managerAgent, allAgents, orchestratorChatClient, parameters.MaxIterations),
+                            CreateIntelligentManager(managerAgent, allAgents, orchestratorChatClient, parameters.MaxIterations, taskConfig?.ManagerCustomPrompt),
                         
                         GroupChatOrchestrationMode.Manager when managerAgent != null && orchestratorChatClient != null =>
                             CreateManagerMode(managerAgent, allAgents, parameters.MaxIterations, orchestratorChatClient!, managerThinkingQueue),
@@ -297,30 +306,16 @@ public partial class CollaborationWorkflowService
 
             await foreach (var evt in run.WatchStreamAsync().ConfigureAwait(false))
             {
-                while (managerThinkingQueue.TryDequeue(out var thinkingArgs))
-                {
-                    _logger.LogInformation("发送Manager思考过程: {Thinking}", thinkingArgs.Thinking);
-                    
-                    yield return new ChatMessageDto
-                    {
-                        Sender = thinkingArgs.ManagerName,
-                        Content = thinkingArgs.Thinking,
-                        Timestamp = DateTime.UtcNow,
-                        Role = "system",
-                        Metadata = new Dictionary<string, object>
-                        {
-                            ["type"] = "manager_thinking",
-                            ["selectedAgent"] = thinkingArgs.SelectedAgent ?? "",
-                            ["iterationCount"] = thinkingArgs.IterationCount
-                        }
-                    };
-                }
-                
                 _logger.LogInformation("收到事件: {EventType}", evt.GetType().Name);
 
                 if (evt is AgentResponseUpdateEvent updateEvent)
                 {
                     var executorId = updateEvent.ExecutorId ?? "Agent";
+                    var update = updateEvent.Update;
+                    var updateText = update?.Text ?? "";
+                    
+                    _logger.LogInformation("收到AgentResponseUpdateEvent: ExecutorId={ExecutorId}, TextLength={TextLength}, Text={Text}", 
+                        executorId, updateText.Length, updateText.Length > 0 ? updateText.Substring(0, Math.Min(100, updateText.Length)) : "(空)");
                     
                     if (executorId != currentAgentId)
                     {
@@ -355,6 +350,25 @@ public partial class CollaborationWorkflowService
                                 Timestamp = DateTime.UtcNow,
                                 Role = "assistant"
                             };
+                            
+                            while (managerThinkingQueue.TryDequeue(out var thinkingArgs))
+                            {
+                                _logger.LogInformation("发送Manager思考过程: {Thinking}", thinkingArgs.Thinking);
+                                
+                                yield return new ChatMessageDto
+                                {
+                                    Sender = thinkingArgs.ManagerName,
+                                    Content = thinkingArgs.Thinking,
+                                    Timestamp = DateTime.UtcNow,
+                                    Role = "system",
+                                    Metadata = new Dictionary<string, object>
+                                    {
+                                        ["type"] = "manager_thinking",
+                                        ["selectedAgent"] = thinkingArgs.SelectedAgent ?? "",
+                                        ["iterationCount"] = thinkingArgs.IterationCount
+                                    }
+                                };
+                            }
                         }
                         
                         currentAgentId = executorId;
@@ -362,8 +376,6 @@ public partial class CollaborationWorkflowService
                         _logger.LogInformation("Agent切换: {ExecutorId}, 名称: {Name}", executorId, GetAgentName(executorId));
                     }
 
-                    var update = updateEvent.Update;
-                    
                     if (update != null)
                     {
                         var text = update.Text;
@@ -421,7 +433,56 @@ public partial class CollaborationWorkflowService
                     _logger.LogWarning("执行器失败: ExecutorId={ExecutorId}, Agent={AgentName}, Data={Data}", 
                         failedExecutorId, failedAgentName, failedData);
                     
+                    if (currentAgentId != null && currentAgentContent.Length > 0)
+                    {
+                        var agentName = GetAgentName(currentAgentId);
+                        var content = currentAgentContent.ToString();
+                        
+                        roundNumber++;
+                        if (session != null && agentIdMap.TryGetValue(currentAgentId.TrimStart('_'), out var agentId))
+                        {
+                            var member = members.FirstOrDefault(m => m.AgentId == agentId);
+                            await _messageRepository.CreateAsync(new Message
+                            {
+                                SessionId = session.Id,
+                                CollaborationId = collaborationId,
+                                TaskId = taskId,
+                                MessageType = "coordination",
+                                RoundNumber = roundNumber,
+                                FromAgentId = agentId,
+                                FromAgentName = agentName,
+                                FromAgentRole = member?.Role,
+                                Content = content
+                            });
+                            await _workflowSessionRepository.IncrementMessageCountAsync(session.Id);
+                        }
+                        
+                        yield return new ChatMessageDto
+                        {
+                            Sender = agentName,
+                            Content = content,
+                            Timestamp = DateTime.UtcNow,
+                            Role = "assistant"
+                        };
+                    }
+                    
                     var friendlyError = ParseModelErrorMessage(failedData);
+                    
+                    if (session != null && agentIdMap.TryGetValue(failedExecutorId.TrimStart('_'), out var failedAgentId))
+                    {
+                        await _messageRepository.CreateAsync(new Message
+                        {
+                            SessionId = session.Id,
+                            CollaborationId = collaborationId,
+                            TaskId = taskId,
+                            MessageType = "error",
+                            RoundNumber = roundNumber,
+                            FromAgentId = failedAgentId,
+                            FromAgentName = failedAgentName,
+                            Content = friendlyError
+                        });
+                        await _workflowSessionRepository.IncrementMessageCountAsync(session.Id);
+                    }
                     
                     yield return new ChatMessageDto
                     {
@@ -443,6 +504,39 @@ public partial class CollaborationWorkflowService
                     
                     _logger.LogError("工作流执行错误: {Error}\n内部异常: {InnerError}", errorMsg, innerMsg);
                     
+                    if (currentAgentId != null && currentAgentContent.Length > 0)
+                    {
+                        var agentName = GetAgentName(currentAgentId);
+                        var content = currentAgentContent.ToString();
+                        
+                        roundNumber++;
+                        if (session != null && agentIdMap.TryGetValue(currentAgentId.TrimStart('_'), out var agentId))
+                        {
+                            var member = members.FirstOrDefault(m => m.AgentId == agentId);
+                            await _messageRepository.CreateAsync(new Message
+                            {
+                                SessionId = session.Id,
+                                CollaborationId = collaborationId,
+                                TaskId = taskId,
+                                MessageType = "coordination",
+                                RoundNumber = roundNumber,
+                                FromAgentId = agentId,
+                                FromAgentName = agentName,
+                                FromAgentRole = member?.Role,
+                                Content = content
+                            });
+                            await _workflowSessionRepository.IncrementMessageCountAsync(session.Id);
+                        }
+                        
+                        yield return new ChatMessageDto
+                        {
+                            Sender = agentName,
+                            Content = content,
+                            Timestamp = DateTime.UtcNow,
+                            Role = "assistant"
+                        };
+                    }
+                    
                     if (session != null)
                     {
                         await _workflowSessionRepository.EndSessionAsync(session.Id, conclusion: $"工作流错误: {errorMsg}");
@@ -450,6 +544,20 @@ public partial class CollaborationWorkflowService
                     
                     var fullError = errorMsg + (string.IsNullOrEmpty(innerMsg) ? "" : $"\n内部异常: {innerMsg}");
                     var friendlyError = ParseModelErrorMessage(fullError);
+                    
+                    if (session != null)
+                    {
+                        await _messageRepository.CreateAsync(new Message
+                        {
+                            SessionId = session.Id,
+                            CollaborationId = collaborationId,
+                            TaskId = taskId,
+                            MessageType = "error",
+                            FromAgentName = "System",
+                            Content = friendlyError
+                        });
+                        await _workflowSessionRepository.IncrementMessageCountAsync(session.Id);
+                    }
                     
                     yield return new ChatMessageDto
                     {
@@ -486,10 +594,12 @@ public partial class CollaborationWorkflowService
         AIAgent managerAgent, 
         IReadOnlyList<AIAgent> agents, 
         IChatClient chatClient,
-        int maxIterations)
+        int maxIterations,
+        string? managerCustomPrompt = null)
     {
-        _logger.LogInformation("使用IntelligentGroupChatManager，主Agent: {Name}", managerAgent.Name);
-        return new IntelligentGroupChatManager(managerAgent, agents, chatClient, maxIterations);
+        _logger.LogInformation("使用IntelligentGroupChatManager，主Agent: {Name}, 有协调者提示词: {HasPrompt}", 
+            managerAgent.Name, !string.IsNullOrEmpty(managerCustomPrompt));
+        return new IntelligentGroupChatManager(managerAgent, agents, chatClient, maxIterations, managerCustomPrompt);
     }
 
     private GroupChatManager CreateManagerMode(

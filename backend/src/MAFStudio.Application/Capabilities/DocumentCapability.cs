@@ -1,3 +1,4 @@
+using System.ComponentModel;
 using System.Reflection;
 using System.Text;
 using System.Text.Json;
@@ -15,8 +16,9 @@ public class DocumentCapability : ICapability
             .Where(m => m.GetCustomAttribute<ToolAttribute>() != null);
     }
 
-    [Tool("读取JSON文件")]
-    public string ReadJson(string filePath)
+    [Tool("Read and pretty-print a JSON file.")]
+    public string ReadJson(
+        [Description("Absolute path to the JSON file, e.g. '/home/user/project/config.json'")] string filePath)
     {
         try
         {
@@ -37,8 +39,10 @@ public class DocumentCapability : ICapability
         }
     }
 
-    [Tool("写入JSON文件")]
-    public string WriteJson(string filePath, string jsonContent)
+    [Tool("Write a JSON file with pretty-printed formatting. Creates parent directories if needed.")]
+    public string WriteJson(
+        [Description("Absolute path to the JSON file")] string filePath,
+        [Description("Valid JSON string to write")] string jsonContent)
     {
         try
         {
@@ -63,8 +67,9 @@ public class DocumentCapability : ICapability
         }
     }
 
-    [Tool("读取CSV文件")]
-    public string ReadCsv(string filePath)
+    [Tool("Read a CSV file and return its content.")]
+    public string ReadCsv(
+        [Description("Absolute path to the CSV file")] string filePath)
     {
         try
         {
@@ -87,8 +92,10 @@ public class DocumentCapability : ICapability
         }
     }
 
-    [Tool("写入CSV文件")]
-    public string WriteCsv(string filePath, string content)
+    [Tool("Write content to a CSV file. Creates parent directories if needed.")]
+    public string WriteCsv(
+        [Description("Absolute path to the CSV file")] string filePath,
+        [Description("CSV content to write")] string content)
     {
         try
         {
@@ -107,8 +114,9 @@ public class DocumentCapability : ICapability
         }
     }
 
-    [Tool("读取Markdown文件")]
-    public string ReadMarkdown(string filePath)
+    [Tool("Read a Markdown file and return its content.")]
+    public string ReadMarkdown(
+        [Description("Absolute path to the Markdown file")] string filePath)
     {
         try
         {
@@ -123,8 +131,10 @@ public class DocumentCapability : ICapability
         }
     }
 
-    [Tool("写入Markdown文件")]
-    public string WriteMarkdown(string filePath, string content)
+    [Tool("Write content to a Markdown file. Creates parent directories if needed.")]
+    public string WriteMarkdown(
+        [Description("Absolute path to the Markdown file")] string filePath,
+        [Description("Markdown content to write")] string content)
     {
         try
         {
@@ -143,8 +153,10 @@ public class DocumentCapability : ICapability
         }
     }
 
-    [Tool("读取文本文件（指定编码）")]
-    public string ReadTextFile(string filePath, string encoding = "UTF-8")
+    [Tool("Read a text file with a specific character encoding.")]
+    public string ReadTextFile(
+        [Description("Absolute path to the file")] string filePath,
+        [Description("Character encoding name: UTF-8, UTF-16, ASCII, GB2312, GBK. Default 'UTF-8'")] string encoding = "UTF-8")
     {
         try
         {
@@ -160,8 +172,11 @@ public class DocumentCapability : ICapability
         }
     }
 
-    [Tool("写入文本文件（指定编码）")]
-    public string WriteTextFile(string filePath, string content, string encoding = "UTF-8")
+    [Tool("Write content to a text file with a specific character encoding. Creates parent directories if needed.")]
+    public string WriteTextFile(
+        [Description("Absolute path to the file")] string filePath,
+        [Description("Text content to write")] string content,
+        [Description("Character encoding name: UTF-8, UTF-16, ASCII, GB2312, GBK. Default 'UTF-8'")] string encoding = "UTF-8")
     {
         try
         {
@@ -181,8 +196,10 @@ public class DocumentCapability : ICapability
         }
     }
 
-    [Tool("创建目录结构")]
-    public string CreateDirectoryStructure(string basePath, string structure)
+    [Tool("Create multiple directories under a base path.")]
+    public string CreateDirectoryStructure(
+        [Description("The root directory path")] string basePath,
+        [Description("Newline-separated list of relative directory paths to create, e.g. 'src\\nsrc/models\\ntests'")] string structure)
     {
         try
         {
@@ -207,8 +224,9 @@ public class DocumentCapability : ICapability
         }
     }
 
-    [Tool("获取文件信息")]
-    public string GetFileInfo(string filePath)
+    [Tool("Get detailed information about a file including size, timestamps and attributes.")]
+    public string GetFileInfo(
+        [Description("Absolute path to the file")] string filePath)
     {
         try
         {

@@ -69,9 +69,9 @@ public class PrecisionOrchestrator : GroupChatManager
                            $"首先请 @{firstWorkerName} 发言，分享你的观点。";
 
         OnManagerThinking(thinkingText, firstWorkerName);
-        _logger?.LogInformation("[PrecisionOrchestrator] 第1轮: 选择 {Worker}", firstWorkerName);
+        _logger?.LogInformation("[PrecisionOrchestrator] 第1轮: 协调者先发言点名 {Worker}", firstWorkerName);
 
-        return new ValueTask<AIAgent?>(_workerMap[firstWorkerName]);
+        return new ValueTask<AIAgent?>(_managerAgent);
     }
 
     private async ValueTask<AIAgent?> HandleSubsequentRoundAsync(IReadOnlyList<ChatMessage> history, CancellationToken ct)
@@ -95,41 +95,30 @@ public class PrecisionOrchestrator : GroupChatManager
         _logger?.LogInformation("[PrecisionOrchestrator] 上一个发言者: {LastSpeaker}, 已发言的Worker: [{Workers}]",
             lastSpeaker, string.Join(", ", workersWhoSpoke));
 
-        _logger?.LogInformation("[PrecisionOrchestrator] >>> 调用LLM进行智能点名...");
-
-        string managerResponse;
-        try
+        if (lastSender.Equals(_managerAgent.Name, StringComparison.OrdinalIgnoreCase))
         {
-            managerResponse = await CallManagerLLMAsync(history, lastSpeaker, workersWhoSpoke, ct);
-            _logger?.LogInformation("[PrecisionOrchestrator] <<< LLM回复: {Response}", managerResponse);
+            var namedWorker = ParseNamedAgent(lastText);
+            if (namedWorker != null && _workerMap.ContainsKey(namedWorker))
+            {
+                _logger?.LogInformation("[PrecisionOrchestrator] 协调者点名了 {Worker}，让他发言", namedWorker);
+                var thinking = $"【协调决策】根据协调者指示，请 @{namedWorker} 发言。";
+                OnManagerThinking(thinking, namedWorker);
+                return _workerMap[namedWorker];
+            }
+            else
+            {
+                var fallbackName = SelectNextWorker(null, workersWhoSpoke);
+                _logger?.LogInformation("[PrecisionOrchestrator] 协调者没有点名任何人，选择默认Worker: {Agent}", fallbackName);
+                var thinking = $"【协调决策】接下来请 @{fallbackName} 继续发言。";
+                OnManagerThinking(thinking, fallbackName);
+                return _workerMap[fallbackName];
+            }
         }
-        catch (Exception ex)
+        else
         {
-            _logger?.LogError(ex, "[PrecisionOrchestrator] LLM调用失败，降级为轮询");
-            managerResponse = "";
+            _logger?.LogInformation("[PrecisionOrchestrator] 上一个发言者是Worker: {LastSpeaker}，让协调者总结并选择下一个发言者", lastSpeaker);
+            return _managerAgent;
         }
-
-        var namedAgent = ParseNamedAgent(managerResponse);
-
-        if (namedAgent != null && namedAgent == lastSpeaker && _workerNames.Count > 1)
-        {
-            _logger?.LogWarning("[PrecisionOrchestrator] LLM重复点名刚发言的 {Agent}，自动切换", namedAgent);
-            namedAgent = null;
-        }
-
-        if (namedAgent != null)
-        {
-            var thinking = $"【协调决策】{managerResponse}";
-            OnManagerThinking(thinking, namedAgent);
-            _logger?.LogInformation("[PrecisionOrchestrator] ✅ 智能点名: {Agent}", namedAgent);
-            return _workerMap[namedAgent];
-        }
-
-        var fallbackName = SelectNextWorker(lastSpeaker, workersWhoSpoke);
-        var fallbackThinking = $"【协调决策】接下来请 @{fallbackName} 继续发言。";
-        OnManagerThinking(fallbackThinking, fallbackName);
-        _logger?.LogInformation("[PrecisionOrchestrator] 轮询降级: {Agent}", fallbackName);
-        return _workerMap[fallbackName];
     }
 
     private string SelectNextWorker(string? lastSpeaker, HashSet<string> workersWhoSpoke)
@@ -236,18 +225,25 @@ public class PrecisionOrchestrator : GroupChatManager
     public string BuildHistorySummary(IReadOnlyList<ChatMessage> history)
     {
         var sb = new System.Text.StringBuilder();
-        var recentMessages = history.Skip(Math.Max(0, history.Count - 6)).ToList();
+        var recentMessages = history.Skip(Math.Max(0, history.Count - 3)).ToList();
 
         foreach (var msg in recentMessages)
         {
             var sender = msg.AuthorName ?? "未知";
             var text = msg.Text ?? "";
             if (string.IsNullOrEmpty(text)) continue;
-            sb.AppendLine($"[{sender}]: {text.Substring(0, Math.Min(200, text.Length))}");
+            var truncatedText = text.Length > 100 ? text.Substring(0, 100) + "..." : text;
+            sb.AppendLine($"[{sender}]: {truncatedText}");
             sb.AppendLine();
         }
 
-        return sb.ToString();
+        var result = sb.ToString();
+        if (result.Length > 1500)
+        {
+            result = result.Substring(0, 1500) + "...";
+        }
+
+        return result;
     }
 
     protected override ValueTask<bool> ShouldTerminateAsync(

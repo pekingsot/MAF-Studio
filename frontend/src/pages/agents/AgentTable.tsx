@@ -296,6 +296,7 @@ const AgentTable: React.FC<AgentTableProps> = ({
           isPrimary: boolean;
           isValid: boolean;
           msg: string;
+          lastChecked?: string;
         }> = [];
         
         if (record.llmConfigs && record.llmConfigs.length > 0) {
@@ -306,6 +307,7 @@ const AgentTable: React.FC<AgentTableProps> = ({
               isPrimary: lc.isPrimary,
               isValid: lc.isValid,
               msg: lc.msg,
+              lastChecked: lc.lastChecked,
             });
           });
         }
@@ -326,9 +328,22 @@ const AgentTable: React.FC<AgentTableProps> = ({
                 ? `${model.msg.substring(0, 20)}...` 
                 : model.msg;
               
-              const tagColor = model.isPrimary 
-                ? 'green' 
-                : (model.isValid ? 'blue' : 'red');
+              const isTested = model.lastChecked && model.lastChecked !== '0001-01-01T00:00:00';
+              let tagColor: string;
+              let statusText: string;
+              
+              if (model.isPrimary) {
+                tagColor = isTested ? (model.isValid ? 'green' : 'red') : 'default';
+                statusText = isTested ? (model.isValid ? '可用' : '不可用') : '未测试';
+              } else {
+                if (!isTested) {
+                  tagColor = 'default';
+                  statusText = '未测试';
+                } else {
+                  tagColor = model.isValid ? 'blue' : 'red';
+                  statusText = model.isValid ? '可用' : '不可用';
+                }
+              }
               
               return (
                 <React.Fragment key={index}>
@@ -448,7 +463,21 @@ const AgentTable: React.FC<AgentTableProps> = ({
                   });
                 }}
               >
-                {isExpanded ? '收起' : `查看更多 (${models.length - defaultShowCount}个)`}
+                {isExpanded ? '收起' : (() => {
+                  const hiddenModels = models.slice(defaultShowCount);
+                  const unavailableCount = hiddenModels.filter(m => {
+                    const isTested = m.lastChecked && m.lastChecked !== '0001-01-01T00:00:00';
+                    return !isTested || !m.isValid;
+                  }).length;
+                  if (unavailableCount > 0) {
+                    return (
+                      <>
+                        查看更多 ({hiddenModels.length}个, <span style={{ color: '#ff4d4f' }}>不可用 {unavailableCount}个</span>)
+                      </>
+                    );
+                  }
+                  return `查看更多 (${hiddenModels.length}个)`;
+                })()}
               </Button>
             )}
           </div>

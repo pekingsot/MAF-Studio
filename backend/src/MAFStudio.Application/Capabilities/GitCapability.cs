@@ -1,3 +1,4 @@
+using System.ComponentModel;
 using System.Diagnostics;
 using System.Reflection;
 using System.Text;
@@ -23,19 +24,20 @@ public class GitCapability : ICapability
             .Where(m => m.GetCustomAttribute<ToolAttribute>() != null);
     }
 
-    [Tool("克隆当前任务的Git仓库到本地目录。参数: localPath(本地存放路径)。返回: 克隆结果信息。注意：此工具会自动使用任务中配置的Git仓库地址、分支和访问令牌")]
-    public string CloneRepository(string localPath)
+    [Tool("Clone the Git repository configured in the current task to a local directory. The repository URL, branch and access token are automatically obtained from the task configuration - do NOT provide them.")]
+    public string CloneRepository(
+        [Description("Absolute local directory path where the repository should be cloned, e.g. '/workspace/my-project'")] string targetDirectory)
     {
-        if (string.IsNullOrWhiteSpace(localPath))
+        if (string.IsNullOrWhiteSpace(targetDirectory))
         {
-            return "错误：缺少必需参数 localPath（本地存放路径）。请提供本地目录路径，例如：/path/to/repo";
+            return "Error: Missing required parameter 'targetDirectory'. Please provide a local directory path where the repository should be cloned, e.g. /workspace/my-project";
         }
 
         var gitConfig = _taskContext.GetGitConfig();
         
         if (gitConfig == null || string.IsNullOrWhiteSpace(gitConfig.Url))
         {
-            return "错误：当前任务没有配置 Git 仓库。请在任务配置中设置 Git 仓库地址";
+            return "Error: No Git repository configured for the current task. Please configure a Git repository URL in the task settings.";
         }
 
         try
@@ -43,21 +45,22 @@ public class GitCapability : ICapability
             var authenticatedUrl = BuildAuthenticatedUrl(gitConfig.Url, gitConfig.Token);
             var branch = gitConfig.Branch ?? "main";
             
-            var args = $"clone -b {branch} \"{authenticatedUrl}\" \"{localPath}\"";
+            var args = $"clone -b {branch} \"{authenticatedUrl}\" \"{targetDirectory}\"";
             var result = ExecuteGitCommand(args);
             
             return result.Contains("fatal") 
-                ? $"克隆失败：{result}" 
-                : $"成功克隆仓库：{gitConfig.Url}（分支：{branch}）到 {localPath}";
+                ? $"Clone failed: {result}" 
+                : $"Successfully cloned repository: {gitConfig.Url} (branch: {branch}) to {targetDirectory}";
         }
         catch (Exception ex)
         {
-            return $"克隆仓库失败：{ex.Message}";
+            return $"Clone failed: {ex.Message}";
         }
     }
 
-    [Tool("获取Git状态。参数: repositoryPath(仓库本地路径)。返回: Git状态信息")]
-    public string GetStatus(string repositoryPath)
+    [Tool("Get the Git status of a local repository. Shows changed, staged and untracked files.")]
+    public string GetStatus(
+        [Description("Absolute path to the local Git repository directory, e.g. '/workspace/my-project'")] string repositoryPath)
     {
         if (string.IsNullOrWhiteSpace(repositoryPath))
         {
@@ -74,8 +77,10 @@ public class GitCapability : ICapability
         }
     }
 
-    [Tool("添加文件到Git暂存区。参数: repositoryPath(仓库本地路径), filePattern(文件模式，默认'.'表示所有文件)。返回: 操作结果")]
-    public string AddFiles(string repositoryPath, string filePattern = ".")
+    [Tool("Add files to the Git staging area. You must call AddFiles before Commit.")]
+    public string AddFiles(
+        [Description("Absolute path to the local Git repository directory")] string repositoryPath,
+        [Description("Glob pattern of files to add, e.g. 'src/*.cs' or '.' for all files. Default '.'")] string filePattern = ".")
     {
         if (string.IsNullOrWhiteSpace(repositoryPath))
         {
@@ -92,8 +97,12 @@ public class GitCapability : ICapability
         }
     }
 
-    [Tool("提交Git更改到本地仓库。参数: repositoryPath(仓库本地路径), message(提交信息), authorName(可选，提交者名称), authorEmail(可选，提交者邮箱)。返回: 提交结果")]
-    public string Commit(string repositoryPath, string message, string? authorName = null, string? authorEmail = null)
+    [Tool("Commit staged changes to the local Git repository. You must call AddFiles before Commit.")]
+    public string Commit(
+        [Description("Absolute path to the local Git repository directory")] string repositoryPath,
+        [Description("The commit message describing the changes")] string message,
+        [Description("Commit author name. Default 'MAF Studio Agent'")] string? authorName = null,
+        [Description("Commit author email. Default 'agent@maf-studio.local'")] string? authorEmail = null)
     {
         if (string.IsNullOrWhiteSpace(repositoryPath))
         {
@@ -121,8 +130,11 @@ public class GitCapability : ICapability
         }
     }
 
-    [Tool("推送Git提交到远程仓库。参数: repositoryPath(仓库本地路径), branch(可选，分支名，不提供则使用当前分支), setUpstream(可选，是否设置上游分支)。返回: 推送结果。注意: 推送前必须先Commit")]
-    public string Push(string repositoryPath, string branch = "", bool setUpstream = false)
+    [Tool("Push local commits to the remote Git repository. IMPORTANT: You must Commit before Push. If Push fails, call Pull first, then Push again.")]
+    public string Push(
+        [Description("Absolute path to the local Git repository directory")] string repositoryPath,
+        [Description("Remote branch name to push to. Empty string uses current branch")] string branch = "",
+        [Description("Whether to set the upstream branch. Default false")] bool setUpstream = false)
     {
         if (string.IsNullOrWhiteSpace(repositoryPath))
         {
@@ -150,8 +162,9 @@ public class GitCapability : ICapability
         }
     }
 
-    [Tool("拉取远程仓库的最新更改。参数: repositoryPath(仓库本地路径)。返回: 拉取结果。注意: 当Push失败时，先调用此工具拉取最新代码，再Push")]
-    public string Pull(string repositoryPath)
+    [Tool("Pull the latest changes from the remote Git repository. Use this when Push fails due to remote changes, then retry Push.")]
+    public string Pull(
+        [Description("Absolute path to the local Git repository directory")] string repositoryPath)
     {
         if (string.IsNullOrWhiteSpace(repositoryPath))
         {
@@ -171,8 +184,10 @@ public class GitCapability : ICapability
         }
     }
 
-    [Tool("创建分支。参数: repositoryPath(仓库本地路径), branchName(分支名称)。返回: 操作结果")]
-    public string CreateBranch(string repositoryPath, string branchName)
+    [Tool("Create and switch to a new Git branch.")]
+    public string CreateBranch(
+        [Description("Absolute path to the local Git repository directory")] string repositoryPath,
+        [Description("Name of the new branch to create, e.g. 'feature/new-login'")] string branchName)
     {
         if (string.IsNullOrWhiteSpace(repositoryPath))
         {
@@ -194,8 +209,10 @@ public class GitCapability : ICapability
         }
     }
 
-    [Tool("切换分支。参数: repositoryPath(仓库本地路径), branchName(分支名称)。返回: 操作结果")]
-    public string CheckoutBranch(string repositoryPath, string branchName)
+    [Tool("Switch to an existing Git branch.")]
+    public string CheckoutBranch(
+        [Description("Absolute path to the local Git repository directory")] string repositoryPath,
+        [Description("Name of the branch to switch to, e.g. 'main' or 'develop'")] string branchName)
     {
         if (string.IsNullOrWhiteSpace(repositoryPath))
         {
@@ -217,8 +234,10 @@ public class GitCapability : ICapability
         }
     }
 
-    [Tool("查看提交历史。参数: repositoryPath(仓库本地路径), count(可选，显示数量，默认10)。返回: 提交历史")]
-    public string GetLog(string repositoryPath, int count = 10)
+    [Tool("View the Git commit history.")]
+    public string GetLog(
+        [Description("Absolute path to the local Git repository directory")] string repositoryPath,
+        [Description("Number of commits to show. Default 10")] int count = 10)
     {
         if (string.IsNullOrWhiteSpace(repositoryPath))
         {
@@ -235,8 +254,10 @@ public class GitCapability : ICapability
         }
     }
 
-    [Tool("查看文件差异。参数: repositoryPath(仓库本地路径), file(可选，文件路径，不提供则显示所有差异)。返回: 差异信息")]
-    public string GetDiff(string repositoryPath, string file = "")
+    [Tool("View the Git diff of changes.")]
+    public string GetDiff(
+        [Description("Absolute path to the local Git repository directory")] string repositoryPath,
+        [Description("Specific file path to diff, relative to repo root. Empty string shows all changes")] string file = "")
     {
         if (string.IsNullOrWhiteSpace(repositoryPath))
         {

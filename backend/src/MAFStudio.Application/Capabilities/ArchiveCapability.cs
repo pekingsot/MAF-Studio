@@ -1,3 +1,4 @@
+using System.ComponentModel;
 using System.IO.Compression;
 using System.Reflection;
 using System.Text;
@@ -19,8 +20,11 @@ public class ArchiveCapability : ICapability
             .Where(m => m.GetCustomAttribute<ToolAttribute>() != null);
     }
 
-    [Tool("解压 ZIP 文件")]
-    public string ExtractZip(string zipPath, string destPath, bool overwrite = false)
+    [Tool("Extract a ZIP archive to a directory.")]
+    public string ExtractZip(
+        [Description("Absolute path to the ZIP file")] string zipPath,
+        [Description("Absolute path to the destination directory")] string destPath,
+        [Description("Overwrite existing files. Default false")] bool overwrite = false)
     {
         try
         {
@@ -86,8 +90,12 @@ public class ArchiveCapability : ICapability
         }
     }
 
-    [Tool("创建 ZIP 文件")]
-    public string CreateZip(string sourcePath, string zipPath, bool includeBaseDirectory = false, string? compressionLevel = "Optimal")
+    [Tool("Create a ZIP archive from a file or directory.")]
+    public string CreateZip(
+        [Description("Absolute path to the file or directory to archive")] string sourcePath,
+        [Description("Absolute path for the new ZIP file")] string zipPath,
+        [Description("Include the base directory name in the archive. Default false")] bool includeBaseDirectory = false,
+        [Description("Compression level: 'Optimal', 'Fastest', or 'NoCompression'. Default 'Optimal'")] string? compressionLevel = "Optimal")
     {
         try
         {
@@ -148,8 +156,9 @@ public class ArchiveCapability : ICapability
         }
     }
 
-    [Tool("列出 ZIP 文件内容")]
-    public string ListArchive(string zipPath)
+    [Tool("List the contents of a ZIP archive.")]
+    public string ListArchive(
+        [Description("Absolute path to the ZIP file")] string zipPath)
     {
         try
         {
@@ -193,8 +202,11 @@ public class ArchiveCapability : ICapability
         }
     }
 
-    [Tool("添加文件到 ZIP")]
-    public string AddToZip(string zipPath, string filePath, string? entryName = null)
+    [Tool("Add a file to an existing ZIP archive.")]
+    public string AddToZip(
+        [Description("Absolute path to the ZIP file")] string zipPath,
+        [Description("Absolute path to the file to add")] string filePath,
+        [Description("Name for the entry inside the ZIP. Defaults to the file name")] string? entryName = null)
     {
         try
         {
@@ -224,8 +236,12 @@ public class ArchiveCapability : ICapability
         }
     }
 
-    [Tool("从 ZIP 中提取单个文件")]
-    public string ExtractFileFromZip(string zipPath, string entryName, string destPath, bool overwrite = false)
+    [Tool("Extract a single file from a ZIP archive.")]
+    public string ExtractFileFromZip(
+        [Description("Absolute path to the ZIP file")] string zipPath,
+        [Description("Name of the entry inside the ZIP to extract")] string entryName,
+        [Description("Absolute path where the extracted file will be saved")] string destPath,
+        [Description("Overwrite existing file. Default false")] bool overwrite = false)
     {
         try
         {
@@ -269,8 +285,10 @@ public class ArchiveCapability : ICapability
         }
     }
 
-    [Tool("从 ZIP 中删除文件")]
-    public string RemoveFromZip(string zipPath, string entryName)
+    [Tool("Remove a file entry from a ZIP archive.")]
+    public string RemoveFromZip(
+        [Description("Absolute path to the ZIP file")] string zipPath,
+        [Description("Name of the entry to remove")] string entryName)
     {
         try
         {
@@ -293,8 +311,9 @@ public class ArchiveCapability : ICapability
         }
     }
 
-    [Tool("检查 ZIP 文件完整性")]
-    public string VerifyZip(string zipPath)
+    [Tool("Verify the integrity of a ZIP archive by reading all entries.")]
+    public string VerifyZip(
+        [Description("Absolute path to the ZIP file")] string zipPath)
     {
         try
         {
@@ -354,8 +373,9 @@ public class ArchiveCapability : ICapability
         }
     }
 
-    [Tool("获取 ZIP 文件信息")]
-    public string GetZipInfo(string zipPath)
+    [Tool("Get summary information about a ZIP archive.")]
+    public string GetZipInfo(
+        [Description("Absolute path to the ZIP file")] string zipPath)
     {
         try
         {
@@ -413,8 +433,11 @@ public class ArchiveCapability : ICapability
         }
     }
 
-    [Tool("批量添加文件到 ZIP")]
-    public string AddFilesToZip(string zipPath, string[] filePaths, string? basePath = null)
+    [Tool("Add multiple files to a ZIP archive.")]
+    public string AddFilesToZip(
+        [Description("Absolute path to the ZIP file")] string zipPath,
+        [Description("Semicolon-separated list of absolute file paths to add, e.g. '/path/file1.cs;/path/file2.cs'")] string filePaths,
+        [Description("Base path for calculating relative entry names. Optional")] string? basePath = null)
     {
         try
         {
@@ -424,12 +447,17 @@ public class ArchiveCapability : ICapability
                 fileInfo.Directory.Create();
             }
 
+            var pathList = filePaths.Split(';', ',', StringSplitOptions.RemoveEmptyEntries)
+                .Select(p => p.Trim())
+                .Where(p => !string.IsNullOrEmpty(p))
+                .ToList();
+
             var addedFiles = new List<string>();
             var errors = new List<string>();
 
             using var archive = ZipFile.Open(zipPath, File.Exists(zipPath) ? ZipArchiveMode.Update : ZipArchiveMode.Create);
 
-            foreach (var filePath in filePaths)
+            foreach (var filePath in pathList)
             {
                 try
                 {

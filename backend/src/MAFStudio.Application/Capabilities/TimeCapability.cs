@@ -1,11 +1,12 @@
+using System.ComponentModel;
 using System.Reflection;
 
 namespace MAFStudio.Application.Capabilities;
 
 public class TimeCapability : ICapability
 {
-    public string Name => "时间操作";
-    public string Description => "提供获取当前时间、日期、时间戳等操作能力";
+    public string Name => "Time";
+    public string Description => "Get current date/time, timestamps, and perform time calculations";
 
     public IEnumerable<MethodInfo> GetTools()
     {
@@ -13,156 +14,121 @@ public class TimeCapability : ICapability
             .Where(m => m.GetCustomAttribute<ToolAttribute>() != null);
     }
 
-    [Tool("获取当前日期时间")]
-    public string GetCurrentDateTime(string? format = null)
+    [Tool("Get the current date and time.")]
+    public string GetCurrentDateTime(
+        [Description("Custom format string, e.g. 'yyyy-MM-dd HH:mm:ss'. Default 'yyyy-MM-dd HH:mm:ss'")] string? format = null)
     {
         try
         {
             var now = DateTime.Now;
             if (string.IsNullOrEmpty(format))
             {
-                return $"当前日期时间：{now:yyyy-MM-dd HH:mm:ss}";
+                return $"Current date and time: {now:yyyy-MM-dd HH:mm:ss}";
             }
-            return $"当前日期时间：{now.ToString(format)}";
+            return $"Current date and time: {now.ToString(format)}";
         }
         catch (Exception ex)
         {
-            return $"获取当前日期时间失败：{ex.Message}";
+            return $"Failed to get current date time: {ex.Message}";
         }
     }
 
-    [Tool("获取当前日期")]
-    public string GetCurrentDate(string? format = null)
+    [Tool("Get the current date.")]
+    public string GetCurrentDate(
+        [Description("Custom format string, e.g. 'yyyy-MM-dd'. Default 'yyyy-MM-dd'")] string? format = null)
     {
         try
         {
             var today = DateTime.Today;
             if (string.IsNullOrEmpty(format))
             {
-                return $"当前日期：{today:yyyy-MM-dd}";
+                return $"Current date: {today:yyyy-MM-dd}";
             }
-            return $"当前日期：{today.ToString(format)}";
+            return $"Current date: {today.ToString(format)}";
         }
         catch (Exception ex)
         {
-            return $"获取当前日期失败：{ex.Message}";
+            return $"Failed to get current date: {ex.Message}";
         }
     }
 
-    [Tool("获取当前时间")]
-    public string GetCurrentTime(string? format = null)
-    {
-        try
-        {
-            var now = DateTime.Now;
-            if (string.IsNullOrEmpty(format))
-            {
-                return $"当前时间：{now:HH:mm:ss}";
-            }
-            return $"当前时间：{now.ToString(format)}";
-        }
-        catch (Exception ex)
-        {
-            return $"获取当前时间失败：{ex.Message}";
-        }
-    }
-
-    [Tool("获取当前时间戳")]
+    [Tool("Get the current Unix timestamp in both seconds and milliseconds.")]
     public string GetCurrentTimestamp()
     {
         try
         {
             var timestamp = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
             var timestampMs = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
-            return $"当前时间戳（秒）：{timestamp}\n当前时间戳（毫秒）：{timestampMs}";
+            return $"Current timestamp (seconds): {timestamp}\nCurrent timestamp (milliseconds): {timestampMs}";
         }
         catch (Exception ex)
         {
-            return $"获取当前时间戳失败：{ex.Message}";
+            return $"Failed to get timestamp: {ex.Message}";
         }
     }
 
-    [Tool("获取时区信息")]
-    public string GetTimeZoneInfo()
-    {
-        try
-        {
-            var timeZone = TimeZoneInfo.Local;
-            var utcNow = DateTime.UtcNow;
-            var localNow = DateTime.Now;
-            var offset = timeZone.GetUtcOffset(localNow);
-
-            return $"时区信息：\n" +
-                   $"  时区名称：{timeZone.DisplayName}\n" +
-                   $"  标准名称：{timeZone.StandardName}\n" +
-                   $"  夏令时名称：{timeZone.DaylightName}\n" +
-                   $"  UTC偏移：{offset}\n" +
-                   $"  当前UTC时间：{utcNow:yyyy-MM-dd HH:mm:ss}\n" +
-                   $"  当前本地时间：{localNow:yyyy-MM-dd HH:mm:ss}";
-        }
-        catch (Exception ex)
-        {
-            return $"获取时区信息失败：{ex.Message}";
-        }
-    }
-
-    [Tool("时间戳转日期时间")]
-    public string TimestampToDateTime(long timestamp, string? format = null)
+    [Tool("Convert a Unix timestamp to a human-readable date and time.")]
+    public string TimestampToDateTime(
+        [Description("Unix timestamp in seconds, e.g. 1705312200")] long timestamp,
+        [Description("Custom format string for the output. Default 'yyyy-MM-dd HH:mm:ss'")] string? format = null)
     {
         try
         {
             var dateTime = DateTimeOffset.FromUnixTimeSeconds(timestamp).LocalDateTime;
             if (string.IsNullOrEmpty(format))
             {
-                return $"时间戳 {timestamp} 对应的日期时间：{dateTime:yyyy-MM-dd HH:mm:ss}";
+                return $"Timestamp {timestamp} corresponds to: {dateTime:yyyy-MM-dd HH:mm:ss}";
             }
-            return $"时间戳 {timestamp} 对应的日期时间：{dateTime.ToString(format)}";
+            return $"Timestamp {timestamp} corresponds to: {dateTime.ToString(format)}";
         }
         catch (Exception ex)
         {
-            return $"时间戳转日期时间失败：{ex.Message}";
+            return $"Failed to convert timestamp: {ex.Message}";
         }
     }
 
-    [Tool("日期时间转时间戳")]
-    public string DateTimeToTimestamp(string dateTimeStr)
+    [Tool("Convert a date and time string to a Unix timestamp.")]
+    public string DateTimeToTimestamp(
+        [Description("Date and time string, e.g. '2024-01-15 10:30:00' or '2024/01/15'")] string dateTimeStr)
     {
         try
         {
             if (DateTime.TryParse(dateTimeStr, out var dateTime))
             {
                 var timestamp = new DateTimeOffset(dateTime).ToUnixTimeSeconds();
-                return $"日期时间 {dateTimeStr} 对应的时间戳：{timestamp}";
+                return $"Date time '{dateTimeStr}' corresponds to timestamp: {timestamp}";
             }
-            return $"无法解析日期时间：{dateTimeStr}";
+            return $"Unable to parse date time: {dateTimeStr}";
         }
         catch (Exception ex)
         {
-            return $"日期时间转时间戳失败：{ex.Message}";
+            return $"Failed to convert date time: {ex.Message}";
         }
     }
 
-    [Tool("计算时间差")]
-    public string CalculateTimeDifference(string startTime, string endTime)
+    [Tool("Calculate the time difference between two date/time strings. Returns the difference in days, hours, minutes and seconds.")]
+    public string CalculateTimeDifference(
+        [Description("Start date/time string, e.g. '2024-01-15 10:30:00'")] string startTime,
+        [Description("End date/time string, e.g. '2024-01-20 15:45:00'")] string endTime)
     {
         try
         {
             if (DateTime.TryParse(startTime, out var start) && DateTime.TryParse(endTime, out var end))
             {
                 var diff = end - start;
-                return $"时间差：\n" +
-                       $"  开始时间：{start:yyyy-MM-dd HH:mm:ss}\n" +
-                       $"  结束时间：{end:yyyy-MM-dd HH:mm:ss}\n" +
-                       $"  相差天数：{diff.TotalDays:F2}\n" +
-                       $"  相差小时：{diff.TotalHours:F2}\n" +
-                       $"  相差分钟：{diff.TotalMinutes:F2}\n" +
-                       $"  相差秒数：{diff.TotalSeconds:F2}";
+                return $"Time difference:\n" +
+                       $"  Start: {start:yyyy-MM-dd HH:mm:ss}\n" +
+                       $"  End: {end:yyyy-MM-dd HH:mm:ss}\n" +
+                       $"  Days: {diff.TotalDays:F2}\n" +
+                       $"  Hours: {diff.TotalHours:F2}\n" +
+                       $"  Minutes: {diff.TotalMinutes:F2}\n" +
+                       $"  Seconds: {diff.TotalSeconds:F2}";
             }
-            return $"无法解析日期时间";
+            return $"Unable to parse date time strings";
         }
         catch (Exception ex)
         {
-            return $"计算时间差失败：{ex.Message}";
+            return $"Failed to calculate time difference: {ex.Message}";
         }
     }
 }

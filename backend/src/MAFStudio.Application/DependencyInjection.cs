@@ -21,7 +21,7 @@ public static class DependencyInjection
         services.AddScoped<ISystemLogService, SystemLogService>();
         services.AddScoped<IPermissionService, PermissionService>();
         
-        services.AddScoped<ITaskContextService, TaskContextService>();
+        services.AddSingleton<ITaskContextService, TaskContextService>();
         
         services.AddScoped<IChatClientFactory, ChatClientFactory>();
         services.AddScoped<IChatService, ChatService>();
@@ -42,6 +42,8 @@ public static class DependencyInjection
         services.AddScoped<IGroupChatConclusionService, GroupChatConclusionService>();
         
         services.AddScoped<ISystemPromptBuilderFactory, SystemPromptBuilderFactory>();
+        
+        services.AddScoped<IEmailService, EmailService>();
         
         return services;
     }

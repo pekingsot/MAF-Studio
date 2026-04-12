@@ -66,7 +66,7 @@ public class AgentFactoryService : IAgentFactoryService
             llmModelConfigId = primaryModel.LlmModelConfigId;
 
             fallbackModels = llmConfigs
-                .Where(c => !c.IsPrimary && c.LlmConfigId != primaryModel.LlmConfigId)
+                .Where(c => !c.IsPrimary)
                 .OrderBy(c => c.Priority)
                 .Select(c => new FallbackModelConfig
                 {
@@ -82,8 +82,8 @@ public class AgentFactoryService : IAgentFactoryService
             }
 
             _logger?.LogInformation(
-                "创建Agent客户端(从LlmConfigs): AgentId={AgentId}, 主模型LlmConfigId={LlmConfigId}, 副模型数量={FallbackCount}",
-                agentId, llmConfigId, fallbackModels?.Count ?? 0);
+                "创建Agent客户端(从LlmConfigs): AgentId={AgentId}, 主模型LlmConfigId={LlmConfigId}, 主模型LlmModelConfigId={LlmModelConfigId}, 副模型数量={FallbackCount}",
+                agentId, llmConfigId, llmModelConfigId, fallbackModels?.Count ?? 0);
         }
         else
         {
@@ -154,6 +154,7 @@ public class AgentFactoryService : IAgentFactoryService
         builder.UseFunctionInvocation(_loggerFactory, configure: options =>
         {
             options.MaximumIterationsPerRequest = 10;
+            options.IncludeDetailedErrors = true;
         });
 
         var clientWithFunctionInvocation = builder.Build();

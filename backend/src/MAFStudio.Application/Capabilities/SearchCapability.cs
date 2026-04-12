@@ -1,3 +1,4 @@
+using System.ComponentModel;
 using System.Reflection;
 using System.Text;
 using System.Text.RegularExpressions;
@@ -18,8 +19,13 @@ public class SearchCapability : ICapability
             .Where(m => m.GetCustomAttribute<ToolAttribute>() != null);
     }
 
-    [Tool("在文件中搜索文本")]
-    public string SearchInFiles(string pattern, string directory, string? filePattern = null, bool ignoreCase = true, int maxResults = 100)
+    [Tool("Search for a text string in files within a directory.")]
+    public string SearchInFiles(
+        [Description("The text to search for")] string pattern,
+        [Description("Absolute path to the directory to search in")] string directory,
+        [Description("Glob pattern to filter files, e.g. '*.cs'. Optional")] string? filePattern = null,
+        [Description("Case-insensitive search. Default true")] bool ignoreCase = true,
+        [Description("Maximum number of results. Default 100")] int maxResults = 100)
     {
         try
         {
@@ -91,8 +97,12 @@ public class SearchCapability : ICapability
         }
     }
 
-    [Tool("使用正则表达式搜索")]
-    public string Grep(string pattern, string path, string? filePattern = null, int maxResults = 100)
+    [Tool("Search files using a regular expression pattern.")]
+    public string Grep(
+        [Description("The regex pattern to match, e.g. 'TODO|FIXME'")] string pattern,
+        [Description("Absolute path to a file or directory to search")] string path,
+        [Description("Glob pattern to filter files when searching a directory. Optional")] string? filePattern = null,
+        [Description("Maximum number of results. Default 100")] int maxResults = 100)
     {
         try
         {
@@ -117,8 +127,11 @@ public class SearchCapability : ICapability
         }
     }
 
-    [Tool("查找文件")]
-    public string FindFiles(string pattern, string directory, bool recursive = true)
+    [Tool("Find files by name pattern in a directory.")]
+    public string FindFiles(
+        [Description("Glob pattern for file names, e.g. '*.cs', 'README*'")] string pattern,
+        [Description("Absolute path to the directory to search in")] string directory,
+        [Description("Search subdirectories recursively. Default true")] bool recursive = true)
     {
         try
         {
@@ -152,8 +165,11 @@ public class SearchCapability : ICapability
         }
     }
 
-    [Tool("查找目录")]
-    public string FindDirectories(string pattern, string directory, bool recursive = true)
+    [Tool("Find directories by name pattern.")]
+    public string FindDirectories(
+        [Description("Glob pattern for directory names")] string pattern,
+        [Description("Absolute path to the directory to search in")] string directory,
+        [Description("Search subdirectories recursively. Default true")] bool recursive = true)
     {
         try
         {
@@ -189,8 +205,14 @@ public class SearchCapability : ICapability
         }
     }
 
-    [Tool("搜索并替换文本")]
-    public string SearchAndReplace(string searchPattern, string replaceWith, string directory, string? filePattern = null, bool ignoreCase = true, int maxReplacements = 1000)
+    [Tool("Search for text in files and replace it with new text. Modifies files in place.")]
+    public string SearchAndReplace(
+        [Description("The text to find")] string searchPattern,
+        [Description("The replacement text")] string replaceWith,
+        [Description("Absolute path to the directory to search in")] string directory,
+        [Description("Glob pattern to filter files. Optional")] string? filePattern = null,
+        [Description("Case-insensitive search. Default true")] bool ignoreCase = true,
+        [Description("Maximum total replacements. Default 1000")] int maxReplacements = 1000)
     {
         try
         {
@@ -263,8 +285,11 @@ public class SearchCapability : ICapability
         }
     }
 
-    [Tool("搜索最近修改的文件")]
-    public string FindRecentlyModified(string directory, int days = 7, string? filePattern = null)
+    [Tool("Find files modified within the last N days.")]
+    public string FindRecentlyModified(
+        [Description("Absolute path to the directory to search in")] string directory,
+        [Description("Number of days to look back. Default 7")] int days = 7,
+        [Description("Glob pattern to filter files. Optional")] string? filePattern = null)
     {
         try
         {
@@ -308,8 +333,11 @@ public class SearchCapability : ICapability
         }
     }
 
-    [Tool("搜索大文件")]
-    public string FindLargeFiles(string directory, long minSizeMB = 10, string? filePattern = null)
+    [Tool("Find files larger than a specified size.")]
+    public string FindLargeFiles(
+        [Description("Absolute path to the directory to search in")] string directory,
+        [Description("Minimum file size in megabytes. Default 10")] long minSizeMB = 10,
+        [Description("Glob pattern to filter files. Optional")] string? filePattern = null)
     {
         try
         {
@@ -353,8 +381,10 @@ public class SearchCapability : ICapability
         }
     }
 
-    [Tool("搜索重复文件")]
-    public string FindDuplicateFiles(string directory, string? filePattern = null)
+    [Tool("Find duplicate files by comparing file sizes.")]
+    public string FindDuplicateFiles(
+        [Description("Absolute path to the directory to search in")] string directory,
+        [Description("Glob pattern to filter files. Optional")] string? filePattern = null)
     {
         try
         {

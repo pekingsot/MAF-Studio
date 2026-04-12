@@ -66,9 +66,13 @@ builder.Services.AddSwaggerGen(c =>
     });
 });
 
-var jwtKey = builder.Configuration["Jwt:Key"] ?? "your-super-secret-key-with-at-least-32-characters";
-var jwtIssuer = builder.Configuration["Jwt:Issuer"] ?? "MAFStudio";
-var jwtAudience = builder.Configuration["Jwt:Audience"] ?? "MAFStudio";
+var jwtKey = builder.Configuration["Jwt:Key"];
+if (string.IsNullOrWhiteSpace(jwtKey) || jwtKey.Length < 32)
+{
+    throw new InvalidOperationException("Jwt:Key 配置缺失或长度不足32字符，请在 appsettings.json 或环境变量中配置安全的密钥");
+}
+var jwtIssuer = builder.Configuration["Jwt:Issuer"] ?? throw new InvalidOperationException("Jwt:Issuer 配置缺失");
+var jwtAudience = builder.Configuration["Jwt:Audience"] ?? throw new InvalidOperationException("Jwt:Audience 配置缺失");
 
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>

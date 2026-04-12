@@ -2,8 +2,11 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Authorization;
 using MAFStudio.Application.Interfaces;
 using MAFStudio.Core.Interfaces.Repositories;
+using MAFStudio.Core.Interfaces.Services;
 using MAFStudio.Core.Enums;
+using MAFStudio.Core.Entities;
 using Microsoft.Extensions.AI;
+using System.Text.Json;
 
 namespace MAFStudio.Api.Controllers;
 
@@ -14,15 +17,24 @@ public class AgentRuntimeController : ControllerBase
 {
     private readonly IAgentFactoryService _agentFactory;
     private readonly IAgentRepository _agentRepository;
+    private readonly ILlmConfigRepository _llmConfigRepository;
+    private readonly ILlmModelConfigRepository _llmModelConfigRepository;
+    private readonly IChatClientFactory _chatClientFactory;
     private readonly ILogger<AgentRuntimeController> _logger;
 
     public AgentRuntimeController(
         IAgentFactoryService agentFactory,
         IAgentRepository agentRepository,
+        ILlmConfigRepository llmConfigRepository,
+        ILlmModelConfigRepository llmModelConfigRepository,
+        IChatClientFactory chatClientFactory,
         ILogger<AgentRuntimeController> logger)
     {
         _agentFactory = agentFactory;
         _agentRepository = agentRepository;
+        _llmConfigRepository = llmConfigRepository;
+        _llmModelConfigRepository = llmModelConfigRepository;
+        _chatClientFactory = chatClientFactory;
         _logger = logger;
     }
 
@@ -31,14 +43,12 @@ public class AgentRuntimeController : ControllerBase
     {
         try
         {
-            // 从数据库获取Agent的实际状态
             var agent = await _agentRepository.GetByIdAsync(agentId);
             if (agent == null)
             {
                 return NotFound(new { message = $"Agent {agentId} not found" });
             }
 
-            // 将数据库状态映射为运行时状态
             var state = agent.Status switch
             {
                 AgentStatus.Inactive => "Uninitialized",
@@ -73,57 +83,163 @@ public class AgentRuntimeController : ControllerBase
     }
 
     [HttpPost("{agentId}/activate")]
-    public async Task<ActionResult<AgentRuntimeStatus>> Activate(long agentId)
+    public async Task<ActionResult<AgentActivateResponse>> Activate(long agentId)
     {
         try
         {
-            _logger.LogInformation("激活智能体 {AgentId}（测试连通性）", agentId);
+            _logger.LogInformation("激活智能体 {AgentId}（测试所有大模型连通性）", agentId);
             
-            // 使用using语句，测试完自动释放资源
-            using var agent = await _agentFactory.CreateAgentAsync(agentId);
-            
-            // 测试连通性：发送简单的测试消息
-            var testMessage = new List<ChatMessage>
+            var agent = await _agentRepository.GetByIdAsync(agentId);
+            if (agent == null)
             {
-                new(ChatRole.User, "你好")
-            };
-            
-            var startTime = DateTime.UtcNow;
-            // 使用流式调用（某些LLM提供商只支持流式调用）
-            await foreach (var update in agent.GetStreamingResponseAsync(testMessage))
-            {
-                // 只需要确认能收到响应即可，不需要处理内容
-                break; // 收到第一个更新就退出，只需要测试连通性
+                return NotFound(new { message = $"Agent {agentId} not found" });
             }
-            var endTime = DateTime.UtcNow;
-            var latencyMs = (int)(endTime - startTime).TotalMilliseconds;
-            
-            _logger.LogInformation("智能体 {AgentId} 激活成功（连通性测试通过），耗时 {LatencyMs}ms", agentId, latencyMs);
-            
-            // 更新Agent状态为Active
-            await _agentRepository.UpdateStatusAsync(agentId, AgentStatus.Active);
-            
-            // 返回成功状态（不保存Agent实例）
-            var status = new AgentRuntimeStatus
+
+            if (string.IsNullOrEmpty(agent.LlmConfigs))
+            {
+                return BadRequest(new { message = "智能体未配置大模型" });
+            }
+
+            var llmConfigs = JsonSerializer.Deserialize<List<LlmConfigInfo>>(agent.LlmConfigs, new JsonSerializerOptions 
+            { 
+                PropertyNameCaseInsensitive = true 
+            });
+            if (llmConfigs == null || llmConfigs.Count == 0)
+            {
+                return BadRequest(new { message = "智能体未配置大模型" });
+            }
+
+            var testResults = new System.Collections.Concurrent.ConcurrentBag<ModelTestResult>();
+
+            await Parallel.ForEachAsync(llmConfigs, async (config, cancellationToken) =>
+            {
+                var result = await TestModelConnectivityAsync(config.LlmConfigId, config.LlmModelConfigId ?? 0);
+                
+                config.IsValid = result.Success;
+                config.Msg = result.Msg;
+                config.LastChecked = DateTime.UtcNow;
+
+                await _llmModelConfigRepository.UpdateTestStatusAsync(
+                    config.LlmModelConfigId ?? 0, 
+                    result.Success, 
+                    result.Msg);
+
+                testResults.Add(result);
+            });
+
+            var anySuccess = testResults.Any(r => r.Success);
+            agent.LlmConfigs = JsonSerializer.Serialize(llmConfigs, new JsonSerializerOptions 
+            { 
+                PropertyNamingPolicy = JsonNamingPolicy.CamelCase 
+            });
+            agent.Status = anySuccess ? AgentStatus.Active : AgentStatus.Error;
+            await _agentRepository.UpdateAsync(agent);
+
+            _logger.LogInformation("智能体 {AgentId} 激活完成，成功 {Success}/{Total}", 
+                agentId, testResults.Count(r => r.Success), testResults.Count);
+
+            return Ok(new AgentActivateResponse
             {
                 AgentId = agentId,
-                State = "Ready",
-                IsAlive = false,  // 不保持活跃，测试完就释放
+                State = anySuccess ? "Ready" : "Error",
+                IsAlive = anySuccess,
                 LastActiveTime = DateTime.UtcNow,
-                TaskCount = 0
-            };
-            
-            return Ok(status);
+                TestResults = testResults.ToList()
+            });
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "激活智能体 {AgentId} 失败", agentId);
             
-            // 更新Agent状态为Error
-            await _agentRepository.UpdateStatusAsync(agentId, AgentStatus.Error);
+            var agent = await _agentRepository.GetByIdAsync(agentId);
+            if (agent != null)
+            {
+                agent.Status = AgentStatus.Error;
+                await _agentRepository.UpdateAsync(agent);
+            }
             
             return BadRequest(new { message = ex.Message });
         }
+    }
+
+    private async Task<ModelTestResult> TestModelConnectivityAsync(long llmConfigId, long llmModelConfigId)
+    {
+        var result = new ModelTestResult
+        {
+            LlmConfigId = llmConfigId,
+            LlmModelConfigId = llmModelConfigId
+        };
+
+        try
+        {
+            var llmConfig = await _llmConfigRepository.GetByIdAsync(llmConfigId);
+            if (llmConfig == null)
+            {
+                result.Success = false;
+                result.Msg = "LLM配置不存在";
+                return result;
+            }
+
+            if (string.IsNullOrEmpty(llmConfig.ApiKey))
+            {
+                result.Success = false;
+                result.Msg = "API Key未配置";
+                return result;
+            }
+
+            LlmModelConfig? modelConfig = null;
+            if (llmModelConfigId > 0)
+            {
+                modelConfig = await _llmModelConfigRepository.GetByIdAsync(llmModelConfigId);
+            }
+            modelConfig ??= (await _llmModelConfigRepository.GetByLlmConfigIdAsync(llmConfigId))
+                .FirstOrDefault(m => m.IsDefault) 
+                ?? (await _llmModelConfigRepository.GetByLlmConfigIdAsync(llmConfigId)).FirstOrDefault();
+
+            if (modelConfig == null)
+            {
+                result.Success = false;
+                result.Msg = "模型配置不存在";
+                return result;
+            }
+
+            result.ModelName = modelConfig.ModelName;
+
+            using var client = _chatClientFactory.CreateClient(
+                llmConfig.Provider,
+                llmConfig.ApiKey,
+                llmConfig.Endpoint,
+                modelConfig.ModelName);
+
+            var testMessage = new ChatMessage(ChatRole.User, "Hi");
+            var options = new ChatOptions { MaxOutputTokens = 10 };
+
+            var stopwatch = System.Diagnostics.Stopwatch.StartNew();
+            
+            await foreach (var update in client.GetStreamingResponseAsync(new[] { testMessage }, options))
+            {
+                stopwatch.Stop();
+                break;
+            }
+            
+            if (stopwatch.IsRunning)
+            {
+                stopwatch.Stop();
+            }
+
+            result.Success = true;
+            result.Msg = $"{stopwatch.ElapsedMilliseconds}ms";
+            result.LatencyMs = (int)stopwatch.ElapsedMilliseconds;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "测试模型连通性失败: LlmConfigId={LlmConfigId}, ModelConfigId={ModelConfigId}", 
+                llmConfigId, llmModelConfigId);
+            result.Success = false;
+            result.Msg = ex.Message.Length > 100 ? ex.Message.Substring(0, 100) + "..." : ex.Message;
+        }
+
+        return result;
     }
 
     [HttpPost("{agentId}/test")]
@@ -133,7 +249,6 @@ public class AgentRuntimeController : ControllerBase
         {
             _logger.LogInformation("测试智能体 {AgentId}", agentId);
             
-            // 如果指定了模型配置，使用指定的模型；否则使用Agent的主模型
             using var agent = request?.LlmConfigId.HasValue == true && request.LlmModelConfigId.HasValue
                 ? await _agentFactory.CreateChatClientAsync(request.LlmConfigId.Value, request.LlmModelConfigId.Value)
                 : await _agentFactory.CreateAgentAsync(agentId);
@@ -146,7 +261,6 @@ public class AgentRuntimeController : ControllerBase
                 new(ChatRole.User, input)
             };
             
-            // 使用流式调用（某些LLM提供商只支持流式调用）
             var responseText = new System.Text.StringBuilder();
             await foreach (var update in agent.GetStreamingResponseAsync(messages))
             {
@@ -194,6 +308,21 @@ public class AgentRuntimeStatus
     public bool IsAlive { get; set; }
 }
 
+public class AgentActivateResponse : AgentRuntimeStatus
+{
+    public List<ModelTestResult> TestResults { get; set; } = new();
+}
+
+public class ModelTestResult
+{
+    public long LlmConfigId { get; set; }
+    public long LlmModelConfigId { get; set; }
+    public string? ModelName { get; set; }
+    public bool Success { get; set; }
+    public string Msg { get; set; } = string.Empty;
+    public int LatencyMs { get; set; }
+}
+
 public class AgentTestResponse
 {
     public bool Success { get; set; }
@@ -206,14 +335,36 @@ public class AgentTestResponse
 public class TestRequest
 {
     public string? Input { get; set; }
-    
-    /// <summary>
-    /// 指定使用的LLM配置ID（可选，不指定则使用主模型）
-    /// </summary>
     public long? LlmConfigId { get; set; }
-    
-    /// <summary>
-    /// 指定使用的模型配置ID（可选，不指定则使用主模型）
-    /// </summary>
     public long? LlmModelConfigId { get; set; }
+}
+
+public class LlmConfigInfo
+{
+    [System.Text.Json.Serialization.JsonPropertyName("llmConfigId")]
+    public long LlmConfigId { get; set; }
+    
+    [System.Text.Json.Serialization.JsonPropertyName("llmConfigName")]
+    public string LlmConfigName { get; set; } = string.Empty;
+    
+    [System.Text.Json.Serialization.JsonPropertyName("llmModelConfigId")]
+    public long? LlmModelConfigId { get; set; }
+    
+    [System.Text.Json.Serialization.JsonPropertyName("modelName")]
+    public string ModelName { get; set; } = string.Empty;
+    
+    [System.Text.Json.Serialization.JsonPropertyName("isPrimary")]
+    public bool IsPrimary { get; set; }
+    
+    [System.Text.Json.Serialization.JsonPropertyName("priority")]
+    public int Priority { get; set; }
+    
+    [System.Text.Json.Serialization.JsonPropertyName("isValid")]
+    public bool IsValid { get; set; }
+    
+    [System.Text.Json.Serialization.JsonPropertyName("lastChecked")]
+    public DateTime LastChecked { get; set; }
+    
+    [System.Text.Json.Serialization.JsonPropertyName("msg")]
+    public string Msg { get; set; } = string.Empty;
 }

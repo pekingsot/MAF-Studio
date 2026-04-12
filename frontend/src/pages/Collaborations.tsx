@@ -1,6 +1,6 @@
 import React, { useState, useRef, useMemo, useCallback } from 'react';
 import { Table, Button, Modal, Form, Input, Tag, Space, message, Tabs, Select, Popconfirm, Row, Col, Alert, Radio, InputNumber, Typography, Tooltip, Transfer, Collapse, Switch } from 'antd';
-import { PlusOutlined, EditOutlined, DeleteOutlined, TeamOutlined, UserOutlined, FolderOutlined, EyeOutlined, SwapOutlined, CrownOutlined, BulbOutlined, InfoCircleOutlined, MailOutlined, ApartmentOutlined, DashboardOutlined, QuestionCircleOutlined, StopOutlined } from '@ant-design/icons';
+import { PlusOutlined, EditOutlined, DeleteOutlined, TeamOutlined, UserOutlined, FolderOutlined, EyeOutlined, EyeInvisibleOutlined, SwapOutlined, CrownOutlined, BulbOutlined, InfoCircleOutlined, MailOutlined, ApartmentOutlined, DashboardOutlined, QuestionCircleOutlined, StopOutlined } from '@ant-design/icons';
 import { collaborationService, Collaboration } from '../services/collaborationService';
 import { agentService, Agent } from '../services/agentService';
 import { useNavigate } from 'react-router-dom';
@@ -52,6 +52,7 @@ const Collaborations: React.FC = () => {
   const [chatHistoryModalVisible, setChatHistoryModalVisible] = useState(false);
   const [executionModalVisible, setExecutionModalVisible] = useState(false);
   const [executionMessages, setExecutionMessages] = useState<any[]>([]);
+  const [showManagerThinking, setShowManagerThinking] = useState(false);
   const [isExecuting, setIsExecuting] = useState(false);
   const [selectedTask, setSelectedTask] = useState<any>(null);
   const [editingTask, setEditingTask] = useState<any>(null);
@@ -1934,7 +1935,20 @@ const Collaborations: React.FC = () => {
       </Modal>
 
       <Modal
-        title="执行过程"
+        title={
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingRight: 40 }}>
+            <span>执行过程</span>
+            <Space>
+              <Text type="secondary" style={{ fontSize: 14 }}>显示系统点名提示</Text>
+              <Switch
+                checked={showManagerThinking}
+                onChange={setShowManagerThinking}
+                checkedChildren={<EyeOutlined />}
+                unCheckedChildren={<EyeInvisibleOutlined />}
+              />
+            </Space>
+          </div>
+        }
         open={executionModalVisible}
         onCancel={() => {
           if (!isExecuting) {
@@ -1963,7 +1977,12 @@ const Collaborations: React.FC = () => {
             </div>
           )}
           
-          {executionMessages.map((msg, index) => {
+          {executionMessages.filter(msg => {
+            if (!showManagerThinking && msg.metadata?.type === 'manager_thinking') {
+              return false;
+            }
+            return true;
+          }).map((msg, index) => {
             let agentsInfo: any[] = [];
             
             if (msg.role === 'system' && msg.metadata) {
@@ -1979,13 +1998,17 @@ const Collaborations: React.FC = () => {
               <div key={index} style={{ 
                 marginBottom: 16, 
                 padding: 12, 
-                backgroundColor: '#f5f5f5', 
-                borderRadius: 8 
+                backgroundColor: msg.metadata?.type === 'manager_thinking' ? '#fffbe6' : '#f5f5f5', 
+                borderRadius: 8,
+                border: msg.metadata?.type === 'manager_thinking' ? '1px solid #ffe58f' : 'none'
               }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
                   <Tag color={msg.role === 'system' ? 'purple' : 'blue'}>
                     {msg.sender || 'Agent'}
                   </Tag>
+                  {msg.metadata?.type === 'manager_thinking' && (
+                    <Tag color="gold">协调者点名</Tag>
+                  )}
                   <Text type="secondary" style={{ fontSize: 12 }}>
                     {msg.timestamp ? new Date(msg.timestamp).toLocaleString('zh-CN') : ''}
                   </Text>

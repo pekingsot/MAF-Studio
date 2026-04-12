@@ -117,88 +117,11 @@ public class ToolCallingChatClient : DelegatingChatClient
         var toolAttr = method.GetCustomAttribute<ToolAttribute>();
         var description = toolAttr?.Description ?? method.Name;
 
-        var delegateMethod = Delegate.CreateDelegate(
-            GetFuncType(method),
-            capability,
-            method);
-
-        return AIFunctionFactory.Create(delegateMethod, new AIFunctionFactoryOptions
+        return AIFunctionFactory.Create(method, capability, new AIFunctionFactoryOptions
         {
             Name = method.Name,
             Description = description
         });
-    }
-
-    private Type GetFuncType(MethodInfo method)
-    {
-        var parameters = method.GetParameters();
-        var returnType = method.ReturnType;
-
-        if (returnType == typeof(void))
-        {
-            return parameters.Length switch
-            {
-                0 => typeof(Action),
-                1 => typeof(Action<>).MakeGenericType(parameters[0].ParameterType),
-                2 => typeof(Action<,>).MakeGenericType(parameters[0].ParameterType, parameters[1].ParameterType),
-                3 => typeof(Action<,,>).MakeGenericType(parameters[0].ParameterType, parameters[1].ParameterType, parameters[2].ParameterType),
-                4 => typeof(Action<,,,>).MakeGenericType(parameters[0].ParameterType, parameters[1].ParameterType, parameters[2].ParameterType, parameters[3].ParameterType),
-                5 => typeof(Action<,,,,>).MakeGenericType(parameters[0].ParameterType, parameters[1].ParameterType, parameters[2].ParameterType, parameters[3].ParameterType, parameters[4].ParameterType),
-                6 => typeof(Action<,,,,,>).MakeGenericType(parameters[0].ParameterType, parameters[1].ParameterType, parameters[2].ParameterType, parameters[3].ParameterType, parameters[4].ParameterType, parameters[5].ParameterType),
-                7 => typeof(Action<,,,,,,>).MakeGenericType(parameters[0].ParameterType, parameters[1].ParameterType, parameters[2].ParameterType, parameters[3].ParameterType, parameters[4].ParameterType, parameters[5].ParameterType, parameters[6].ParameterType),
-                8 => typeof(Action<,,,,,,,>).MakeGenericType(parameters[0].ParameterType, parameters[1].ParameterType, parameters[2].ParameterType, parameters[3].ParameterType, parameters[4].ParameterType, parameters[5].ParameterType, parameters[6].ParameterType, parameters[7].ParameterType),
-                _ => throw new NotSupportedException($"不支持 {parameters.Length} 个参数的 Action")
-            };
-        }
-
-        if (returnType == typeof(Task))
-        {
-            return parameters.Length switch
-            {
-                0 => typeof(Func<Task>),
-                1 => typeof(Func<,>).MakeGenericType(parameters[0].ParameterType, typeof(Task)),
-                2 => typeof(Func<,,>).MakeGenericType(parameters[0].ParameterType, parameters[1].ParameterType, typeof(Task)),
-                3 => typeof(Func<,,,>).MakeGenericType(parameters[0].ParameterType, parameters[1].ParameterType, parameters[2].ParameterType, typeof(Task)),
-                4 => typeof(Func<,,,,>).MakeGenericType(parameters[0].ParameterType, parameters[1].ParameterType, parameters[2].ParameterType, parameters[3].ParameterType, typeof(Task)),
-                5 => typeof(Func<,,,,,>).MakeGenericType(parameters[0].ParameterType, parameters[1].ParameterType, parameters[2].ParameterType, parameters[3].ParameterType, parameters[4].ParameterType, typeof(Task)),
-                6 => typeof(Func<,,,,,,>).MakeGenericType(parameters[0].ParameterType, parameters[1].ParameterType, parameters[2].ParameterType, parameters[3].ParameterType, parameters[4].ParameterType, parameters[5].ParameterType, typeof(Task)),
-                7 => typeof(Func<,,,,,,,>).MakeGenericType(parameters[0].ParameterType, parameters[1].ParameterType, parameters[2].ParameterType, parameters[3].ParameterType, parameters[4].ParameterType, parameters[5].ParameterType, parameters[6].ParameterType, typeof(Task)),
-                8 => typeof(Func<,,,,,,,,>).MakeGenericType(parameters[0].ParameterType, parameters[1].ParameterType, parameters[2].ParameterType, parameters[3].ParameterType, parameters[4].ParameterType, parameters[5].ParameterType, parameters[6].ParameterType, parameters[7].ParameterType, typeof(Task)),
-                _ => throw new NotSupportedException($"不支持 {parameters.Length} 个参数的 Func<Task>")
-            };
-        }
-
-        if (returnType.IsGenericType && returnType.GetGenericTypeDefinition() == typeof(Task<>))
-        {
-            var taskResultType = returnType.GetGenericArguments()[0];
-            return parameters.Length switch
-            {
-                0 => typeof(Func<>).MakeGenericType(returnType),
-                1 => typeof(Func<,>).MakeGenericType(parameters[0].ParameterType, returnType),
-                2 => typeof(Func<,,>).MakeGenericType(parameters[0].ParameterType, parameters[1].ParameterType, returnType),
-                3 => typeof(Func<,,,>).MakeGenericType(parameters[0].ParameterType, parameters[1].ParameterType, parameters[2].ParameterType, returnType),
-                4 => typeof(Func<,,,,>).MakeGenericType(parameters[0].ParameterType, parameters[1].ParameterType, parameters[2].ParameterType, parameters[3].ParameterType, returnType),
-                5 => typeof(Func<,,,,,>).MakeGenericType(parameters[0].ParameterType, parameters[1].ParameterType, parameters[2].ParameterType, parameters[3].ParameterType, parameters[4].ParameterType, returnType),
-                6 => typeof(Func<,,,,,,>).MakeGenericType(parameters[0].ParameterType, parameters[1].ParameterType, parameters[2].ParameterType, parameters[3].ParameterType, parameters[4].ParameterType, parameters[5].ParameterType, returnType),
-                7 => typeof(Func<,,,,,,,>).MakeGenericType(parameters[0].ParameterType, parameters[1].ParameterType, parameters[2].ParameterType, parameters[3].ParameterType, parameters[4].ParameterType, parameters[5].ParameterType, parameters[6].ParameterType, returnType),
-                8 => typeof(Func<,,,,,,,,>).MakeGenericType(parameters[0].ParameterType, parameters[1].ParameterType, parameters[2].ParameterType, parameters[3].ParameterType, parameters[4].ParameterType, parameters[5].ParameterType, parameters[6].ParameterType, parameters[7].ParameterType, returnType),
-                _ => throw new NotSupportedException($"不支持 {parameters.Length} 个参数的 Func<Task<T>>")
-            };
-        }
-
-        return parameters.Length switch
-        {
-            0 => typeof(Func<>).MakeGenericType(returnType),
-            1 => typeof(Func<,>).MakeGenericType(parameters[0].ParameterType, returnType),
-            2 => typeof(Func<,,>).MakeGenericType(parameters[0].ParameterType, parameters[1].ParameterType, returnType),
-            3 => typeof(Func<,,,>).MakeGenericType(parameters[0].ParameterType, parameters[1].ParameterType, parameters[2].ParameterType, returnType),
-            4 => typeof(Func<,,,,>).MakeGenericType(parameters[0].ParameterType, parameters[1].ParameterType, parameters[2].ParameterType, parameters[3].ParameterType, returnType),
-            5 => typeof(Func<,,,,,>).MakeGenericType(parameters[0].ParameterType, parameters[1].ParameterType, parameters[2].ParameterType, parameters[3].ParameterType, parameters[4].ParameterType, returnType),
-            6 => typeof(Func<,,,,,,>).MakeGenericType(parameters[0].ParameterType, parameters[1].ParameterType, parameters[2].ParameterType, parameters[3].ParameterType, parameters[4].ParameterType, parameters[5].ParameterType, returnType),
-            7 => typeof(Func<,,,,,,,>).MakeGenericType(parameters[0].ParameterType, parameters[1].ParameterType, parameters[2].ParameterType, parameters[3].ParameterType, parameters[4].ParameterType, parameters[5].ParameterType, parameters[6].ParameterType, returnType),
-            8 => typeof(Func<,,,,,,,,>).MakeGenericType(parameters[0].ParameterType, parameters[1].ParameterType, parameters[2].ParameterType, parameters[3].ParameterType, parameters[4].ParameterType, parameters[5].ParameterType, parameters[6].ParameterType, parameters[7].ParameterType, returnType),
-            _ => throw new NotSupportedException($"不支持 {parameters.Length} 个参数的 Func")
-        };
     }
 
     private async Task<FunctionResultContent> ExecuteToolCallAsync(FunctionCallContent toolCall)
@@ -240,9 +163,8 @@ public class ToolCallingChatClient : DelegatingChatClient
                 }
                 else
                 {
-                    paramValues[i] = param.ParameterType.IsValueType 
-                        ? Activator.CreateInstance(param.ParameterType) 
-                        : null;
+                    return new FunctionResultContent(toolCall.CallId,
+                        $"Error: Required parameter '{paramName}' is missing. Please provide a value for '{paramName}' and try again.");
                 }
             }
 

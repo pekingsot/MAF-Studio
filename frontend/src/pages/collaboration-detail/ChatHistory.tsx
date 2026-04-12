@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { Table, Avatar, Tag, Empty, Spin, message, Card, Button, Typography, Space, Descriptions, List, Popconfirm } from 'antd';
-import { UserOutlined, RobotOutlined, TeamOutlined, ArrowLeftOutlined, PlayCircleOutlined, CheckCircleOutlined, ClockCircleOutlined, StopOutlined } from '@ant-design/icons';
+import { Table, Avatar, Tag, Empty, Spin, message, Card, Button, Typography, Space, Descriptions, List, Popconfirm, Switch } from 'antd';
+import { UserOutlined, RobotOutlined, TeamOutlined, ArrowLeftOutlined, PlayCircleOutlined, CheckCircleOutlined, ClockCircleOutlined, StopOutlined, EyeOutlined, EyeInvisibleOutlined } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import { collaborationService } from '../../services/collaborationService';
 

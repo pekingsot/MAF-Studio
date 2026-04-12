@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Card, Button, Input, message, Spin, Divider, List, Tag, Space, Typography, InputNumber, Alert, Select, Avatar, Radio, RadioChangeEvent } from 'antd';
-import { PlayCircleOutlined, TeamOutlined, SettingOutlined, MessageOutlined, UserOutlined, RobotOutlined, SwapOutlined, CrownOutlined, BulbOutlined } from '@ant-design/icons';
+import { Card, Button, Input, message, Spin, Divider, List, Tag, Space, Typography, InputNumber, Alert, Select, Avatar, Radio, RadioChangeEvent, Switch } from 'antd';
+import { PlayCircleOutlined, TeamOutlined, SettingOutlined, MessageOutlined, UserOutlined, RobotOutlined, SwapOutlined, CrownOutlined, BulbOutlined, EyeOutlined, EyeInvisibleOutlined } from '@ant-design/icons';
 import { collaborationWorkflowService, CollaborationResult, ChatMessageDto, GroupChatParameters } from '../../services/collaborationWorkflowService';
 import { CollaborationAgent } from '../../services/collaborationService';
 
@@ -58,6 +58,7 @@ const WorkflowExecutor: React.FC<WorkflowExecutorProps> = ({ collaborationId, co
   const [maxIterations, setMaxIterations] = useState(10);
   const [orchestrationMode, setOrchestrationMode] = useState<'roundRobin' | 'manager' | 'intelligent'>('manager');
   const [chatMessages, setChatMessages] = useState<ChatMessageDto[]>([]);
+  const [showManagerThinking, setShowManagerThinking] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = () => {
@@ -314,7 +315,18 @@ const WorkflowExecutor: React.FC<WorkflowExecutorProps> = ({ collaborationId, co
           <Divider />
 
           <div>
-            <Title level={5}>任务输入</Title>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+              <Title level={5} style={{ margin: 0 }}>任务输入</Title>
+              <Space>
+                <Text type="secondary">显示系统点名提示</Text>
+                <Switch
+                  checked={showManagerThinking}
+                  onChange={setShowManagerThinking}
+                  checkedChildren={<EyeOutlined />}
+                  unCheckedChildren={<EyeInvisibleOutlined />}
+                />
+              </Space>
+            </div>
             <TextArea
               value={input}
               onChange={(e) => setInput(e.target.value)}
@@ -351,55 +363,82 @@ const WorkflowExecutor: React.FC<WorkflowExecutorProps> = ({ collaborationId, co
             </div>
           )}
 
-          {workflowType === 'groupchat' && chatMessages.length > 0 && (
+          {workflowType === 'groupchat' && (
             <>
               <Divider />
               <div>
-                <Title level={5}>
-                  <MessageOutlined /> 协作对话
-                </Title>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+                  <Title level={5} style={{ margin: 0 }}>
+                    <MessageOutlined /> 协作对话
+                  </Title>
+                  <Space>
+                    <Text type="secondary">显示系统点名提示</Text>
+                    <Switch
+                      checked={showManagerThinking}
+                      onChange={setShowManagerThinking}
+                      checkedChildren={<EyeOutlined />}
+                      unCheckedChildren={<EyeInvisibleOutlined />}
+                    />
+                  </Space>
+                </div>
                 <Card 
                   size="small" 
                   style={{ 
+                    minHeight: '200px',
                     maxHeight: '500px', 
                     overflowY: 'auto',
                     backgroundColor: '#f5f5f5'
                   }}
                 >
-                  <List
-                    dataSource={chatMessages}
-                    renderItem={(msg, index) => (
-                      <List.Item key={index} style={{ border: 'none', padding: '8px 0' }}>
-                        <div style={{ display: 'flex', width: '100%', gap: '12px' }}>
-                          <div style={{ flexShrink: 0 }}>
-                            {getAgentAvatar(msg.sender)}
-                          </div>
-                          <div style={{ flex: 1, minWidth: 0 }}>
-                            <div style={{ marginBottom: 4 }}>
-                              <Text strong style={{ marginRight: 8 }}>
-                                {getAgentDisplayName(msg.sender)}
-                              </Text>
-                              <Text type="secondary" style={{ fontSize: 12 }}>
-                                {new Date(msg.timestamp).toLocaleTimeString()}
-                              </Text>
+                  {chatMessages.length === 0 ? (
+                    <div style={{ textAlign: 'center', padding: '40px 0', color: '#999' }}>
+                      暂无对话，请执行工作流
+                    </div>
+                  ) : (
+                    <List
+                      dataSource={chatMessages.filter(msg => {
+                        if (!showManagerThinking && msg.metadata?.type === 'manager_thinking') {
+                          return false;
+                        }
+                        return true;
+                      })}
+                      renderItem={(msg, index) => (
+                        <List.Item key={index} style={{ border: 'none', padding: '8px 0' }}>
+                          <div style={{ display: 'flex', width: '100%', gap: '12px' }}>
+                            <div style={{ flexShrink: 0 }}>
+                              {getAgentAvatar(msg.sender)}
                             </div>
-                            <div 
-                              style={{ 
-                                backgroundColor: '#fff', 
-                                padding: '8px 12px', 
-                                borderRadius: 8,
-                                display: 'inline-block',
-                                maxWidth: '100%',
-                                wordBreak: 'break-word'
-                              }}
-                            >
-                              <Text style={{ whiteSpace: 'pre-wrap' }}>{msg.content}</Text>
+                            <div style={{ flex: 1, minWidth: 0 }}>
+                              <div style={{ marginBottom: 4 }}>
+                                <Text strong style={{ marginRight: 8 }}>
+                                  {getAgentDisplayName(msg.sender)}
+                                </Text>
+                                {msg.metadata?.type === 'manager_thinking' && (
+                                  <Tag color="gold" style={{ marginRight: 8 }}>协调者点名</Tag>
+                                )}
+                                <Text type="secondary" style={{ fontSize: 12 }}>
+                                  {new Date(msg.timestamp).toLocaleTimeString()}
+                                </Text>
+                              </div>
+                              <div 
+                                style={{ 
+                                  backgroundColor: msg.metadata?.type === 'manager_thinking' ? '#fffbe6' : '#fff', 
+                                  padding: '8px 12px', 
+                                  borderRadius: 8,
+                                  display: 'inline-block',
+                                  maxWidth: '100%',
+                                  wordBreak: 'break-word',
+                                  border: msg.metadata?.type === 'manager_thinking' ? '1px solid #ffe58f' : 'none'
+                                }}
+                              >
+                                <Text style={{ whiteSpace: 'pre-wrap' }}>{msg.content}</Text>
+                              </div>
                             </div>
                           </div>
-                        </div>
-                      </List.Item>
-                    )}
-                  />
+                        </List.Item>
+                      )}
+                    />
+                  )}
                   <div ref={messagesEndRef} />
                 </Card>
               </div>

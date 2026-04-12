@@ -1,3 +1,4 @@
+using System.ComponentModel;
 using System.Reflection;
 using System.Text;
 using System.Text.Json;
@@ -19,8 +20,9 @@ public class CodeCapability : ICapability
             .Where(m => m.GetCustomAttribute<ToolAttribute>() != null);
     }
 
-    [Tool("分析代码结构")]
-    public string AnalyzeCode(string filePath)
+    [Tool("Analyze the structure of a source code file. Reports classes, methods, properties and other definitions.")]
+    public string AnalyzeCode(
+        [Description("Absolute path to the source code file")] string filePath)
     {
         try
         {
@@ -64,8 +66,12 @@ public class CodeCapability : ICapability
         }
     }
 
-    [Tool("搜索代码内容")]
-    public string SearchInCode(string pattern, string directory, string? filePattern = null, bool ignoreCase = true)
+    [Tool("Search for a regex pattern in source code files within a directory.")]
+    public string SearchInCode(
+        [Description("Regex pattern to search for, e.g. 'class\\s+\\w+'")] string pattern,
+        [Description("Absolute path to the directory to search in")] string directory,
+        [Description("Glob pattern to filter files, e.g. '*.cs'. Optional")] string? filePattern = null,
+        [Description("Case-insensitive search. Default true")] bool ignoreCase = true)
     {
         try
         {
@@ -140,8 +146,10 @@ public class CodeCapability : ICapability
         }
     }
 
-    [Tool("获取代码统计信息")]
-    public string GetCodeMetrics(string directory, string? filePattern = null)
+    [Tool("Get code statistics for a directory including line counts by language.")]
+    public string GetCodeMetrics(
+        [Description("Absolute path to the code directory")] string directory,
+        [Description("Glob pattern to filter files, e.g. '*.cs'. Optional")] string? filePattern = null)
     {
         try
         {
@@ -208,8 +216,11 @@ public class CodeCapability : ICapability
         }
     }
 
-    [Tool("查找代码定义")]
-    public string FindDefinitions(string directory, string? typeName = null, string? methodName = null)
+    [Tool("Find class, interface or method definitions in source code.")]
+    public string FindDefinitions(
+        [Description("Absolute path to the code directory")] string directory,
+        [Description("Filter by type/class name. Optional")] string? typeName = null,
+        [Description("Filter by method name. Optional")] string? methodName = null)
     {
         try
         {
@@ -303,8 +314,9 @@ public class CodeCapability : ICapability
         }
     }
 
-    [Tool("提取代码注释")]
-    public string ExtractComments(string filePath)
+    [Tool("Extract comments from a source code file.")]
+    public string ExtractComments(
+        [Description("Absolute path to the source code file")] string filePath)
     {
         try
         {
@@ -390,8 +402,9 @@ public class CodeCapability : ICapability
         }
     }
 
-    [Tool("分析代码依赖")]
-    public string AnalyzeDependencies(string filePath)
+    [Tool("Analyze the import/using dependencies of a source code file.")]
+    public string AnalyzeDependencies(
+        [Description("Absolute path to the source code file")] string filePath)
     {
         try
         {

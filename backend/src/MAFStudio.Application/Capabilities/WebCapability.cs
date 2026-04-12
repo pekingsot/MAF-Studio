@@ -1,3 +1,4 @@
+using System.ComponentModel;
 using System.Net;
 using System.Reflection;
 using System.Text;
@@ -31,16 +32,18 @@ public class WebCapability : ICapability
             .Where(m => m.GetCustomAttribute<ToolAttribute>() != null);
     }
 
-    [Tool("发送 HTTP GET 请求")]
-    public async Task<string> HttpGetAsync(string url, Dictionary<string, string>? headers = null)
+    [Tool("Send an HTTP GET request and return the response.")]
+    public async Task<string> HttpGetAsync(
+        [Description("The URL to request, e.g. 'https://api.example.com/data'")] string url,
+        [Description("Custom HTTP headers as 'Key1:Value1;Key2:Value2' format, e.g. 'Authorization:Bearer token123'. Optional")] string? headers = null)
     {
         try
         {
             using var request = new HttpRequestMessage(HttpMethod.Get, url);
             
-            if (headers != null)
+            if (!string.IsNullOrEmpty(headers))
             {
-                foreach (var header in headers)
+                foreach (var header in ParseHeaderString(headers))
                 {
                     request.Headers.TryAddWithoutValidation(header.Key, header.Value);
                 }
@@ -63,8 +66,12 @@ public class WebCapability : ICapability
         }
     }
 
-    [Tool("发送 HTTP POST 请求")]
-    public async Task<string> HttpPostAsync(string url, string? body = null, string? contentType = null, Dictionary<string, string>? headers = null)
+    [Tool("Send an HTTP POST request with an optional request body.")]
+    public async Task<string> HttpPostAsync(
+        [Description("The URL to post to")] string url,
+        [Description("Request body content. Optional")] string? body = null,
+        [Description("Content type, e.g. 'application/json'. Default 'application/json'")] string? contentType = null,
+        [Description("Custom HTTP headers as 'Key1:Value1;Key2:Value2' format. Optional")] string? headers = null)
     {
         try
         {
@@ -75,9 +82,9 @@ public class WebCapability : ICapability
                 request.Content = new StringContent(body, Encoding.UTF8, contentType ?? "application/json");
             }
 
-            if (headers != null)
+            if (!string.IsNullOrEmpty(headers))
             {
-                foreach (var header in headers)
+                foreach (var header in ParseHeaderString(headers))
                 {
                     request.Headers.TryAddWithoutValidation(header.Key, header.Value);
                 }
@@ -100,8 +107,10 @@ public class WebCapability : ICapability
         }
     }
 
-    [Tool("获取网页内容")]
-    public async Task<string> FetchUrlAsync(string url, int timeoutSeconds = 30)
+    [Tool("Fetch a web page and extract its text content.")]
+    public async Task<string> FetchUrlAsync(
+        [Description("The URL of the web page to fetch")] string url,
+        [Description("Request timeout in seconds. Default 30")] int timeoutSeconds = 30)
     {
         try
         {
@@ -128,8 +137,10 @@ public class WebCapability : ICapability
         }
     }
 
-    [Tool("下载文件")]
-    public async Task<string> DownloadFileAsync(string url, string savePath)
+    [Tool("Download a file from a URL and save it to a local path.")]
+    public async Task<string> DownloadFileAsync(
+        [Description("The URL of the file to download")] string url,
+        [Description("Absolute local path where the file will be saved, e.g. '/home/user/downloads/file.zip'")] string savePath)
     {
         try
         {
@@ -150,8 +161,12 @@ public class WebCapability : ICapability
         }
     }
 
-    [Tool("发送 HTTP PUT 请求")]
-    public async Task<string> HttpPutAsync(string url, string? body = null, string? contentType = null, Dictionary<string, string>? headers = null)
+    [Tool("Send an HTTP PUT request with an optional request body.")]
+    public async Task<string> HttpPutAsync(
+        [Description("The URL to put to")] string url,
+        [Description("Request body content. Optional")] string? body = null,
+        [Description("Content type, e.g. 'application/json'. Default 'application/json'")] string? contentType = null,
+        [Description("Custom HTTP headers as 'Key1:Value1;Key2:Value2' format. Optional")] string? headers = null)
     {
         try
         {
@@ -162,9 +177,9 @@ public class WebCapability : ICapability
                 request.Content = new StringContent(body, Encoding.UTF8, contentType ?? "application/json");
             }
 
-            if (headers != null)
+            if (!string.IsNullOrEmpty(headers))
             {
-                foreach (var header in headers)
+                foreach (var header in ParseHeaderString(headers))
                 {
                     request.Headers.TryAddWithoutValidation(header.Key, header.Value);
                 }
@@ -186,16 +201,18 @@ public class WebCapability : ICapability
         }
     }
 
-    [Tool("发送 HTTP DELETE 请求")]
-    public async Task<string> HttpDeleteAsync(string url, Dictionary<string, string>? headers = null)
+    [Tool("Send an HTTP DELETE request.")]
+    public async Task<string> HttpDeleteAsync(
+        [Description("The URL to delete")] string url,
+        [Description("Custom HTTP headers as 'Key1:Value1;Key2:Value2' format. Optional")] string? headers = null)
     {
         try
         {
             using var request = new HttpRequestMessage(HttpMethod.Delete, url);
 
-            if (headers != null)
+            if (!string.IsNullOrEmpty(headers))
             {
-                foreach (var header in headers)
+                foreach (var header in ParseHeaderString(headers))
                 {
                     request.Headers.TryAddWithoutValidation(header.Key, header.Value);
                 }
@@ -217,8 +234,9 @@ public class WebCapability : ICapability
         }
     }
 
-    [Tool("检查 URL 是否可访问")]
-    public async Task<string> CheckUrlAsync(string url)
+    [Tool("Check if a URL is accessible and return the HTTP status code.")]
+    public async Task<string> CheckUrlAsync(
+        [Description("The URL to check accessibility")] string url)
     {
         try
         {
@@ -310,5 +328,25 @@ public class WebCapability : ICapability
             result = result.Replace("  ", " ");
 
         return result.Trim();
+    }
+
+    private static Dictionary<string, string> ParseHeaderString(string headers)
+    {
+        var result = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        var pairs = headers.Split(';', StringSplitOptions.RemoveEmptyEntries);
+        foreach (var pair in pairs)
+        {
+            var colonIndex = pair.IndexOf(':');
+            if (colonIndex > 0)
+            {
+                var key = pair.Substring(0, colonIndex).Trim();
+                var value = pair.Substring(colonIndex + 1).Trim();
+                if (!string.IsNullOrEmpty(key))
+                {
+                    result[key] = value;
+                }
+            }
+        }
+        return result;
     }
 }

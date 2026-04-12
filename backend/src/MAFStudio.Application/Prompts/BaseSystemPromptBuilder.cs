@@ -2,7 +2,7 @@ namespace MAFStudio.Application.Prompts;
 
 public abstract class BaseSystemPromptBuilder : ISystemPromptBuilder
 {
-    public string BuildPrompt(SystemPromptContext context)
+    public virtual string BuildPrompt(SystemPromptContext context)
     {
         var prompt = BuildModeInstruction();
         
@@ -26,7 +26,7 @@ public abstract class BaseSystemPromptBuilder : ISystemPromptBuilder
     
     protected abstract string BuildModeInstruction();
     
-    private string ReplaceVariables(string prompt, SystemPromptContext context)
+    protected string ReplaceVariables(string prompt, SystemPromptContext context)
     {
         return prompt
             .Replace("{{agent_name}}", context.AgentName)
