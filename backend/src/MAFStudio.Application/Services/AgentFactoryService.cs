@@ -98,6 +98,63 @@ public class AgentFactoryService : IAgentFactoryService
         return BuildClientWithCapabilities(baseClient);
     }
 
+    public async Task<IChatClient> CreateAgentWithoutCapabilitiesAsync(long agentId)
+    {
+        var agent = await _agentRepository.GetByIdAsync(agentId);
+        if (agent == null)
+        {
+            throw new NotFoundException($"Agent {agentId} not found");
+        }
+
+        long llmConfigId;
+        long? llmModelConfigId;
+        List<FallbackModelConfig>? fallbackModels = null;
+
+        if (!string.IsNullOrEmpty(agent.LlmConfigs))
+        {
+            var llmConfigs = ParseLlmConfigs(agent.LlmConfigs);
+            if (llmConfigs == null || llmConfigs.Count == 0)
+            {
+                throw new BusinessException("Agent的LlmConfigs配置无效");
+            }
+
+            var primaryModel = llmConfigs.FirstOrDefault(c => c.IsPrimary) ?? llmConfigs.First();
+            llmConfigId = primaryModel.LlmConfigId;
+            llmModelConfigId = primaryModel.LlmModelConfigId;
+
+            fallbackModels = llmConfigs
+                .Where(c => !c.IsPrimary)
+                .OrderBy(c => c.Priority)
+                .Select(c => new FallbackModelConfig
+                {
+                    LlmConfigId = c.LlmConfigId,
+                    LlmModelConfigId = c.LlmModelConfigId,
+                    Priority = c.Priority
+                })
+                .ToList();
+
+            if (fallbackModels.Count == 0)
+            {
+                fallbackModels = null;
+            }
+
+            _logger?.LogInformation(
+                "创建Agent客户端(无工具): AgentId={AgentId}, 主模型LlmConfigId={LlmConfigId}, 主模型LlmModelConfigId={LlmModelConfigId}, 副模型数量={FallbackCount}",
+                agentId, llmConfigId, llmModelConfigId, fallbackModels?.Count ?? 0);
+        }
+        else
+        {
+            throw new BusinessException("Agent缺少LLM配置，请先配置大模型");
+        }
+
+        var baseClient = await _chatClientFactory.CreateClientWithFallbackAsync(
+            llmConfigId,
+            llmModelConfigId,
+            fallbackModels);
+
+        return BuildClientWithoutCapabilities(baseClient);
+    }
+
     public async Task<IChatClient> CreateChatClientAsync(long llmConfigId, long llmModelConfigId)
     {
         var baseClient = await _chatClientFactory.CreateClientAsync(llmConfigId, llmModelConfigId);
@@ -161,6 +218,11 @@ public class AgentFactoryService : IAgentFactoryService
         
         var capabilitiesLogger = _loggerFactory?.CreateLogger<CapabilitiesChatClient>();
         return new CapabilitiesChatClient(clientWithFunctionInvocation, _capabilityManager, capabilitiesLogger);
+    }
+
+    private IChatClient BuildClientWithoutCapabilities(IChatClient baseClient)
+    {
+        return baseClient;
     }
 
     private List<FallbackModelConfig>? ParseFallbackModels(string? fallbackModelsJson)

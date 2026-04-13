@@ -168,9 +168,18 @@ public partial class CollaborationWorkflowService
 
             foreach (var (member, agentEntity) in agentEntities)
             {
-                var chatClient = await _agentFactory.CreateAgentAsync(member.AgentId);
-                
                 var isManager = member.Role?.Equals("Manager", StringComparison.OrdinalIgnoreCase) == true;
+                
+                IChatClient chatClient;
+                if (isManager)
+                {
+                    chatClient = await _agentFactory.CreateAgentWithoutCapabilitiesAsync(member.AgentId);
+                    _logger.LogInformation("协调者使用无工具ChatClient: AgentId={AgentId}, ChatClientType={Type}", member.AgentId, chatClient.GetType().Name);
+                }
+                else
+                {
+                    chatClient = await _agentFactory.CreateAgentAsync(member.AgentId);
+                }
                 
                 string basePrompt;
                 if (isManager && taskConfig?.ManagerCustomPrompt != null)
@@ -196,6 +205,11 @@ public partial class CollaborationWorkflowService
                 });
                 
                 agentSystemPrompts[member.AgentId] = systemPrompt;
+                
+                if (isManager)
+                {
+                    _logger.LogInformation("协调者完整系统提示词 (长度: {Length}):\n{Prompt}", systemPrompt.Length, systemPrompt);
+                }
                 
                 var agentDescription = $"专业{agentEntity.TypeName ?? "专家"}";
                 
@@ -261,13 +275,13 @@ public partial class CollaborationWorkflowService
                             CreateIntelligentManager(managerAgent, allAgents, orchestratorChatClient, parameters.MaxIterations, taskConfig?.ManagerCustomPrompt),
                         
                         GroupChatOrchestrationMode.Manager when managerAgent != null && orchestratorChatClient != null =>
-                            CreateManagerMode(managerAgent, allAgents, parameters.MaxIterations, orchestratorChatClient!, managerThinkingQueue),
+                            CreateIntelligentManager(managerAgent, allAgents, orchestratorChatClient, parameters.MaxIterations, taskConfig?.ManagerCustomPrompt),
                         
                         GroupChatOrchestrationMode.RoundRobin =>
                             CreateRoundRobinManager(agents, parameters.MaxIterations),
                         
                         _ when managerAgent != null && orchestratorChatClient != null =>
-                            CreateManagerMode(managerAgent, allAgents, parameters.MaxIterations, orchestratorChatClient!, managerThinkingQueue),
+                            CreateIntelligentManager(managerAgent, allAgents, orchestratorChatClient, parameters.MaxIterations, taskConfig?.ManagerCustomPrompt),
                         
                         _ =>
                             CreateRoundRobinManager(agents, parameters.MaxIterations)
@@ -599,7 +613,8 @@ public partial class CollaborationWorkflowService
     {
         _logger.LogInformation("使用IntelligentGroupChatManager，主Agent: {Name}, 有协调者提示词: {HasPrompt}", 
             managerAgent.Name, !string.IsNullOrEmpty(managerCustomPrompt));
-        return new IntelligentGroupChatManager(managerAgent, agents, chatClient, maxIterations, managerCustomPrompt);
+        var logger = _loggerFactory.CreateLogger<IntelligentGroupChatManager>();
+        return new IntelligentGroupChatManager(managerAgent, agents, chatClient, maxIterations, managerCustomPrompt, logger);
     }
 
     private GroupChatManager CreateManagerMode(

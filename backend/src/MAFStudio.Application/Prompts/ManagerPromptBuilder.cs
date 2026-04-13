@@ -6,16 +6,4 @@ public class ManagerPromptBuilder : BaseSystemPromptBuilder
     {
         return "";
     }
-
-    public override string BuildPrompt(SystemPromptContext context)
-    {
-        var prompt = BuildModeInstruction();
-        
-        if (!string.IsNullOrEmpty(context.AgentPrompt))
-        {
-            prompt += context.AgentPrompt;
-        }
-        
-        return ReplaceVariables(prompt, context);
-    }
 }
