@@ -1,7 +1,9 @@
+using Moq;
 using Dapper;
 using MAFStudio.Application.Capabilities;
 using MAFStudio.Application.Clients;
 using MAFStudio.Application.Services;
+using MAFStudio.Core.Interfaces.Services;
 using MAFStudio.Infrastructure.Data;
 using MAFStudio.Infrastructure.Data.Repositories;
 using Microsoft.Extensions.AI;
@@ -47,7 +49,7 @@ public class MafMiddlewareMigrationTests
         Log("========== 测试: CapabilitiesChatClient 工具注册 ==========");
         Log($"测试时间: {DateTime.Now}");
 
-        var capabilityManager = new CapabilityManager();
+        var capabilityManager = new CapabilityManager(CreateMockServiceProvider());
         
         var loggerFactory = LoggerFactory.Create(builder =>
         {
@@ -120,7 +122,7 @@ public class MafMiddlewareMigrationTests
         Assert.True(agentList.Count > 0, "任务必须关联至少一个Agent");
         Log($"可用Agent: {string.Join(", ", agentList.Select(a => a.name))}");
 
-        var capabilityManager = new CapabilityManager();
+        var capabilityManager = new CapabilityManager(CreateMockServiceProvider());
         var modelConfigRepository = new LlmModelConfigRepository(dapperContext);
         var llmConfigRepository = new LlmConfigRepository(dapperContext, modelConfigRepository);
         var agentRepository = new AgentRepository(dapperContext);
@@ -192,7 +194,7 @@ public class MafMiddlewareMigrationTests
 
         Assert.True(agentList.Count > 0, "任务必须关联至少一个Agent");
 
-        var capabilityManager = new CapabilityManager();
+        var capabilityManager = new CapabilityManager(CreateMockServiceProvider());
         var modelConfigRepository = new LlmModelConfigRepository(dapperContext);
         var llmConfigRepository = new LlmConfigRepository(dapperContext, modelConfigRepository);
         var agentRepository = new AgentRepository(dapperContext);
@@ -256,6 +258,15 @@ public class MafMiddlewareMigrationTests
                 Directory.Delete(testDir, true);
             }
         }
+    }
+
+    private static IServiceProvider CreateMockServiceProvider()
+    {
+        var mockTaskContext = new Mock<ITaskContextService>();
+        var mockSp = new Mock<IServiceProvider>();
+        mockSp.Setup(x => x.GetService(typeof(ITaskContextService)))
+            .Returns(mockTaskContext.Object);
+        return mockSp.Object;
     }
 }
 

@@ -1,4 +1,6 @@
+using Moq;
 using MAFStudio.Application.Capabilities;
+using MAFStudio.Core.Interfaces.Services;
 using Xunit;
 
 namespace MAFStudio.Tests.Capabilities;
@@ -258,7 +260,7 @@ namespace TestNamespace
     [Fact]
     public void CapabilityManager_ShouldRegisterAllNewCapabilities()
     {
-        var manager = new CapabilityManager();
+        var manager = new CapabilityManager(CreateMockServiceProvider());
         
         var capabilities = manager.GetAllCapabilities().ToList();
         
@@ -271,7 +273,7 @@ namespace TestNamespace
     [Fact]
     public void CapabilityManager_ShouldHaveMoreToolsAfterAddingNewCapabilities()
     {
-        var manager = new CapabilityManager();
+        var manager = new CapabilityManager(CreateMockServiceProvider());
         
         var tools = manager.GetAllTools().ToList();
         
@@ -283,5 +285,14 @@ namespace TestNamespace
         Assert.Contains("AnalyzeCode", toolNames);
         Assert.Contains("SearchInFiles", toolNames);
         Assert.Contains("CreateZip", toolNames);
+    }
+
+    private static IServiceProvider CreateMockServiceProvider()
+    {
+        var mockTaskContext = new Mock<ITaskContextService>();
+        var mockSp = new Mock<IServiceProvider>();
+        mockSp.Setup(x => x.GetService(typeof(ITaskContextService)))
+            .Returns(mockTaskContext.Object);
+        return mockSp.Object;
     }
 }

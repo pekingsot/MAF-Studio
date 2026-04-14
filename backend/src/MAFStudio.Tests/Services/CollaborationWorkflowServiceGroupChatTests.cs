@@ -65,7 +65,7 @@ public class CollaborationWorkflowServiceGroupChatTests
             modelConfigRepository,
             chatClientFactoryLogger);
 
-        var capabilityManager = new CapabilityManager();
+        var capabilityManager = new CapabilityManager(CreateMockServiceProvider());
         
         var agentFactory = new AgentFactoryService(
             agentRepository,
@@ -98,6 +98,8 @@ public class CollaborationWorkflowServiceGroupChatTests
         var taskRepoMock = new Mock<ICollaborationTaskRepository>();
         var conclusionServiceMock = new Mock<IGroupChatConclusionService>();
         var promptBuilderFactory = new SystemPromptBuilderFactory();
+        var taskContextService = new TaskContextService();
+        var eventProcessorMock = new Mock<IWorkflowEventProcessor>();
 
         var service = new CollaborationWorkflowService(
             collaborationRepository,
@@ -111,6 +113,8 @@ public class CollaborationWorkflowServiceGroupChatTests
             taskRepoMock.Object,
             conclusionServiceMock.Object,
             promptBuilderFactory,
+            taskContextService,
+            eventProcessorMock.Object,
             workflowServiceLogger,
             loggerFactory);
 
@@ -165,5 +169,14 @@ public class CollaborationWorkflowServiceGroupChatTests
             Assert.NotNull(m.Content);
             Assert.False(string.IsNullOrEmpty(m.Content), "消息内容不应为空");
         });
+    }
+
+    private static IServiceProvider CreateMockServiceProvider()
+    {
+        var mockTaskContext = new Mock<ITaskContextService>();
+        var mockSp = new Mock<IServiceProvider>();
+        mockSp.Setup(x => x.GetService(typeof(ITaskContextService)))
+            .Returns(mockTaskContext.Object);
+        return mockSp.Object;
     }
 }

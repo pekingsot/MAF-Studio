@@ -40,6 +40,7 @@ public class CollaborationsControllerTests : TestBase
             _mockAuthService.Object,
             _mockLogService.Object,
             _mockAgentMessageRepository.Object,
+            Mock.Of<MAFStudio.Core.Interfaces.Services.IEmailService>(),
             _mockLogger.Object
         );
 

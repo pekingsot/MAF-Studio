@@ -24,6 +24,7 @@ public partial class CollaborationWorkflowService : ICollaborationWorkflowServic
     private readonly IGroupChatConclusionService _conclusionService;
     private readonly ISystemPromptBuilderFactory _promptBuilderFactory;
     private readonly ITaskContextService _taskContextService;
+    private readonly IWorkflowEventProcessor _eventProcessor;
     private readonly ILogger<CollaborationWorkflowService> _logger;
     private readonly ILoggerFactory _loggerFactory;
 
@@ -40,6 +41,7 @@ public partial class CollaborationWorkflowService : ICollaborationWorkflowServic
         IGroupChatConclusionService conclusionService,
         ISystemPromptBuilderFactory promptBuilderFactory,
         ITaskContextService taskContextService,
+        IWorkflowEventProcessor eventProcessor,
         ILogger<CollaborationWorkflowService> logger,
         ILoggerFactory loggerFactory)
     {
@@ -55,6 +57,7 @@ public partial class CollaborationWorkflowService : ICollaborationWorkflowServic
         _conclusionService = conclusionService;
         _promptBuilderFactory = promptBuilderFactory;
         _taskContextService = taskContextService;
+        _eventProcessor = eventProcessor;
         _logger = logger;
         _loggerFactory = loggerFactory;
     }

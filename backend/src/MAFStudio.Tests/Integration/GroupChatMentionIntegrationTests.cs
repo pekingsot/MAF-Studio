@@ -72,7 +72,7 @@ public class GroupChatMentionIntegrationTests
             modelConfigRepository,
             chatClientFactoryLogger);
 
-        var capabilityManager = new CapabilityManager();
+        var capabilityManager = new CapabilityManager(CreateMockServiceProvider());
         
         var agentFactory = new AgentFactoryService(
             agentRepository,
@@ -96,6 +96,8 @@ public class GroupChatMentionIntegrationTests
         var taskRepoMock = new Mock<ICollaborationTaskRepository>();
         var conclusionServiceMock = new Mock<IGroupChatConclusionService>();
         var promptBuilderFactory = new SystemPromptBuilderFactory();
+        var taskContextService = new TaskContextService();
+        var eventProcessorMock = new Mock<IWorkflowEventProcessor>();
 
         var service = new CollaborationWorkflowService(
             collaborationRepository,
@@ -109,6 +111,8 @@ public class GroupChatMentionIntegrationTests
             taskRepoMock.Object,
             conclusionServiceMock.Object,
             promptBuilderFactory,
+            taskContextService,
+            eventProcessorMock.Object,
             workflowServiceLogger,
             loggerFactory);
 
@@ -271,5 +275,14 @@ public class GroupChatMentionIntegrationTests
             Log("请检查后端日志文件获取更多信息:");
             Log("  d:/trae/maf-studio/backend/src/MAFStudio.Api/logs/maf-studio-20260405.log");
         }
+    }
+
+    private static IServiceProvider CreateMockServiceProvider()
+    {
+        var mockTaskContext = new Mock<ITaskContextService>();
+        var mockSp = new Mock<IServiceProvider>();
+        mockSp.Setup(x => x.GetService(typeof(ITaskContextService)))
+            .Returns(mockTaskContext.Object);
+        return mockSp.Object;
     }
 }

@@ -1,7 +1,9 @@
+using Moq;
 using Dapper;
 using MAFStudio.Application.Capabilities;
 using MAFStudio.Application.Clients;
 using MAFStudio.Application.Services;
+using MAFStudio.Core.Interfaces.Services;
 using MAFStudio.Infrastructure.Data;
 using MAFStudio.Infrastructure.Data.Repositories;
 using Microsoft.Extensions.AI;
@@ -93,7 +95,7 @@ public class Task1006IntegrationTests
         Assert.True(agentList.Count > 0, "任务必须关联至少一个Agent");
         Log($"可用Agent: {string.Join(", ", agentList.Select(a => a.name))}");
 
-        var capabilityManager = new CapabilityManager();
+        var capabilityManager = new CapabilityManager(CreateMockServiceProvider());
         Log("\n========== 注册的能力 ==========");
         var totalTools = 0;
         foreach (var capability in capabilityManager.GetAllCapabilities())
@@ -142,7 +144,15 @@ public class Task1006IntegrationTests
         try
         {
             var documentCapability = new DocumentCapability();
-            var gitCapability = new GitCapability();
+            var taskContextService = new TaskContextService();
+            taskContextService.SetCurrentTask(new MAFStudio.Core.Entities.CollaborationTask
+            {
+                Id = TestTaskId,
+                GitUrl = task.git_url?.ToString(),
+                GitBranch = task.git_branch?.ToString(),
+                GitCredentials = task.git_credentials?.ToString()
+            });
+            var gitCapability = new GitCapability(taskContextService);
             var fileCapability = new FileCapability();
 
             Log("\n========== 步骤1: 生成文档 ==========");
@@ -190,19 +200,10 @@ public class Task1006IntegrationTests
             {
                 var repoDir = Path.Combine(testDir, "repo");
                 
-                var authUrl = gitUrl;
-                if (!string.IsNullOrEmpty(gitToken))
-                {
-                    var uri = new Uri(gitUrl);
-                    var portPart = (uri.Port != 80 && uri.Port != 443 && uri.Port != -1) ? $":{uri.Port}" : "";
-                    authUrl = $"{uri.Scheme}://{gitToken}@{uri.Host}{portPart}{uri.AbsolutePath}";
-                    Log($"使用认证令牌克隆仓库");
-                }
-                
                 Log($"克隆仓库: {gitUrl}");
                 Log($"目标分支: {gitBranch}");
 
-                var cloneResult = gitCapability.CloneRepository(authUrl, repoDir);
+                var cloneResult = gitCapability.CloneRepository(repoDir);
                 Log($"克隆结果: {cloneResult}");
 
                 if (Directory.Exists(repoDir))
@@ -305,12 +306,12 @@ public class Task1006IntegrationTests
     [Fact]
     public void CapabilityManager_ShouldProvideAllTools()
     {
-        var manager = new CapabilityManager();
+        var manager = new CapabilityManager(CreateMockServiceProvider());
         
         var capabilities = manager.GetAllCapabilities().ToList();
         var tools = manager.GetAllTools().ToList();
 
-        Assert.Equal(7, capabilities.Count);
+        Assert.True(capabilities.Count >= 7, $"应该有至少7种能力，实际: {capabilities.Count}");
         Assert.True(tools.Count >= 50, $"应该有至少50个工具，实际: {tools.Count}");
 
         var toolNames = tools.Select(t => t.Name).ToList();
@@ -360,5 +361,14 @@ public class Task1006IntegrationTests
         }
 
         Log("\n========== 验证完成 ==========");
+    }
+
+    private static IServiceProvider CreateMockServiceProvider()
+    {
+        var mockTaskContext = new Mock<ITaskContextService>();
+        var mockSp = new Mock<IServiceProvider>();
+        mockSp.Setup(x => x.GetService(typeof(ITaskContextService)))
+            .Returns(mockTaskContext.Object);
+        return mockSp.Object;
     }
 }

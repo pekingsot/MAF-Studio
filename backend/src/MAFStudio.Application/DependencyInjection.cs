@@ -41,6 +41,8 @@ public static class DependencyInjection
         
         services.AddScoped<IGroupChatConclusionService, GroupChatConclusionService>();
         
+        services.AddScoped<IWorkflowEventProcessor, WorkflowEventProcessor>();
+        
         services.AddScoped<ISystemPromptBuilderFactory, SystemPromptBuilderFactory>();
         
         services.AddScoped<IEmailService, EmailService>();

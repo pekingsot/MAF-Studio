@@ -4,7 +4,8 @@ public abstract class BaseSystemPromptBuilder : ISystemPromptBuilder
 {
     public virtual string BuildPrompt(SystemPromptContext context)
     {
-        var prompt = BuildModeInstruction();
+        var prompt = BuildIdentitySection(context);
+        prompt += BuildModeInstruction();
         
         if (!string.IsNullOrEmpty(context.AgentPrompt))
         {
@@ -21,7 +22,26 @@ public abstract class BaseSystemPromptBuilder : ISystemPromptBuilder
             prompt += "\n\n任务要求：\n" + context.TaskPrompt;
         }
         
+        if (!string.IsNullOrEmpty(context.MembersInfo))
+        {
+            prompt += "\n\n团队成员：\n" + context.MembersInfo;
+        }
+        
         return ReplaceVariables(prompt, context);
+    }
+
+    private static string BuildIdentitySection(SystemPromptContext context)
+    {
+        var section = $"\n你是 {context.AgentName}";
+        if (!string.IsNullOrEmpty(context.AgentRole))
+        {
+            section += $"，角色为{context.AgentRole}";
+        }
+        if (!string.IsNullOrEmpty(context.AgentTypeName))
+        {
+            section += $"，负责{context.AgentTypeName}";
+        }
+        return section + "。\n";
     }
     
     protected abstract string BuildModeInstruction();
