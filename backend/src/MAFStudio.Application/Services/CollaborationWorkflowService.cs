@@ -242,6 +242,87 @@ public partial class CollaborationWorkflowService : ICollaborationWorkflowServic
         return agents;
     }
 
+    public async Task<CollaborationResult> ExecuteCustomWorkflowAsync(
+        long collaborationId,
+        WorkflowDefinitionDto workflow,
+        string input,
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var agents = await GetAgentsAsync(collaborationId);
+
+            if (agents.Count == 0)
+            {
+                return new CollaborationResult
+                {
+                    Success = false,
+                    Error = "协作中没有Agent"
+                };
+            }
+
+            var messages = new List<ChatMessageDto>();
+            var nodeResults = new Dictionary<string, string>();
+            var executedNodes = new HashSet<string>();
+            var agentNodes = workflow.Nodes.Where(n => n.Type == "agent").ToList();
+            var stepNumber = 0;
+
+            foreach (var node in agentNodes)
+            {
+                stepNumber++;
+                var agentIndex = stepNumber - 1;
+                if (agentIndex >= agents.Count)
+                {
+                    agentIndex = agents.Count - 1;
+                }
+
+                var taskInput = ReplaceTemplateVariables(node.InputTemplate ?? input, nodeResults, input, input);
+                var response = await agents[agentIndex].GetResponseAsync(
+                    new[] { new ChatMessage(ChatRole.User, taskInput) },
+                    cancellationToken: cancellationToken);
+
+                var content = response.Messages.LastOrDefault()?.Text ?? string.Empty;
+                nodeResults[node.Id] = content;
+
+                messages.Add(new ChatMessageDto
+                {
+                    Sender = node.AgentRole ?? node.Name,
+                    Content = content,
+                    Timestamp = DateTime.UtcNow,
+                    Metadata = new Dictionary<string, object>
+                    {
+                        ["type"] = "agent_response",
+                        ["step"] = stepNumber,
+                        ["nodeId"] = node.Id
+                    }
+                });
+            }
+
+            var aggregatedOutput = string.Join("\n\n---\n\n", nodeResults.Values);
+
+            return new CollaborationResult
+            {
+                Success = true,
+                Output = aggregatedOutput,
+                Messages = messages,
+                Metadata = new Dictionary<string, object>
+                {
+                    ["nodeCount"] = agentNodes.Count,
+                    ["stepCount"] = stepNumber
+                }
+            };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "自定义工作流执行失败: {Message}", ex.Message);
+            return new CollaborationResult
+            {
+                Success = false,
+                Error = ex.Message
+            };
+        }
+    }
+
     private string? ExtractHandoffAgent(string content)
     {
         var start = content.IndexOf("[HANDOFF:");

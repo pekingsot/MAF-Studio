@@ -1,89 +1,91 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import {
-  Card,
-  Form,
-  Input,
-  Button,
-  Select,
-  message,
-  Space,
-  Modal,
-  Checkbox,
-  Row,
-  Col,
-  Divider,
+  Card, Button, Input, message, Spin, Divider, List, Tag, Space, Typography,
+  Alert, Select, Avatar, Steps, Modal, Form, Checkbox, Row, Col, InputNumber
 } from 'antd';
 import {
-  RobotOutlined,
-  CheckCircleOutlined,
-  CloseCircleOutlined,
-  EditOutlined,
-  SaveOutlined,
+  PlayCircleOutlined, RobotOutlined, SwapOutlined, CrownOutlined, BulbOutlined,
+  EyeOutlined, CheckCircleOutlined, EditOutlined, SaveOutlined, ThunderboltOutlined,
+  AppstoreOutlined, ReloadOutlined, MessageOutlined, TeamOutlined
 } from '@ant-design/icons';
 import ReactFlow, {
-  Node,
-  Edge,
-  Background,
-  Controls,
-  MiniMap,
+  Node, Edge, Background, Controls, MiniMap, useNodesState, useEdgesState
 } from 'reactflow';
 import 'reactflow/dist/style.css';
-
+import { collaborationWorkflowService, ChatMessageDto } from '../services/collaborationWorkflowService';
+import { collaborationService, Collaboration } from '../services/collaborationService';
 import { workflowTemplateApi } from '../services/workflow-template-api';
 import { nodeTypes } from '../components/workflow/CustomNodes';
 import { edgeTypes } from '../components/workflow/CustomEdges';
-import type { WorkflowDefinition, WorkflowNode, WorkflowEdge } from '../types/workflow-template';
+import type { WorkflowDefinition, WorkflowTemplate } from '../types/workflow-template';
 
 const { TextArea } = Input;
 const { Option } = Select;
+const { Title, Text } = Typography;
 
-/**
- * Magentic工作流页面
- */
+type MagenticStep = 'input' | 'source' | 'preview' | 'executing' | 'done';
+
 const MagenticWorkflow: React.FC = () => {
-  const [form] = Form.useForm();
-  const [saveForm] = Form.useForm();
+  const [currentStep, setCurrentStep] = useState<MagenticStep>('input');
+  const [collaborations, setCollaborations] = useState<Collaboration[]>([]);
+  const [selectedCollaborationId, setSelectedCollaborationId] = useState<number | null>(null);
+  const [taskInput, setTaskInput] = useState('');
   const [loading, setLoading] = useState(false);
-  const [workflow, setWorkflow] = useState<WorkflowDefinition | null>(null);
-  const [nodes, setNodes] = useState<Node[]>([]);
-  const [edges, setEdges] = useState<Edge[]>([]);
-  const [reviewModalVisible, setReviewModalVisible] = useState(false);
+  const [generatedWorkflow, setGeneratedWorkflow] = useState<WorkflowDefinition | null>(null);
+  const [selectedTemplate, setSelectedTemplate] = useState<WorkflowTemplate | null>(null);
+  const [templates, setTemplates] = useState<WorkflowTemplate[]>([]);
+  const [templatesLoading, setTemplatesLoading] = useState(false);
+  const [flowNodes, setFlowNodes, onFlowNodesChange] = useNodesState([]);
+  const [flowEdges, setFlowEdges, onFlowEdgesChange] = useEdgesState([]);
+  const [executionMessages, setExecutionMessages] = useState<ChatMessageDto[]>([]);
   const [saveModalVisible, setSaveModalVisible] = useState(false);
+  const [saveForm] = Form.useForm();
+  const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  /**
-   * 生成Magentic计划
-   */
-  const handleGenerate = async (values: any) => {
-    setLoading(true);
+  useEffect(() => {
+    loadCollaborations();
+  }, []);
+
+  useEffect(() => {
+    scrollToBottom();
+  }, [executionMessages]);
+
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  };
+
+  const loadCollaborations = async () => {
     try {
-      const result = await workflowTemplateApi.generateMagenticPlan({
-        collaborationId: values.collaborationId,
-        task: values.task,
-      });
-
-      if (result.success && result.workflow) {
-        setWorkflow(result.workflow);
-        renderWorkflow(result.workflow);
-        setReviewModalVisible(true);
-        message.success('计划生成成功');
-      } else {
-        message.error(`生成失败: ${result.error}`);
-      }
+      const data = await collaborationService.getAllCollaborations();
+      setCollaborations(data || []);
     } catch (error: any) {
-      message.error(`生成失败: ${error.message}`);
-    } finally {
-      setLoading(false);
+      console.error('加载协作列表失败:', error);
     }
   };
 
-  /**
-   * 渲染工作流
-   */
-  const renderWorkflow = (workflow: WorkflowDefinition) => {
+  const loadTemplates = useCallback(async () => {
+    setTemplatesLoading(true);
+    try {
+      const data = await workflowTemplateApi.getAll(true);
+      setTemplates(data || []);
+    } catch (error: any) {
+      console.error('加载模板失败:', error);
+    } finally {
+      setTemplatesLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (currentStep === 'source') {
+      loadTemplates();
+    }
+  }, [currentStep, loadTemplates]);
+
+  const convertWorkflowToFlow = (workflow: WorkflowDefinition) => {
     const reactFlowNodes: Node[] = workflow.nodes.map((node, index) => ({
       id: node.id,
       type: node.type,
-      position: { x: 250, y: index * 150 },
+      position: { x: 300, y: index * 120 },
       data: node,
     }));
 
@@ -93,59 +95,81 @@ const MagenticWorkflow: React.FC = () => {
       target: Array.isArray(edge.to) ? edge.to[0] : edge.to,
       type: 'custom',
       data: { type: edge.type, description: edge.description },
+      animated: edge.type === 'fan-out',
     }));
 
-    setNodes(reactFlowNodes);
-    setEdges(reactFlowEdges);
+    setFlowNodes(reactFlowNodes);
+    setFlowEdges(reactFlowEdges);
   };
 
-  /**
-   * 执行工作流
-   */
-  const handleExecute = async () => {
-    if (!workflow) return;
+  const handleGenerateWorkflow = async () => {
+    if (!selectedCollaborationId) {
+      message.warning('请先选择协作');
+      return;
+    }
+    if (!taskInput.trim()) {
+      message.warning('请输入任务内容');
+      return;
+    }
 
+    setLoading(true);
     try {
-      const values = await form.getFieldsValue();
-      const result = await workflowTemplateApi.execute(0, {
-        collaborationId: values.collaborationId,
-        input: values.task,
-      });
-
-      if (result.success) {
-        message.success('执行成功');
-        setReviewModalVisible(false);
+      const response = await collaborationWorkflowService.generateMagenticPlan(
+        selectedCollaborationId,
+        taskInput
+      );
+      if (response.success && response.workflow) {
+        setGeneratedWorkflow(response.workflow);
+        convertWorkflowToFlow(response.workflow);
+        setCurrentStep('preview');
+        message.success('工作流生成成功');
       } else {
-        message.error(`执行失败: ${result.error}`);
+        message.error(`生成失败: ${response.error || '未知错误'}`);
       }
     } catch (error: any) {
-      message.error(`执行失败: ${error.message}`);
+      message.error(`生成失败: ${error.message}`);
+    } finally {
+      setLoading(false);
     }
   };
 
-  /**
-   * 拒绝计划
-   */
-  const handleReject = () => {
-    setReviewModalVisible(false);
-    setWorkflow(null);
-    setNodes([]);
-    setEdges([]);
-    message.info('已拒绝计划，请重新生成');
+  const handleSelectTemplate = (template: WorkflowTemplate) => {
+    setSelectedTemplate(template);
+    setGeneratedWorkflow(template.workflow);
+    convertWorkflowToFlow(template.workflow);
+    setCurrentStep('preview');
+    message.success(`已选择模板: ${template.name}`);
   };
 
-  /**
-   * 编辑计划
-   */
-  const handleEdit = () => {
-    message.info('请在工作流编辑器中修改计划');
+  const handleExecuteMagentic = async () => {
+    if (!generatedWorkflow || !selectedCollaborationId) return;
+
+    setCurrentStep('executing');
+    setExecutionMessages([]);
+    setLoading(true);
+
+    try {
+      await collaborationWorkflowService.executeMagenticWorkflow(
+        selectedCollaborationId,
+        generatedWorkflow,
+        taskInput,
+        undefined,
+        (msg) => {
+          setExecutionMessages(prev => [...prev, msg]);
+        }
+      );
+      setCurrentStep('done');
+      message.success('Magentic工作流执行完成');
+    } catch (error: any) {
+      message.error(`执行失败: ${error.message}`);
+      setCurrentStep('preview');
+    } finally {
+      setLoading(false);
+    }
   };
 
-  /**
-   * 保存为模板
-   */
-  const handleSave = async (values: any) => {
-    if (!workflow) return;
+  const handleSaveAsTemplate = async (values: any) => {
+    if (!generatedWorkflow) return;
 
     try {
       await workflowTemplateApi.saveMagenticPlan({
@@ -153,134 +177,349 @@ const MagenticWorkflow: React.FC = () => {
         description: values.description,
         category: values.category,
         tags: values.tags?.split(',').map((t: string) => t.trim()),
-        workflow,
+        workflow: generatedWorkflow,
         isPublic: values.isPublic || false,
         enableLearning: values.enableLearning || false,
-        originalTask: form.getFieldValue('task'),
+        originalTask: taskInput,
       });
-
-      message.success('保存成功');
+      message.success('保存为模板成功');
       setSaveModalVisible(false);
     } catch (error: any) {
       message.error(`保存失败: ${error.message}`);
     }
   };
 
+  const handleReset = () => {
+    setCurrentStep('input');
+    setGeneratedWorkflow(null);
+    setSelectedTemplate(null);
+    setExecutionMessages([]);
+    setFlowNodes([]);
+    setFlowEdges([]);
+  };
+
+  const getAgentAvatar = (sender: string) => {
+    if (sender === 'System' || sender === 'Aggregator' || sender === 'Condition') {
+      return <Avatar icon={<ThunderboltOutlined />} style={{ backgroundColor: '#722ed1' }} />;
+    }
+    return <Avatar icon={<RobotOutlined />} style={{ backgroundColor: '#1890ff' }} />;
+  };
+
+  const renderMessageItem = (msg: ChatMessageDto, index: number) => {
+    const msgType = msg.metadata?.type;
+    const isSystem = msgType === 'system' || msgType === 'system_complete' || msgType === 'step_start';
+    const isError = msgType === 'error';
+    const isWarning = msgType === 'warning';
+    const isCondition = msgType === 'condition';
+    const isAggregator = msgType === 'aggregator';
+
+    let bgColor = '#fff';
+    let borderColor = 'transparent';
+    if (isSystem) { bgColor = '#e6f7ff'; borderColor = '#91d5ff'; }
+    if (isError) { bgColor = '#fff2f0'; borderColor = '#ffccc7'; }
+    if (isWarning) { bgColor = '#fffbe6'; borderColor = '#ffe58f'; }
+    if (isCondition) { bgColor = '#fff7e6'; borderColor = '#ffd591'; }
+    if (isAggregator) { bgColor = '#f9f0ff'; borderColor = '#d3adf7'; }
+
+    return (
+      <List.Item key={index} style={{ border: 'none', padding: '8px 0' }}>
+        <div style={{ display: 'flex', width: '100%', gap: '12px' }}>
+          <div style={{ flexShrink: 0 }}>{getAgentAvatar(msg.sender)}</div>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ marginBottom: 4 }}>
+              <Text strong style={{ marginRight: 8 }}>{msg.sender}</Text>
+              {msgType === 'step_start' && <Tag color="blue" style={{ marginRight: 8 }}>步骤 {msg.metadata?.step}</Tag>}
+              {msgType === 'agent_response' && <Tag color="green" style={{ marginRight: 8 }}>执行结果</Tag>}
+              {isAggregator && <Tag color="purple" style={{ marginRight: 8 }}>汇总</Tag>}
+              {isCondition && <Tag color="orange" style={{ marginRight: 8 }}>条件</Tag>}
+              {isSystem && <Tag color="blue" style={{ marginRight: 8 }}>系统</Tag>}
+              <Text type="secondary" style={{ fontSize: 12 }}>
+                {new Date(msg.timestamp).toLocaleTimeString()}
+              </Text>
+            </div>
+            <div style={{
+              backgroundColor: bgColor, padding: '8px 12px', borderRadius: 8,
+              display: 'inline-block', maxWidth: '100%', wordBreak: 'break-word',
+              border: borderColor !== 'transparent' ? `1px solid ${borderColor}` : 'none'
+            }}>
+              <Text style={{ whiteSpace: 'pre-wrap' }}>{msg.content}</Text>
+            </div>
+          </div>
+        </div>
+      </List.Item>
+    );
+  };
+
+  const stepItems = [
+    { title: '任务输入', icon: <EditOutlined /> },
+    { title: '选择工作流', icon: <AppstoreOutlined /> },
+    { title: '预览确认', icon: <EyeOutlined /> },
+    { title: '执行', icon: <PlayCircleOutlined /> },
+  ];
+
+  const currentStepIndex = currentStep === 'input' ? 0
+    : currentStep === 'source' ? 1
+    : currentStep === 'preview' ? 2
+    : 3;
+
   return (
     <div style={{ padding: '24px' }}>
-      <Card title="🤖 Magentic工作流">
-        <Form form={form} layout="vertical" onFinish={handleGenerate}>
-          <Row gutter={16}>
-            <Col span={8}>
-              <Form.Item
-                label="协作ID"
-                name="collaborationId"
-                rules={[{ required: true, message: '请输入协作ID' }]}
-              >
-                <Input type="number" placeholder="请输入协作ID" />
-              </Form.Item>
-            </Col>
+      <Card title="🤖 Magentic 智能工作流">
+        <Steps current={currentStepIndex} items={stepItems} size="small" style={{ marginBottom: 24 }} />
 
-            <Col span={16}>
-              <Form.Item
-                label="任务描述"
-                name="task"
-                rules={[{ required: true, message: '请输入任务描述' }]}
+        {currentStep === 'input' && (
+          <div>
+            <Title level={5}>📝 输入任务描述</Title>
+            <div style={{ marginBottom: 16 }}>
+              <Text>选择协作</Text>
+              <Select
+                value={selectedCollaborationId ?? undefined}
+                onChange={(val) => setSelectedCollaborationId(val)}
+                placeholder="请选择协作"
+                style={{ width: '100%', marginTop: 8 }}
+                showSearch
+                optionFilterProp="children"
               >
-                <TextArea
-                  rows={4}
-                  placeholder="请详细描述任务，例如：研究ResNet-50、BERT、GPT-2三个AI模型的能效，并生成分析报告"
-                />
-              </Form.Item>
-            </Col>
-          </Row>
-
-          <Form.Item>
-            <Button
-              type="primary"
-              htmlType="submit"
-              icon={<RobotOutlined />}
-              loading={loading}
-            >
-              生成工作流计划
-            </Button>
-          </Form.Item>
-        </Form>
-
-        {workflow && (
-          <Card title="工作流预览" style={{ marginTop: '16px' }}>
-            <div style={{ height: '400px' }}>
-              <ReactFlow
-                nodes={nodes}
-                edges={edges}
-                nodeTypes={nodeTypes}
-                edgeTypes={edgeTypes}
-                fitView
-              >
-                <Background />
-                <Controls />
-                <MiniMap />
-              </ReactFlow>
+                {collaborations.map((c) => (
+                  <Option key={c.id} value={parseInt(c.id)}>
+                    <Space>
+                      <TeamOutlined />
+                      <span>{c.name}</span>
+                      <Tag color={c.status === 'Active' ? 'green' : 'default'}>{c.status}</Tag>
+                      <Text type="secondary">({c.agents?.length || 0} Agents)</Text>
+                    </Space>
+                  </Option>
+                ))}
+              </Select>
             </div>
 
-            <Divider />
+            <TextArea
+              value={taskInput}
+              onChange={(e) => setTaskInput(e.target.value)}
+              placeholder="请详细描述任务，例如：&#10;• 研究ResNet-50、BERT、GPT-2三个AI模型的能效，并生成分析报告&#10;• 开发一个用户登录功能&#10;• 设计一个电商系统的架构"
+              rows={5}
+              style={{ marginBottom: 16 }}
+            />
 
-            <Space>
+            <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
               <Button
                 type="primary"
+                onClick={() => setCurrentStep('source')}
+                disabled={!taskInput.trim() || !selectedCollaborationId}
                 icon={<CheckCircleOutlined />}
-                onClick={handleExecute}
               >
-                执行工作流
+                下一步：选择工作流
               </Button>
-              <Button icon={<EditOutlined />} onClick={handleEdit}>
-                编辑计划
+            </div>
+          </div>
+        )}
+
+        {currentStep === 'source' && (
+          <div>
+            <Title level={5}>🎯 选择工作流来源</Title>
+            <Alert
+              message="你可以选择一个已有的模板工作流，或者让协调者自动生成工作流"
+              type="info"
+              showIcon
+              style={{ marginBottom: 16 }}
+            />
+
+            <Row gutter={16}>
+              <Col span={12}>
+                <Card
+                  hoverable
+                  onClick={handleGenerateWorkflow}
+                  style={{
+                    textAlign: 'center', height: '100%',
+                    background: 'linear-gradient(135deg, #f6ffed 0%, #d9f7be 100%)',
+                    border: '2px solid #b7eb8f'
+                  }}
+                >
+                  <RobotOutlined style={{ fontSize: '48px', color: '#52c41a' }} />
+                  <h3 style={{ marginTop: '16px' }}>🤖 协调者自动生成</h3>
+                  <p style={{ color: '#666' }}>让Manager Agent根据任务自动规划工作流</p>
+                  <Tag color="green">智能编排</Tag>
+                </Card>
+              </Col>
+              <Col span={12}>
+                <Card
+                  hoverable
+                  style={{
+                    textAlign: 'center', height: '100%',
+                    background: 'linear-gradient(135deg, #e6f7ff 0%, #bae7ff 100%)',
+                    border: '2px solid #91d5ff'
+                  }}
+                >
+                  <AppstoreOutlined style={{ fontSize: '48px', color: '#1890ff' }} />
+                  <h3 style={{ marginTop: '16px' }}>📋 选择模板</h3>
+                  <p style={{ color: '#666' }}>使用已保存的工作流模板</p>
+                  <Tag color="blue">模板复用</Tag>
+                </Card>
+              </Col>
+            </Row>
+
+            {templates.length > 0 && (
+              <div style={{ marginTop: 16 }}>
+                <Divider>可用模板</Divider>
+                <Spin spinning={templatesLoading}>
+                  <List
+                    grid={{ gutter: 12, column: 2 }}
+                    dataSource={templates}
+                    renderItem={(template) => (
+                      <List.Item>
+                        <Card
+                          hoverable
+                          size="small"
+                          onClick={() => handleSelectTemplate(template)}
+                          style={{ border: selectedTemplate?.id === template.id ? '2px solid #1890ff' : undefined }}
+                        >
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <div>
+                              <Text strong>{template.name}</Text>
+                              <br />
+                              <Text type="secondary" style={{ fontSize: 12 }}>
+                                {template.description || '无描述'}
+                              </Text>
+                            </div>
+                            <Space>
+                              <Tag color={template.source === 'magentic' ? 'green' : 'blue'}>
+                                {template.source === 'magentic' ? 'AI生成' : '手动'}
+                              </Tag>
+                              <Tag>使用 {template.usageCount} 次</Tag>
+                            </Space>
+                          </div>
+                        </Card>
+                      </List.Item>
+                    )}
+                  />
+                </Spin>
+              </div>
+            )}
+
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 16 }}>
+              <Button onClick={() => setCurrentStep('input')}>上一步</Button>
+            </div>
+          </div>
+        )}
+
+        {currentStep === 'preview' && generatedWorkflow && (
+          <div>
+            <Title level={5}>
+              {selectedTemplate ? `📋 模板: ${selectedTemplate.name}` : '🤖 协调者生成的工作流'}
+            </Title>
+
+            <Alert
+              message={selectedTemplate
+                ? `已选择模板「${selectedTemplate.name}」，确认后可直接执行或编辑`
+                : '协调者已根据任务生成工作流，确认后可直接执行或编辑'}
+              type="success"
+              showIcon
+              style={{ marginBottom: 16 }}
+            />
+
+            <Card size="small" title="工作流图" style={{ marginBottom: 16 }}>
+              <div style={{ height: '350px' }}>
+                <ReactFlow
+                  nodes={flowNodes}
+                  edges={flowEdges}
+                  nodeTypes={nodeTypes}
+                  edgeTypes={edgeTypes}
+                  onNodesChange={onFlowNodesChange}
+                  onEdgesChange={onFlowEdgesChange}
+                  fitView
+                >
+                  <Background />
+                  <Controls />
+                  <MiniMap />
+                </ReactFlow>
+              </div>
+            </Card>
+
+            <Card size="small" title="工作流节点详情" style={{ marginBottom: 16 }}>
+              <List
+                size="small"
+                dataSource={generatedWorkflow.nodes.filter(n => n.type === 'agent')}
+                renderItem={(node, index) => (
+                  <List.Item>
+                    <List.Item.Meta
+                      avatar={<Avatar icon={<RobotOutlined />} style={{ backgroundColor: '#1890ff' }} />}
+                      title={
+                        <Space>
+                          <Text strong>{node.agentRole || node.name}</Text>
+                          <Tag color="blue">步骤 {index + 1}</Tag>
+                        </Space>
+                      }
+                      description={node.inputTemplate || '执行分配的任务'}
+                    />
+                  </List.Item>
+                )}
+              />
+            </Card>
+
+            <Space style={{ width: '100%', justifyContent: 'space-between', display: 'flex' }}>
+              <Button onClick={() => { setCurrentStep('source'); setSelectedTemplate(null); }}>
+                上一步
               </Button>
-              <Button icon={<SaveOutlined />} onClick={() => setSaveModalVisible(true)}>
-                保存为模板
-              </Button>
-              <Button danger icon={<CloseCircleOutlined />} onClick={handleReject}>
-                拒绝重新规划
-              </Button>
+              <Space>
+                <Button icon={<SaveOutlined />} onClick={() => setSaveModalVisible(true)}>
+                  保存为模板
+                </Button>
+                <Button
+                  type="primary"
+                  icon={<PlayCircleOutlined />}
+                  onClick={handleExecuteMagentic}
+                  loading={loading}
+                >
+                  执行工作流
+                </Button>
+              </Space>
             </Space>
-          </Card>
+          </div>
+        )}
+
+        {currentStep === 'executing' && (
+          <div>
+            <div style={{ textAlign: 'center', padding: '20px 0' }}>
+              <Spin size="large" />
+              <div style={{ marginTop: 16 }}>
+                <Text>🤖 Magentic工作流正在执行中...</Text>
+              </div>
+            </div>
+
+            {executionMessages.length > 0 && (
+              <Card size="small" title="执行过程" style={{ maxHeight: '500px', overflowY: 'auto' }}>
+                <List dataSource={executionMessages} renderItem={renderMessageItem} />
+                <div ref={messagesEndRef} />
+              </Card>
+            )}
+          </div>
+        )}
+
+        {currentStep === 'done' && (
+          <div>
+            <Alert
+              message="工作流执行完成"
+              description="Magentic工作流已成功执行完毕"
+              type="success"
+              showIcon
+              style={{ marginBottom: 16 }}
+            />
+
+            {executionMessages.length > 0 && (
+              <Card size="small" title="执行结果" style={{ maxHeight: '600px', overflowY: 'auto' }}>
+                <List dataSource={executionMessages} renderItem={renderMessageItem} />
+              </Card>
+            )}
+
+            <div style={{ marginTop: 16, display: 'flex', justifyContent: 'space-between' }}>
+              <Button icon={<ReloadOutlined />} onClick={handleReset}>重新执行</Button>
+              <Space>
+                <Button icon={<SaveOutlined />} onClick={() => setSaveModalVisible(true)}>保存为模板</Button>
+              </Space>
+            </div>
+          </div>
         )}
       </Card>
-
-      <Modal
-        title="人工审核 - Magentic工作流计划"
-        open={reviewModalVisible}
-        onCancel={() => setReviewModalVisible(false)}
-        width={900}
-        footer={[
-          <Button key="reject" danger onClick={handleReject}>
-            拒绝重新规划
-          </Button>,
-          <Button key="edit" icon={<EditOutlined />} onClick={handleEdit}>
-            编辑计划
-          </Button>,
-          <Button key="save" icon={<SaveOutlined />} onClick={() => setSaveModalVisible(true)}>
-            保存为模板
-          </Button>,
-          <Button key="execute" type="primary" icon={<CheckCircleOutlined />} onClick={handleExecute}>
-            审核通过执行
-          </Button>,
-        ]}
-      >
-        <div style={{ height: '500px' }}>
-          <ReactFlow
-            nodes={nodes}
-            edges={edges}
-            nodeTypes={nodeTypes}
-            edgeTypes={edgeTypes}
-            fitView
-          >
-            <Background />
-            <Controls />
-            <MiniMap />
-          </ReactFlow>
-        </div>
-      </Modal>
 
       <Modal
         title="保存为模板"
@@ -288,37 +527,27 @@ const MagenticWorkflow: React.FC = () => {
         onCancel={() => setSaveModalVisible(false)}
         onOk={() => saveForm.submit()}
       >
-        <Form form={saveForm} layout="vertical" onFinish={handleSave}>
-          <Form.Item
-            label="模板名称"
-            name="name"
-            rules={[{ required: true, message: '请输入模板名称' }]}
-          >
+        <Form form={saveForm} layout="vertical" onFinish={handleSaveAsTemplate}>
+          <Form.Item label="模板名称" name="name" rules={[{ required: true, message: '请输入模板名称' }]}>
             <Input placeholder="请输入模板名称" />
           </Form.Item>
-
           <Form.Item label="模板描述" name="description">
             <TextArea rows={3} placeholder="请输入模板描述" />
           </Form.Item>
-
           <Form.Item label="分类" name="category">
             <Select placeholder="请选择分类">
               <Option value="research">研究分析</Option>
               <Option value="writing">写作创作</Option>
-              <Option value="translation">翻译</Option>
               <Option value="coding">编程开发</Option>
               <Option value="analysis">数据分析</Option>
             </Select>
           </Form.Item>
-
           <Form.Item label="标签" name="tags">
-            <Input placeholder="多个标签用逗号分隔，例如：AI,研究,报告" />
+            <Input placeholder="多个标签用逗号分隔" />
           </Form.Item>
-
           <Form.Item name="isPublic" valuePropName="checked">
-            <Checkbox>公开模板（其他用户可以使用）</Checkbox>
+            <Checkbox>公开模板</Checkbox>
           </Form.Item>
-
           <Form.Item name="enableLearning" valuePropName="checked">
             <Checkbox>让Magentic学习（类似任务自动使用此模板）</Checkbox>
           </Form.Item>

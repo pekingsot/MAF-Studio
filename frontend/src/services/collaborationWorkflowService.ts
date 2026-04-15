@@ -1,13 +1,10 @@
 import api from './api';
-
-export interface WorkflowRequest {
-  input: string;
-}
+import type { WorkflowDefinition } from '../types/workflow-template';
 
 export interface ChatMessageDto {
   sender: string;
   content: string;
-  role: string;
+  role?: string;
   timestamp: string;
   metadata?: Record<string, any>;
 }
@@ -32,39 +29,68 @@ export interface GroupChatParameters {
   maxIterations?: number;
 }
 
-export interface GroupChatWorkflowRequest {
-  input: string;
-  parameters?: GroupChatParameters;
+export interface GenerateMagenticPlanResponse {
+  success: boolean;
+  workflow?: WorkflowDefinition;
+  error?: string;
 }
 
-export interface ConcurrentWorkflowRequest {
-  input: string;
-  executorAgentIds?: number[];
-  aggregatorAgentId?: number;
-  aggregationStrategy?: 'simple' | 'intelligent';
-}
+async function consumeSSE(
+  url: string,
+  body: object,
+  onMessage: (message: ChatMessageDto) => void
+): Promise<void> {
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${localStorage.getItem('token')}`,
+    },
+    body: JSON.stringify(body),
+  });
 
-export interface ReviewIterativeRequest {
-  input: string;
-  parameters?: ReviewIterativeParameters;
+  if (!response.ok) {
+    throw new Error(`SSE request failed: ${response.status}`);
+  }
+
+  const reader = response.body?.getReader();
+  const decoder = new TextDecoder();
+
+  if (!reader) {
+    throw new Error('No reader available');
+  }
+
+  let buffer = '';
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+
+    buffer += decoder.decode(value, { stream: true });
+    const lines = buffer.split('\n');
+    buffer = lines.pop() || '';
+
+    for (const line of lines) {
+      if (line.startsWith('data: ')) {
+        const data = line.substring(6);
+        if (data.trim()) {
+          try {
+            const message = JSON.parse(data) as ChatMessageDto;
+            onMessage(message);
+          } catch (e) {
+            console.error('Failed to parse SSE message:', data);
+          }
+        }
+      }
+    }
+  }
 }
 
 export const collaborationWorkflowService = {
-  executeSequential: async (collaborationId: number, input: string): Promise<CollaborationResult> => {
-    const response = await api.post<CollaborationResult>(
-      `/collaborationworkflow/${collaborationId}/sequential`,
-      { input }
-    );
-    return response.data;
-  },
-
-  executeConcurrent: async (
-    collaborationId: number, 
-    request: ConcurrentWorkflowRequest
-  ): Promise<CollaborationResult> => {
+  executeConcurrent: async (collaborationId: number, input: string): Promise<CollaborationResult> => {
     const response = await api.post<CollaborationResult>(
       `/collaborationworkflow/${collaborationId}/concurrent`,
-      request
+      { input }
     );
     return response.data;
   },
@@ -78,58 +104,13 @@ export const collaborationWorkflowService = {
   },
 
   executeGroupChat: async (
-    collaborationId: number, 
+    collaborationId: number,
     input: string,
     parameters?: GroupChatParameters,
     onMessage?: (message: ChatMessageDto) => void
   ): Promise<void> => {
-    const response = await fetch(
-      `${api.defaults.baseURL}/collaborationworkflow/${collaborationId}/groupchat`,
-      {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`,
-        },
-        body: JSON.stringify({ input, parameters }),
-      }
-    );
-
-    if (!response.ok) {
-      throw new Error('Failed to execute group chat');
-    }
-
-    const reader = response.body?.getReader();
-    const decoder = new TextDecoder();
-
-    if (!reader) {
-      throw new Error('No reader available');
-    }
-
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-
-      const chunk = decoder.decode(value);
-      const lines = chunk.split('\n');
-
-      for (const line of lines) {
-        if (line.startsWith('data: ')) {
-          const data = line.substring(6);
-          if (data.trim()) {
-            try {
-              const message = JSON.parse(data) as ChatMessageDto;
-              console.log('Group chat message:', message);
-              if (onMessage) {
-                onMessage(message);
-              }
-            } catch (e) {
-              console.error('Failed to parse message:', data);
-            }
-          }
-        }
-      }
-    }
+    const url = `${api.defaults.baseURL}/collaborationworkflow/${collaborationId}/groupchat`;
+    await consumeSSE(url, { input, parameters }, onMessage || (() => {}));
   },
 
   executeReviewIterative: async (
@@ -142,5 +123,27 @@ export const collaborationWorkflowService = {
       { input, parameters }
     );
     return response.data;
+  },
+
+  generateMagenticPlan: async (
+    collaborationId: number,
+    task: string
+  ): Promise<GenerateMagenticPlanResponse> => {
+    const response = await api.post<GenerateMagenticPlanResponse>(
+      `/collaborationworkflow/${collaborationId}/magentic/generate`,
+      { task }
+    );
+    return response.data;
+  },
+
+  executeMagenticWorkflow: async (
+    collaborationId: number,
+    workflow: WorkflowDefinition,
+    input: string,
+    taskId?: number,
+    onMessage?: (message: ChatMessageDto) => void
+  ): Promise<void> => {
+    const url = `${api.defaults.baseURL}/collaborationworkflow/${collaborationId}/magentic/execute`;
+    await consumeSSE(url, { workflow, input, taskId }, onMessage || (() => {}));
   },
 };

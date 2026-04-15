@@ -39,6 +39,8 @@ export interface CollaborationTask {
   gitUrl?: string;
   gitBranch?: string;
   gitToken?: string;
+  config?: string;
+  taskFlow?: string;
   createdAt: string;
   completedAt?: string;
 }
@@ -74,6 +76,8 @@ export interface CreateTaskRequest {
   gitBranch?: string;
   gitToken?: string;
   agentIds?: number[];
+  config?: string;
+  taskFlow?: string;
 }
 
 export interface UpdateTaskRequest {
@@ -84,6 +88,8 @@ export interface UpdateTaskRequest {
   gitBranch?: string;
   gitToken?: string;
   agentIds?: number[];
+  config?: string;
+  taskFlow?: string;
 }
 
 export const collaborationService = {
@@ -168,6 +174,11 @@ export const collaborationService = {
     return response.data;
   },
 
+  updateTaskFlow: async (taskId: string, taskFlow: string): Promise<CollaborationTask> => {
+    const response = await api.patch<CollaborationTask>(`/collaborations/tasks/${taskId}/task-flow`, { taskFlow });
+    return response.data;
+  },
+
   executeSequentialWorkflow: async (collaborationId: string, input: string): Promise<any> => {
     const response = await api.post(`/collaborationworkflow/${collaborationId}/sequential`, { input });
     return response.data;
@@ -198,6 +209,13 @@ export const collaborationService = {
       content,
       mentionedAgentIds,
     });
+    return response.data;
+  },
+
+  getChatHistory: async (collaborationId: string, limit: number = 20, beforeId?: number): Promise<any> => {
+    const params: any = { limit };
+    if (beforeId) params.beforeId = beforeId;
+    const response = await api.get(`/collaborations/${collaborationId}/chat/history`, { params });
     return response.data;
   },
 

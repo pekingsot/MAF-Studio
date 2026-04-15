@@ -20,7 +20,7 @@ public class CollaborationTaskRepository : ICollaborationTaskRepository
         using var connection = _context.CreateConnection();
         const string sql = @"
             SELECT id, collaboration_id, title, description, prompt, status, assigned_to, 
-                   created_at, completed_at, git_url, git_branch, git_credentials, config
+                   created_at, completed_at, git_url, git_branch, git_credentials, config, task_flow
             FROM collaboration_tasks 
             WHERE id = @Id";
         return await connection.QueryFirstOrDefaultAsync<CollaborationTask>(sql, new { Id = id });
@@ -31,7 +31,7 @@ public class CollaborationTaskRepository : ICollaborationTaskRepository
         using var connection = _context.CreateConnection();
         const string sql = @"
             SELECT id, collaboration_id, title, description, prompt, status, assigned_to, 
-                   created_at, completed_at, git_url, git_branch, git_credentials, config
+                   created_at, completed_at, git_url, git_branch, git_credentials, config, task_flow
             FROM collaboration_tasks 
             WHERE collaboration_id = @CollaborationId 
             ORDER BY created_at DESC";
@@ -45,8 +45,8 @@ public class CollaborationTaskRepository : ICollaborationTaskRepository
         using var connection = _context.CreateConnection();
         task.CreatedAt = DateTime.UtcNow;
         const string sql = @"
-            INSERT INTO collaboration_tasks (collaboration_id, title, description, prompt, status, assigned_to, created_at, completed_at, git_url, git_branch, git_credentials, config)
-            VALUES (@CollaborationId, @Title, @Description, @Prompt, @Status, @AssignedTo, @CreatedAt, @CompletedAt, @GitUrl, @GitBranch, @GitCredentials, @Config)
+            INSERT INTO collaboration_tasks (collaboration_id, title, description, prompt, status, assigned_to, created_at, completed_at, git_url, git_branch, git_credentials, config, task_flow)
+            VALUES (@CollaborationId, @Title, @Description, @Prompt, @Status, @AssignedTo, @CreatedAt, @CompletedAt, @GitUrl, @GitBranch, @GitCredentials, @Config, @TaskFlow)
             RETURNING *";
         return await connection.QueryFirstAsync<CollaborationTask>(sql, task);
     }
@@ -65,7 +65,8 @@ public class CollaborationTaskRepository : ICollaborationTaskRepository
                 git_url = @GitUrl,
                 git_branch = @GitBranch,
                 git_credentials = @GitCredentials,
-                config = @Config
+                config = @Config,
+                task_flow = @TaskFlow
             WHERE id = @Id
             RETURNING *";
         return await connection.QueryFirstAsync<CollaborationTask>(sql, task);

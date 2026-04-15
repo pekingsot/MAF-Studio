@@ -367,6 +367,119 @@ export const LoopNode: React.FC<{ data: WorkflowNode }> = ({ data }) => {
   );
 };
 
+export const ReviewNode: React.FC<{ data: WorkflowNode }> = ({ data }) => {
+  return (
+    <div
+      style={{
+        ...nodeStyles,
+        padding: '16px',
+        borderRadius: '12px',
+        background: 'linear-gradient(135deg, #ffffff 0%, #fff7e6 100%)',
+        border: '2px solid #fa8c16',
+        minWidth: '220px',
+        boxShadow: '0 4px 12px rgba(250, 140, 22, 0.15)',
+      }}
+    >
+      <div style={{
+        fontWeight: 'bold',
+        marginBottom: '12px',
+        color: '#fa8c16',
+        fontSize: '15px',
+        display: 'flex',
+        alignItems: 'center',
+        gap: '8px'
+      }}>
+        <span style={{ fontSize: '20px' }}>🔍</span>
+        <span>{data.name}</span>
+      </div>
+      <div style={{ fontSize: '13px', color: '#595959' }}>
+        <div style={{
+          marginBottom: '8px',
+          padding: '6px 10px',
+          background: '#fff7e6',
+          borderRadius: '6px',
+          display: 'inline-block'
+        }}>
+          <span style={{ color: '#8c8c8c' }}>角色：</span>
+          <Tag color="orange">{data.agentRole || '审核者'}</Tag>
+        </div>
+        {data.reviewCriteria && (
+          <Tooltip title={data.reviewCriteria}>
+            <div style={{
+              marginTop: '8px',
+              padding: '8px',
+              background: '#fafafa',
+              borderRadius: '6px',
+              border: '1px solid #e8e8e8',
+              fontSize: '12px',
+              color: '#8c8c8c'
+            }}>
+              📋 {data.reviewCriteria.substring(0, 40)}
+              {data.reviewCriteria.length > 40 && '...'}
+            </div>
+          </Tooltip>
+        )}
+        <div style={{
+          marginTop: '8px',
+          display: 'flex',
+          gap: '8px',
+          flexWrap: 'wrap'
+        }}>
+          {data.approvalKeyword && (
+            <Tag color="green" style={{ fontSize: '11px' }}>
+              ✅ 通过: {data.approvalKeyword}
+            </Tag>
+          )}
+          {data.maxRetries && (
+            <Tag color="red" style={{ fontSize: '11px' }}>
+              🔄 最多{data.maxRetries}次
+            </Tag>
+          )}
+          {data.rejectTargetNode && (
+            <Tag color="volcano" style={{ fontSize: '11px' }}>
+              ↩️ 打回: {data.rejectTargetNode}
+            </Tag>
+          )}
+        </div>
+      </div>
+      <Handle
+        type="target"
+        position={Position.Top}
+        style={{
+          background: '#fa8c16',
+          width: '12px',
+          height: '12px',
+          border: '2px solid white',
+        }}
+      />
+      <Handle
+        type="source"
+        position={Position.Bottom}
+        id="approved"
+        style={{
+          left: '30%',
+          background: '#52c41a',
+          width: '12px',
+          height: '12px',
+          border: '2px solid white',
+        }}
+      />
+      <Handle
+        type="source"
+        position={Position.Bottom}
+        id="rejected"
+        style={{
+          left: '70%',
+          background: '#ff4d4f',
+          width: '12px',
+          height: '12px',
+          border: '2px solid white',
+        }}
+      />
+    </div>
+  );
+};
+
 /**
  * 节点类型映射
  */
@@ -376,4 +489,5 @@ export const nodeTypes = {
   aggregator: AggregatorNode,
   condition: ConditionNode,
   loop: LoopNode,
+  review: ReviewNode,
 };

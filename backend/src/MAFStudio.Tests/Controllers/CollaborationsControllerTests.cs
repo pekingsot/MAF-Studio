@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Security.Claims;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.AI;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 using Moq;
@@ -22,7 +23,8 @@ public class CollaborationsControllerTests : TestBase
     private readonly Mock<ICollaborationService> _mockCollaborationService;
     private readonly Mock<IAuthService> _mockAuthService;
     private readonly Mock<IOperationLogService> _mockLogService;
-    private readonly Mock<IAgentMessageRepository> _mockAgentMessageRepository;
+    private readonly Mock<IGroupMessageRepository> _mockGroupMessageRepository;
+    private readonly Mock<ICollaborationTaskRepository> _mockCollaborationTaskRepository;
     private readonly Mock<ILogger<CollaborationsController>> _mockLogger;
     private readonly CollaborationsController _controller;
     private readonly long _testUserId = 1000000000000001;
@@ -32,15 +34,20 @@ public class CollaborationsControllerTests : TestBase
         _mockCollaborationService = new Mock<ICollaborationService>();
         _mockAuthService = new Mock<IAuthService>();
         _mockLogService = new Mock<IOperationLogService>();
-        _mockAgentMessageRepository = new Mock<IAgentMessageRepository>();
+        _mockGroupMessageRepository = new Mock<IGroupMessageRepository>();
+        _mockCollaborationTaskRepository = new Mock<ICollaborationTaskRepository>();
         _mockLogger = new Mock<ILogger<CollaborationsController>>();
 
         _controller = new CollaborationsController(
             _mockCollaborationService.Object,
             _mockAuthService.Object,
             _mockLogService.Object,
-            _mockAgentMessageRepository.Object,
+            _mockGroupMessageRepository.Object,
+            _mockCollaborationTaskRepository.Object,
             Mock.Of<MAFStudio.Core.Interfaces.Services.IEmailService>(),
+            Mock.Of<MAFStudio.Application.Interfaces.IAgentFactoryService>(),
+            Mock.Of<MAFStudio.Core.Interfaces.Repositories.IAgentRepository>(),
+            Mock.Of<MAFStudio.Core.Interfaces.Repositories.ICollaborationAgentRepository>(),
             _mockLogger.Object
         );
 
@@ -73,34 +80,21 @@ public class CollaborationsControllerTests : TestBase
     }
 
     [Fact]
-    public async Task GetAllCollaborations_ShouldReturnTasksWithPrompt()
+    public async Task GetAllCollaborations_ShouldReturnCollaborationsWithoutTasks()
     {
         var collaboration = CreateTestCollaboration("Collaboration1", _testUserId);
         collaboration.Id = 1009;
 
-        var task1 = CreateTestTask(collaboration.Id, "Task1", "【任务要求】请积极参与讨论。");
-        var task2 = CreateTestTask(collaboration.Id, "Task2", "【任务要求】提交文档到Git。");
-
         _mockCollaborationService
             .Setup(s => s.GetByUserIdAsync(_testUserId))
             .ReturnsAsync(new List<Collaboration> { collaboration });
-
-        _mockCollaborationService
-            .Setup(s => s.GetAgentsAsync(collaboration.Id))
-            .ReturnsAsync(new List<CollaborationAgent>());
-
-        _mockCollaborationService
-            .Setup(s => s.GetTasksAsync(collaboration.Id))
-            .ReturnsAsync(new List<CollaborationTask> { task1, task2 });
 
         var result = await _controller.GetAllCollaborations();
 
         var okResult = Assert.IsType<OkObjectResult>(result.Result);
         var collaborations = Assert.IsType<List<Application.VOs.CollaborationVo>>(okResult.Value);
         Assert.Single(collaborations);
-        Assert.Equal(2, collaborations[0].Tasks.Count);
-        Assert.Equal("【任务要求】请积极参与讨论。", collaborations[0].Tasks[0].Prompt);
-        Assert.Equal("【任务要求】提交文档到Git。", collaborations[0].Tasks[1].Prompt);
+        Assert.Empty(collaborations[0].Tasks);
     }
 
     [Fact]
@@ -250,7 +244,7 @@ public class CollaborationsControllerTests : TestBase
         var createdTask = CreateTestTask(collaboration.Id, request.Title, request.Prompt);
 
         _mockCollaborationService
-            .Setup(s => s.CreateTaskAsync(collaboration.Id, request.Title, request.Description, _testUserId, request.Prompt, null, null, null, null))
+            .Setup(s => s.CreateTaskAsync(collaboration.Id, request.Title, request.Description, _testUserId, request.Prompt, It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<List<long>?>(), It.IsAny<string?>()))
             .ReturnsAsync(createdTask);
 
         var result = await _controller.CreateTask(collaboration.Id, request);
@@ -277,7 +271,7 @@ public class CollaborationsControllerTests : TestBase
         var createdTask = CreateTestTask(collaboration.Id, request.Title, request.Prompt);
 
         _mockCollaborationService
-            .Setup(s => s.CreateTaskAsync(collaboration.Id, request.Title, request.Description, _testUserId, request.Prompt, null, null, null, null))
+            .Setup(s => s.CreateTaskAsync(collaboration.Id, request.Title, request.Description, _testUserId, request.Prompt, It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<List<long>?>(), It.IsAny<string?>()))
             .ReturnsAsync(createdTask);
 
         var result = await _controller.CreateTask(collaboration.Id, request);
@@ -315,7 +309,7 @@ public class CollaborationsControllerTests : TestBase
         };
 
         _mockCollaborationService
-            .Setup(s => s.UpdateTaskAsync(task.Id, request.Title, request.Description, request.Prompt, null, null, null, null))
+            .Setup(s => s.UpdateTaskAsync(task.Id, request.Title, request.Description, request.Prompt, It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<List<long>?>(), It.IsAny<string?>()))
             .ReturnsAsync(updatedTask);
 
         var result = await _controller.UpdateTask(task.Id, request);
@@ -354,7 +348,7 @@ public class CollaborationsControllerTests : TestBase
         };
 
         _mockCollaborationService
-            .Setup(s => s.UpdateTaskAsync(task.Id, request.Title, request.Description, request.Prompt, null, null, null, null))
+            .Setup(s => s.UpdateTaskAsync(task.Id, request.Title, request.Description, request.Prompt, It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<List<long>?>(), It.IsAny<string?>()))
             .ReturnsAsync(updatedTask);
 
         var result = await _controller.UpdateTask(task.Id, request);
@@ -508,7 +502,7 @@ public class CollaborationsControllerTests : TestBase
                 It.IsAny<string?>(), 
                 It.IsAny<string?>(), 
                 It.IsAny<List<long>?>(), 
-                config))
+                It.IsAny<string?>()))
             .ReturnsAsync(createdTask);
 
         var result = await _controller.CreateTask(collaboration.Id, request);
@@ -558,7 +552,7 @@ public class CollaborationsControllerTests : TestBase
                 It.IsAny<string?>(), 
                 It.IsAny<string?>(), 
                 It.IsAny<List<long>?>(), 
-                config))
+                It.IsAny<string?>()))
             .ReturnsAsync(updatedTask);
 
         var result = await _controller.UpdateTask(task.Id, request);
@@ -567,5 +561,590 @@ public class CollaborationsControllerTests : TestBase
         var returnedTask = Assert.IsType<CollaborationTask>(okResult.Value);
         Assert.Equal(request.Title, returnedTask.Title);
         Assert.Equal(config, returnedTask.Config);
+    }
+
+    [Fact]
+    public async Task Chat_WithMention_ShouldRouteToMentionedAgent()
+    {
+        var managerAgentId = 100L;
+        var workerAgentId = 200L;
+
+        var members = new List<CollaborationAgent>
+        {
+            new() { AgentId = managerAgentId, Role = "Manager" },
+            new() { AgentId = workerAgentId, Role = "Worker" }
+        };
+
+        var mockCollabAgentRepo = new Mock<ICollaborationAgentRepository>();
+        mockCollabAgentRepo
+            .Setup(r => r.GetByCollaborationIdAsync(1L))
+            .ReturnsAsync(members);
+
+        var workerEntity = new Agent { Id = workerAgentId, Name = "架构师", TypeName = "Architect", SystemPrompt = "你是架构师" };
+
+        var mockAgentRepo = new Mock<IAgentRepository>();
+        mockAgentRepo
+            .Setup(r => r.GetByIdAsync(workerAgentId))
+            .ReturnsAsync(workerEntity);
+
+        var mockFactory = new Mock<MAFStudio.Application.Interfaces.IAgentFactoryService>();
+
+        var mockChatClient = new Mock<Microsoft.Extensions.AI.IChatClient>();
+        mockChatClient
+            .Setup(c => c.GetResponseAsync(It.IsAny<IEnumerable<Microsoft.Extensions.AI.ChatMessage>>(), It.IsAny<Microsoft.Extensions.AI.ChatOptions?>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new Microsoft.Extensions.AI.ChatResponse(new List<Microsoft.Extensions.AI.ChatMessage>
+            {
+                new(Microsoft.Extensions.AI.ChatRole.Assistant, "我是架构师，我来回答")
+            }));
+
+        mockFactory
+            .Setup(f => f.CreateAgentAsync(workerAgentId))
+            .ReturnsAsync(mockChatClient.Object);
+
+        _mockGroupMessageRepository
+            .Setup(r => r.GetByCollaborationIdAsync(1L, It.IsAny<int>(), It.IsAny<long?>()))
+            .ReturnsAsync(new List<GroupMessage>());
+
+        _mockGroupMessageRepository
+            .Setup(r => r.CreateAsync(It.IsAny<GroupMessage>()))
+            .ReturnsAsync((GroupMessage msg) => { msg.Id = 1; return msg; });
+
+        var controller = new CollaborationsController(
+            _mockCollaborationService.Object,
+            _mockAuthService.Object,
+            _mockLogService.Object,
+            _mockGroupMessageRepository.Object,
+            _mockCollaborationTaskRepository.Object,
+            Mock.Of<MAFStudio.Core.Interfaces.Services.IEmailService>(),
+            mockFactory.Object,
+            mockAgentRepo.Object,
+            mockCollabAgentRepo.Object,
+            _mockLogger.Object
+        );
+
+        var user = new ClaimsPrincipal(new ClaimsIdentity(new Claim[]
+        {
+            new Claim(ClaimTypes.NameIdentifier, _testUserId.ToString())
+        }, "mock"));
+        controller.ControllerContext = new ControllerContext
+        {
+            HttpContext = new DefaultHttpContext { User = user }
+        };
+
+        var request = new CollaborationChatRequest
+        {
+            Content = "@架构师 请分析一下",
+            MentionedAgentIds = new List<string> { "200" }
+        };
+
+        var result = await controller.Chat(1L, request, CancellationToken.None);
+
+        var okResult = Assert.IsType<OkObjectResult>(result);
+        Assert.NotNull(okResult.Value);
+
+        mockFactory.Verify(f => f.CreateAgentAsync(workerAgentId), Times.Once);
+        mockFactory.Verify(f => f.CreateAgentAsync(managerAgentId), Times.Never);
+        _mockGroupMessageRepository.Verify(r => r.CreateAsync(It.IsAny<GroupMessage>()), Times.Exactly(2));
+    }
+
+    [Fact]
+    public async Task Chat_WithoutMention_ShouldRouteToManager()
+    {
+        var managerAgentId = 100L;
+        var workerAgentId = 200L;
+
+        var members = new List<CollaborationAgent>
+        {
+            new() { AgentId = managerAgentId, Role = "Manager" },
+            new() { AgentId = workerAgentId, Role = "Worker" }
+        };
+
+        var mockCollabAgentRepo = new Mock<ICollaborationAgentRepository>();
+        mockCollabAgentRepo
+            .Setup(r => r.GetByCollaborationIdAsync(1L))
+            .ReturnsAsync(members);
+
+        var managerEntity = new Agent { Id = managerAgentId, Name = "协调者", TypeName = "Manager", SystemPrompt = "你是协调者" };
+
+        var mockAgentRepo = new Mock<IAgentRepository>();
+        mockAgentRepo
+            .Setup(r => r.GetByIdAsync(managerAgentId))
+            .ReturnsAsync(managerEntity);
+
+        var mockFactory = new Mock<MAFStudio.Application.Interfaces.IAgentFactoryService>();
+
+        var mockChatClient = new Mock<Microsoft.Extensions.AI.IChatClient>();
+        mockChatClient
+            .Setup(c => c.GetResponseAsync(It.IsAny<IEnumerable<Microsoft.Extensions.AI.ChatMessage>>(), It.IsAny<Microsoft.Extensions.AI.ChatOptions?>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new Microsoft.Extensions.AI.ChatResponse(new List<Microsoft.Extensions.AI.ChatMessage>
+            {
+                new(Microsoft.Extensions.AI.ChatRole.Assistant, "我是协调者，我来协调")
+            }));
+
+        mockFactory
+            .Setup(f => f.CreateAgentAsync(managerAgentId))
+            .ReturnsAsync(mockChatClient.Object);
+
+        _mockGroupMessageRepository
+            .Setup(r => r.GetByCollaborationIdAsync(1L, It.IsAny<int>(), It.IsAny<long?>()))
+            .ReturnsAsync(new List<GroupMessage>());
+
+        _mockGroupMessageRepository
+            .Setup(r => r.CreateAsync(It.IsAny<GroupMessage>()))
+            .ReturnsAsync((GroupMessage msg) => { msg.Id = 1; return msg; });
+
+        var controller = new CollaborationsController(
+            _mockCollaborationService.Object,
+            _mockAuthService.Object,
+            _mockLogService.Object,
+            _mockGroupMessageRepository.Object,
+            _mockCollaborationTaskRepository.Object,
+            Mock.Of<MAFStudio.Core.Interfaces.Services.IEmailService>(),
+            mockFactory.Object,
+            mockAgentRepo.Object,
+            mockCollabAgentRepo.Object,
+            _mockLogger.Object
+        );
+
+        var user = new ClaimsPrincipal(new ClaimsIdentity(new Claim[]
+        {
+            new Claim(ClaimTypes.NameIdentifier, _testUserId.ToString())
+        }, "mock"));
+        controller.ControllerContext = new ControllerContext
+        {
+            HttpContext = new DefaultHttpContext { User = user }
+        };
+
+        var request = new CollaborationChatRequest
+        {
+            Content = "大家好，讨论一下",
+            MentionedAgentIds = null
+        };
+
+        var result = await controller.Chat(1L, request, CancellationToken.None);
+
+        var okResult = Assert.IsType<OkObjectResult>(result);
+        Assert.NotNull(okResult.Value);
+
+        mockFactory.Verify(f => f.CreateAgentAsync(managerAgentId), Times.Once);
+        mockFactory.Verify(f => f.CreateAgentAsync(workerAgentId), Times.Never);
+        _mockGroupMessageRepository.Verify(r => r.CreateAsync(It.IsAny<GroupMessage>()), Times.Exactly(2));
+    }
+
+    [Fact]
+    public async Task Chat_WithContext_ShouldIncludeRecentHistory()
+    {
+        var managerAgentId = 100L;
+
+        var members = new List<CollaborationAgent>
+        {
+            new() { AgentId = managerAgentId, Role = "Manager" }
+        };
+
+        var mockCollabAgentRepo = new Mock<ICollaborationAgentRepository>();
+        mockCollabAgentRepo
+            .Setup(r => r.GetByCollaborationIdAsync(1L))
+            .ReturnsAsync(members);
+
+        var managerEntity = new Agent { Id = managerAgentId, Name = "协调者", TypeName = "Manager", SystemPrompt = "你是协调者" };
+
+        var mockAgentRepo = new Mock<IAgentRepository>();
+        mockAgentRepo
+            .Setup(r => r.GetByIdAsync(managerAgentId))
+            .ReturnsAsync(managerEntity);
+
+        var existingMessages = new List<GroupMessage>
+        {
+            new() { Id = 1, Content = "你好", SenderType = "User", FromAgentName = "我", CollaborationId = 1, CreatedAt = DateTime.UtcNow.AddMinutes(-5) },
+            new() { Id = 2, Content = "你好！有什么可以帮你的？", SenderType = "Agent", FromAgentName = "协调者", FromAgentId = managerAgentId, CollaborationId = 1, CreatedAt = DateTime.UtcNow.AddMinutes(-4) },
+        };
+
+        _mockGroupMessageRepository
+            .Setup(r => r.GetByCollaborationIdAsync(1L, It.IsAny<int>(), It.IsAny<long?>()))
+            .ReturnsAsync(existingMessages);
+
+        _mockGroupMessageRepository
+            .Setup(r => r.CreateAsync(It.IsAny<GroupMessage>()))
+            .ReturnsAsync((GroupMessage msg) => { msg.Id = 3; return msg; });
+
+        var mockFactory = new Mock<MAFStudio.Application.Interfaces.IAgentFactoryService>();
+
+        List<ChatMessage> capturedHistory = null!;
+        var mockChatClient = new Mock<Microsoft.Extensions.AI.IChatClient>();
+        mockChatClient
+            .Setup(c => c.GetResponseAsync(It.IsAny<IEnumerable<Microsoft.Extensions.AI.ChatMessage>>(), It.IsAny<Microsoft.Extensions.AI.ChatOptions?>(), It.IsAny<CancellationToken>()))
+            .Callback<IEnumerable<Microsoft.Extensions.AI.ChatMessage>, Microsoft.Extensions.AI.ChatOptions?, CancellationToken>((msgs, _, _) =>
+            {
+                capturedHistory = msgs.ToList();
+            })
+            .ReturnsAsync(new Microsoft.Extensions.AI.ChatResponse(new List<Microsoft.Extensions.AI.ChatMessage>
+            {
+                new(Microsoft.Extensions.AI.ChatRole.Assistant, "我记得你之前说过你好")
+            }));
+
+        mockFactory
+            .Setup(f => f.CreateAgentAsync(managerAgentId))
+            .ReturnsAsync(mockChatClient.Object);
+
+        var controller = new CollaborationsController(
+            _mockCollaborationService.Object,
+            _mockAuthService.Object,
+            _mockLogService.Object,
+            _mockGroupMessageRepository.Object,
+            _mockCollaborationTaskRepository.Object,
+            Mock.Of<MAFStudio.Core.Interfaces.Services.IEmailService>(),
+            mockFactory.Object,
+            mockAgentRepo.Object,
+            mockCollabAgentRepo.Object,
+            _mockLogger.Object
+        );
+
+        var user = new ClaimsPrincipal(new ClaimsIdentity(new Claim[]
+        {
+            new Claim(ClaimTypes.NameIdentifier, _testUserId.ToString())
+        }, "mock"));
+        controller.ControllerContext = new ControllerContext
+        {
+            HttpContext = new DefaultHttpContext { User = user }
+        };
+
+        var request = new CollaborationChatRequest
+        {
+            Content = "你还记得我刚才说了什么吗？",
+            MentionedAgentIds = null
+        };
+
+        var result = await controller.Chat(1L, request, CancellationToken.None);
+
+        var okResult = Assert.IsType<OkObjectResult>(result);
+        Assert.NotNull(okResult.Value);
+        Assert.NotNull(capturedHistory);
+        Assert.True(capturedHistory.Count >= 4);
+        Assert.Contains(capturedHistory, m => m.Text == "你好" && m.Role == Microsoft.Extensions.AI.ChatRole.User);
+        Assert.Contains(capturedHistory, m => m.Text == "你好！有什么可以帮你的？" && m.Role == Microsoft.Extensions.AI.ChatRole.Assistant);
+    }
+
+    [Fact]
+    public async Task GetChatHistory_ShouldReturnMessages()
+    {
+        var existingMessages = new List<GroupMessage>
+        {
+            new() { Id = 1, Content = "消息1", SenderType = "User", FromAgentName = "我", CollaborationId = 1, CreatedAt = DateTime.UtcNow.AddMinutes(-10) },
+            new() { Id = 2, Content = "回复1", SenderType = "Agent", FromAgentName = "协调者", FromAgentId = 100, CollaborationId = 1, CreatedAt = DateTime.UtcNow.AddMinutes(-9) },
+            new() { Id = 3, Content = "消息2", SenderType = "User", FromAgentName = "我", CollaborationId = 1, CreatedAt = DateTime.UtcNow.AddMinutes(-5) },
+        };
+
+        _mockGroupMessageRepository
+            .Setup(r => r.GetByCollaborationIdAsync(1L, It.IsAny<int>(), It.IsAny<long?>()))
+            .ReturnsAsync(existingMessages);
+
+        var controller = new CollaborationsController(
+            _mockCollaborationService.Object,
+            _mockAuthService.Object,
+            _mockLogService.Object,
+            _mockGroupMessageRepository.Object,
+            _mockCollaborationTaskRepository.Object,
+            Mock.Of<MAFStudio.Core.Interfaces.Services.IEmailService>(),
+            Mock.Of<MAFStudio.Application.Interfaces.IAgentFactoryService>(),
+            Mock.Of<IAgentRepository>(),
+            Mock.Of<ICollaborationAgentRepository>(),
+            _mockLogger.Object
+        );
+
+        var user = new ClaimsPrincipal(new ClaimsIdentity(new Claim[]
+        {
+            new Claim(ClaimTypes.NameIdentifier, _testUserId.ToString())
+        }, "mock"));
+        controller.ControllerContext = new ControllerContext
+        {
+            HttpContext = new DefaultHttpContext { User = user }
+        };
+
+        var result = await controller.GetChatHistory(1L, 20, null);
+
+        var okResult = Assert.IsType<OkObjectResult>(result);
+        Assert.NotNull(okResult.Value);
+    }
+
+    [Fact]
+    public async Task Chat_ShouldPersistUserAndAgentMessages()
+    {
+        var managerAgentId = 100L;
+        var members = new List<CollaborationAgent>
+        {
+            new() { AgentId = managerAgentId, Role = "Manager" }
+        };
+
+        var mockCollabAgentRepo = new Mock<ICollaborationAgentRepository>();
+        mockCollabAgentRepo
+            .Setup(r => r.GetByCollaborationIdAsync(1L))
+            .ReturnsAsync(members);
+
+        var managerEntity = new Agent { Id = managerAgentId, Name = "协调者", TypeName = "Manager", SystemPrompt = "你是协调者", Avatar = "🤖" };
+
+        var mockAgentRepo = new Mock<IAgentRepository>();
+        mockAgentRepo
+            .Setup(r => r.GetByIdAsync(managerAgentId))
+            .ReturnsAsync(managerEntity);
+
+        var mockFactory = new Mock<MAFStudio.Application.Interfaces.IAgentFactoryService>();
+        var mockChatClient = new Mock<Microsoft.Extensions.AI.IChatClient>();
+        mockChatClient
+            .Setup(c => c.GetResponseAsync(It.IsAny<IEnumerable<Microsoft.Extensions.AI.ChatMessage>>(), It.IsAny<Microsoft.Extensions.AI.ChatOptions?>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new Microsoft.Extensions.AI.ChatResponse(new List<Microsoft.Extensions.AI.ChatMessage>
+            {
+                new(Microsoft.Extensions.AI.ChatRole.Assistant, "这是回复")
+            }));
+        mockFactory
+            .Setup(f => f.CreateAgentAsync(managerAgentId))
+            .ReturnsAsync(mockChatClient.Object);
+
+        _mockGroupMessageRepository
+            .Setup(r => r.GetByCollaborationIdAsync(1L, It.IsAny<int>(), It.IsAny<long?>()))
+            .ReturnsAsync(new List<GroupMessage>());
+
+        _mockGroupMessageRepository
+            .Setup(r => r.CreateAsync(It.IsAny<GroupMessage>()))
+            .ReturnsAsync((GroupMessage msg) => { msg.Id = DateTime.UtcNow.Ticks; return msg; });
+
+        var controller = new CollaborationsController(
+            _mockCollaborationService.Object,
+            _mockAuthService.Object,
+            _mockLogService.Object,
+            _mockGroupMessageRepository.Object,
+            _mockCollaborationTaskRepository.Object,
+            Mock.Of<MAFStudio.Core.Interfaces.Services.IEmailService>(),
+            mockFactory.Object,
+            mockAgentRepo.Object,
+            mockCollabAgentRepo.Object,
+            _mockLogger.Object
+        );
+
+        var user = new ClaimsPrincipal(new ClaimsIdentity(new Claim[]
+        {
+            new Claim(ClaimTypes.NameIdentifier, _testUserId.ToString())
+        }, "mock"));
+        controller.ControllerContext = new ControllerContext
+        {
+            HttpContext = new DefaultHttpContext { User = user }
+        };
+
+        var request = new CollaborationChatRequest
+        {
+            Content = "你好"
+        };
+
+        var result = await controller.Chat(1L, request, CancellationToken.None);
+
+        var okResult = Assert.IsType<OkObjectResult>(result);
+
+        _mockGroupMessageRepository.Verify(r => r.CreateAsync(It.Is<GroupMessage>(m =>
+            m.SenderType == "User" && m.Content == "你好" && m.CollaborationId == 1L
+        )), Times.Once, "用户消息应该入库");
+
+        _mockGroupMessageRepository.Verify(r => r.CreateAsync(It.Is<GroupMessage>(m =>
+            m.SenderType == "Agent" && m.Content == "这是回复" && m.FromAgentId == managerAgentId && m.FromAgentName == "协调者"
+        )), Times.Once, "Agent回复应该入库");
+
+        _mockGroupMessageRepository.Verify(r => r.CreateAsync(It.IsAny<GroupMessage>()), Times.Exactly(2));
+    }
+
+    [Fact]
+    public async Task Chat_ShouldSaveAgentAvatar()
+    {
+        var managerAgentId = 100L;
+        var members = new List<CollaborationAgent>
+        {
+            new() { AgentId = managerAgentId, Role = "Manager" }
+        };
+
+        var mockCollabAgentRepo = new Mock<ICollaborationAgentRepository>();
+        mockCollabAgentRepo
+            .Setup(r => r.GetByCollaborationIdAsync(1L))
+            .ReturnsAsync(members);
+
+        var managerEntity = new Agent { Id = managerAgentId, Name = "协调者", TypeName = "Manager", SystemPrompt = "你是协调者", Avatar = "https://example.com/avatar.png" };
+
+        var mockAgentRepo = new Mock<IAgentRepository>();
+        mockAgentRepo
+            .Setup(r => r.GetByIdAsync(managerAgentId))
+            .ReturnsAsync(managerEntity);
+
+        var mockFactory = new Mock<MAFStudio.Application.Interfaces.IAgentFactoryService>();
+        var mockChatClient = new Mock<Microsoft.Extensions.AI.IChatClient>();
+        mockChatClient
+            .Setup(c => c.GetResponseAsync(It.IsAny<IEnumerable<Microsoft.Extensions.AI.ChatMessage>>(), It.IsAny<Microsoft.Extensions.AI.ChatOptions?>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new Microsoft.Extensions.AI.ChatResponse(new List<Microsoft.Extensions.AI.ChatMessage>
+            {
+                new(Microsoft.Extensions.AI.ChatRole.Assistant, "回复")
+            }));
+        mockFactory
+            .Setup(f => f.CreateAgentAsync(managerAgentId))
+            .ReturnsAsync(mockChatClient.Object);
+
+        _mockGroupMessageRepository
+            .Setup(r => r.GetByCollaborationIdAsync(1L, It.IsAny<int>(), It.IsAny<long?>()))
+            .ReturnsAsync(new List<GroupMessage>());
+
+        _mockGroupMessageRepository
+            .Setup(r => r.CreateAsync(It.IsAny<GroupMessage>()))
+            .ReturnsAsync((GroupMessage msg) => { msg.Id = DateTime.UtcNow.Ticks; return msg; });
+
+        var controller = new CollaborationsController(
+            _mockCollaborationService.Object,
+            _mockAuthService.Object,
+            _mockLogService.Object,
+            _mockGroupMessageRepository.Object,
+            _mockCollaborationTaskRepository.Object,
+            Mock.Of<MAFStudio.Core.Interfaces.Services.IEmailService>(),
+            mockFactory.Object,
+            mockAgentRepo.Object,
+            mockCollabAgentRepo.Object,
+            _mockLogger.Object
+        );
+
+        var user = new ClaimsPrincipal(new ClaimsIdentity(new Claim[]
+        {
+            new Claim(ClaimTypes.NameIdentifier, _testUserId.ToString())
+        }, "mock"));
+        controller.ControllerContext = new ControllerContext
+        {
+            HttpContext = new DefaultHttpContext { User = user }
+        };
+
+        var request = new CollaborationChatRequest { Content = "你好" };
+        await controller.Chat(1L, request, CancellationToken.None);
+
+        _mockGroupMessageRepository.Verify(r => r.CreateAsync(It.Is<GroupMessage>(m =>
+            m.FromAgentAvatar == "https://example.com/avatar.png"
+        )), Times.Once, "Agent头像应该保存到消息中");
+    }
+
+    [Fact]
+    public async Task Chat_ShouldIncludeHistoryInContext()
+    {
+        var managerAgentId = 100L;
+        var members = new List<CollaborationAgent>
+        {
+            new() { AgentId = managerAgentId, Role = "Manager" }
+        };
+
+        var mockCollabAgentRepo = new Mock<ICollaborationAgentRepository>();
+        mockCollabAgentRepo
+            .Setup(r => r.GetByCollaborationIdAsync(1L))
+            .ReturnsAsync(members);
+
+        var managerEntity = new Agent { Id = managerAgentId, Name = "协调者", TypeName = "Manager", SystemPrompt = "你是协调者" };
+
+        var mockAgentRepo = new Mock<IAgentRepository>();
+        mockAgentRepo
+            .Setup(r => r.GetByIdAsync(managerAgentId))
+            .ReturnsAsync(managerEntity);
+
+        var historyMessages = new List<GroupMessage>
+        {
+            new() { Id = 1, SenderType = "User", Content = "之前的问题", CollaborationId = 1 },
+            new() { Id = 2, SenderType = "Agent", Content = "之前的回答", CollaborationId = 1 },
+        };
+
+        _mockGroupMessageRepository
+            .Setup(r => r.GetByCollaborationIdAsync(1L, 10, It.IsAny<long?>()))
+            .ReturnsAsync(historyMessages);
+
+        _mockGroupMessageRepository
+            .Setup(r => r.CreateAsync(It.IsAny<GroupMessage>()))
+            .ReturnsAsync((GroupMessage msg) => { msg.Id = DateTime.UtcNow.Ticks; return msg; });
+
+        List<Microsoft.Extensions.AI.ChatMessage> capturedMessages = null!;
+        var mockFactory = new Mock<MAFStudio.Application.Interfaces.IAgentFactoryService>();
+        var mockChatClient = new Mock<Microsoft.Extensions.AI.IChatClient>();
+        mockChatClient
+            .Setup(c => c.GetResponseAsync(It.IsAny<IEnumerable<Microsoft.Extensions.AI.ChatMessage>>(), It.IsAny<Microsoft.Extensions.AI.ChatOptions?>(), It.IsAny<CancellationToken>()))
+            .Callback<IEnumerable<Microsoft.Extensions.AI.ChatMessage>, Microsoft.Extensions.AI.ChatOptions?, CancellationToken>((msgs, _, _) =>
+            {
+                capturedMessages = msgs.ToList();
+            })
+            .ReturnsAsync(new Microsoft.Extensions.AI.ChatResponse(new List<Microsoft.Extensions.AI.ChatMessage>
+            {
+                new(Microsoft.Extensions.AI.ChatRole.Assistant, "基于历史的回复")
+            }));
+        mockFactory
+            .Setup(f => f.CreateAgentAsync(managerAgentId))
+            .ReturnsAsync(mockChatClient.Object);
+
+        var controller = new CollaborationsController(
+            _mockCollaborationService.Object,
+            _mockAuthService.Object,
+            _mockLogService.Object,
+            _mockGroupMessageRepository.Object,
+            _mockCollaborationTaskRepository.Object,
+            Mock.Of<MAFStudio.Core.Interfaces.Services.IEmailService>(),
+            mockFactory.Object,
+            mockAgentRepo.Object,
+            mockCollabAgentRepo.Object,
+            _mockLogger.Object
+        );
+
+        var user = new ClaimsPrincipal(new ClaimsIdentity(new Claim[]
+        {
+            new Claim(ClaimTypes.NameIdentifier, _testUserId.ToString())
+        }, "mock"));
+        controller.ControllerContext = new ControllerContext
+        {
+            HttpContext = new DefaultHttpContext { User = user }
+        };
+
+        var request = new CollaborationChatRequest { Content = "新问题" };
+        await controller.Chat(1L, request, CancellationToken.None);
+
+        Assert.NotNull(capturedMessages);
+        var userMsgs = capturedMessages.Where(m => m.Role == Microsoft.Extensions.AI.ChatRole.User).ToList();
+        var assistantMsgs = capturedMessages.Where(m => m.Role == Microsoft.Extensions.AI.ChatRole.Assistant).ToList();
+
+        Assert.True(userMsgs.Any(m => m.Text.Contains("之前的问题")), "历史用户消息应包含在上下文中");
+        Assert.True(assistantMsgs.Any(m => m.Text.Contains("之前的回答")), "历史Agent回复应包含在上下文中");
+        Assert.True(userMsgs.Any(m => m.Text.Contains("新问题")), "当前用户消息应包含在上下文中");
+    }
+
+    [Fact]
+    public async Task GetChatHistory_WithPagination_ShouldPassBeforeId()
+    {
+        var existingMessages = new List<GroupMessage>
+        {
+            new() { Id = 5, Content = "消息5", SenderType = "User", CollaborationId = 1, CreatedAt = DateTime.UtcNow },
+        };
+
+        _mockGroupMessageRepository
+            .Setup(r => r.GetByCollaborationIdAsync(1L, 20, 10L))
+            .ReturnsAsync(existingMessages);
+
+        var controller = new CollaborationsController(
+            _mockCollaborationService.Object,
+            _mockAuthService.Object,
+            _mockLogService.Object,
+            _mockGroupMessageRepository.Object,
+            _mockCollaborationTaskRepository.Object,
+            Mock.Of<MAFStudio.Core.Interfaces.Services.IEmailService>(),
+            Mock.Of<MAFStudio.Application.Interfaces.IAgentFactoryService>(),
+            Mock.Of<IAgentRepository>(),
+            Mock.Of<ICollaborationAgentRepository>(),
+            _mockLogger.Object
+        );
+
+        var user = new ClaimsPrincipal(new ClaimsIdentity(new Claim[]
+        {
+            new Claim(ClaimTypes.NameIdentifier, _testUserId.ToString())
+        }, "mock"));
+        controller.ControllerContext = new ControllerContext
+        {
+            HttpContext = new DefaultHttpContext { User = user }
+        };
+
+        var result = await controller.GetChatHistory(1L, 20, 10L);
+
+        var okResult = Assert.IsType<OkObjectResult>(result);
+        Assert.NotNull(okResult.Value);
+
+        _mockGroupMessageRepository.Verify(r => r.GetByCollaborationIdAsync(1L, 20, 10L), Times.Once);
     }
 }

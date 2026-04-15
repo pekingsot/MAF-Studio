@@ -123,7 +123,7 @@ public class CollaborationService : ICollaborationService
         return await _collaborationTaskRepository.GetByCollaborationIdAsync(collaborationId);
     }
 
-    public async Task<CollaborationTask> CreateTaskAsync(long collaborationId, string title, string? description, long userId, string? prompt = null, string? gitUrl = null, string? gitBranch = null, string? gitToken = null, List<long>? agentIds = null, string? config = null)
+    public async Task<CollaborationTask> CreateTaskAsync(long collaborationId, string title, string? description, long userId, string? prompt = null, string? gitUrl = null, string? gitBranch = null, string? gitToken = null, List<long>? agentIds = null, string? config = null, string? taskFlow = null)
     {
         var collaboration = await GetByIdAsync(collaborationId, userId);
         if (collaboration == null)
@@ -140,7 +140,8 @@ public class CollaborationService : ICollaborationService
             GitUrl = gitUrl,
             GitBranch = gitBranch,
             GitCredentials = gitToken,
-            Config = config
+            Config = config,
+            TaskFlow = taskFlow
         };
 
         var createdTask = await _collaborationTaskRepository.CreateAsync(task);
@@ -148,7 +149,7 @@ public class CollaborationService : ICollaborationService
         return createdTask;
     }
 
-    public async Task<CollaborationTask> UpdateTaskAsync(long taskId, string title, string? description, string? prompt = null, string? gitUrl = null, string? gitBranch = null, string? gitToken = null, List<long>? agentIds = null, string? config = null)
+    public async Task<CollaborationTask> UpdateTaskAsync(long taskId, string title, string? description, string? prompt = null, string? gitUrl = null, string? gitBranch = null, string? gitToken = null, List<long>? agentIds = null, string? config = null, string? taskFlow = null)
     {
         var task = await _collaborationTaskRepository.GetByIdAsync(taskId);
         if (task == null)
@@ -164,6 +165,7 @@ public class CollaborationService : ICollaborationService
             task.GitCredentials = gitToken;
         }
         task.Config = config;
+        task.TaskFlow = taskFlow;
 
         var updatedTask = await _collaborationTaskRepository.UpdateAsync(task);
 

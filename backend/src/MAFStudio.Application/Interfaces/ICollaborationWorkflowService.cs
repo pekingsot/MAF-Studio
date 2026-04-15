@@ -74,4 +74,14 @@ public interface ICollaborationWorkflowService
     /// 执行自定义工作流
     /// </summary>
     Task<CollaborationResult> ExecuteCustomWorkflowAsync(long collaborationId, WorkflowDefinitionDto workflow, string input, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// 流式执行Magentic工作流
+    /// </summary>
+    IAsyncEnumerable<ChatMessageDto> ExecuteMagenticWorkflowStreamAsync(
+        long collaborationId,
+        WorkflowDefinitionDto workflow,
+        string input,
+        long? taskId = null,
+        CancellationToken cancellationToken = default);
 }

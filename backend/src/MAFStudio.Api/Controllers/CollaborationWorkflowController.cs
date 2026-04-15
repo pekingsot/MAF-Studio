@@ -1,7 +1,6 @@
 using MAFStudio.Application.DTOs;
 using MAFStudio.Application.Interfaces;
 using Microsoft.AspNetCore.Mvc;
-using System.Runtime.CompilerServices;
 using System.Text.Json;
 
 namespace MAFStudio.Api.Controllers;
@@ -12,7 +11,7 @@ public class CollaborationWorkflowController : ControllerBase
 {
     private readonly ICollaborationWorkflowService _workflowService;
     private readonly ILogger<CollaborationWorkflowController> _logger;
-    
+
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
@@ -87,7 +86,6 @@ public class CollaborationWorkflowController : ControllerBase
                 cancellationToken))
             {
                 var json = JsonSerializer.Serialize(message, JsonOptions);
-                _logger.LogInformation("发送SSE消息: {Json}", json);
                 await Response.WriteAsync($"data: {json}\n\n");
                 await Response.Body.FlushAsync(cancellationToken);
             }
@@ -95,7 +93,7 @@ public class CollaborationWorkflowController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "执行群聊工作流失败");
-            var errorJson = System.Text.Json.JsonSerializer.Serialize(new { error = ex.Message });
+            var errorJson = JsonSerializer.Serialize(new { error = ex.Message });
             await Response.WriteAsync($"data: {errorJson}\n\n");
             await Response.Body.FlushAsync(cancellationToken);
         }
@@ -121,6 +119,68 @@ public class CollaborationWorkflowController : ControllerBase
             return BadRequest(new { error = ex.Message });
         }
     }
+
+    [HttpPost("{collaborationId}/magentic/generate")]
+    public async Task<ActionResult<GenerateMagenticPlanResponse>> GenerateMagenticPlan(
+        long collaborationId,
+        [FromBody] GenerateMagenticPlanRequest request)
+    {
+        try
+        {
+            request.CollaborationId = collaborationId;
+            var workflow = await _workflowService.GenerateMagenticPlanAsync(
+                collaborationId,
+                request.Task);
+
+            return Ok(new GenerateMagenticPlanResponse
+            {
+                Success = true,
+                Workflow = workflow
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "生成Magentic计划失败");
+            return Ok(new GenerateMagenticPlanResponse
+            {
+                Success = false,
+                Error = ex.Message
+            });
+        }
+    }
+
+    [HttpPost("{collaborationId}/magentic/execute")]
+    public async Task ExecuteMagenticWorkflow(
+        long collaborationId,
+        [FromBody] MagenticWorkflowExecuteRequest request,
+        CancellationToken cancellationToken)
+    {
+        Response.ContentType = "text/event-stream";
+        Response.Headers.CacheControl = "no-cache";
+        Response.Headers.Connection = "keep-alive";
+
+        try
+        {
+            await foreach (var message in _workflowService.ExecuteMagenticWorkflowStreamAsync(
+                collaborationId,
+                request.Workflow,
+                request.Input,
+                request.TaskId,
+                cancellationToken))
+            {
+                var json = JsonSerializer.Serialize(message, JsonOptions);
+                await Response.WriteAsync($"data: {json}\n\n");
+                await Response.Body.FlushAsync(cancellationToken);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "执行Magentic工作流失败");
+            var errorJson = JsonSerializer.Serialize(new { error = ex.Message });
+            await Response.WriteAsync($"data: {errorJson}\n\n");
+            await Response.Body.FlushAsync(cancellationToken);
+        }
+    }
 }
 
 public class WorkflowRequest
@@ -139,4 +199,11 @@ public class ReviewIterativeRequest
 {
     public string Input { get; set; } = string.Empty;
     public ReviewIterativeParameters? Parameters { get; set; }
+}
+
+public class MagenticWorkflowExecuteRequest
+{
+    public WorkflowDefinitionDto Workflow { get; set; } = new();
+    public string Input { get; set; } = string.Empty;
+    public long? TaskId { get; set; }
 }

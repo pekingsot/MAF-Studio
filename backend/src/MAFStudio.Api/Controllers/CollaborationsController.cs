@@ -4,10 +4,14 @@ using MAFStudio.Core.Interfaces.Services;
 using MAFStudio.Application.VOs;
 using MAFStudio.Application.Mappers;
 using MAFStudio.Application.DTOs.Requests;
+using MAFStudio.Application.Interfaces;
 using System.Security.Claims;
 using MAFStudio.Core.Enums;
 using MAFStudio.Api.Extensions;
 using MAFStudio.Core.Interfaces.Repositories;
+using MAFStudio.Core.Entities;
+using MAFStudio.Core.Enums;
+using Microsoft.Extensions.AI;
 
 namespace MAFStudio.Api.Controllers;
 
@@ -19,23 +23,35 @@ public class CollaborationsController : ControllerBase
     private readonly ICollaborationService _collaborationService;
     private readonly IAuthService _authService;
     private readonly IOperationLogService _logService;
-    private readonly IAgentMessageRepository _agentMessageRepository;
+    private readonly IGroupMessageRepository _groupMessageRepository;
+    private readonly ICollaborationTaskRepository _collaborationTaskRepository;
     private readonly IEmailService _emailService;
+    private readonly IAgentFactoryService _agentFactoryService;
+    private readonly IAgentRepository _agentRepository;
+    private readonly ICollaborationAgentRepository _collaborationAgentRepository;
     private readonly ILogger<CollaborationsController> _logger;
 
     public CollaborationsController(
         ICollaborationService collaborationService, 
         IAuthService authService, 
         IOperationLogService logService,
-        IAgentMessageRepository agentMessageRepository,
+        IGroupMessageRepository groupMessageRepository,
+        ICollaborationTaskRepository collaborationTaskRepository,
         IEmailService emailService,
+        IAgentFactoryService agentFactoryService,
+        IAgentRepository agentRepository,
+        ICollaborationAgentRepository collaborationAgentRepository,
         ILogger<CollaborationsController> logger)
     {
         _collaborationService = collaborationService;
         _authService = authService;
         _logService = logService;
-        _agentMessageRepository = agentMessageRepository;
+        _groupMessageRepository = groupMessageRepository;
+        _collaborationTaskRepository = collaborationTaskRepository;
         _emailService = emailService;
+        _agentFactoryService = agentFactoryService;
+        _agentRepository = agentRepository;
+        _collaborationAgentRepository = collaborationAgentRepository;
         _logger = logger;
     }
 
@@ -85,6 +101,7 @@ public class CollaborationsController : ControllerBase
             GitBranch = t.GitBranch,
             GitToken = t.GitCredentials,
             Config = t.Config,
+            TaskFlow = t.TaskFlow,
             CompletedAt = t.CompletedAt,
             CreatedAt = t.CreatedAt
         }).ToList() ?? new List<CollaborationTaskVo>();
@@ -131,6 +148,7 @@ public class CollaborationsController : ControllerBase
             GitBranch = t.GitBranch,
             GitToken = t.GitCredentials,
             Config = t.Config,
+            TaskFlow = t.TaskFlow,
             CompletedAt = t.CompletedAt,
             CreatedAt = t.CreatedAt
         }).ToList() ?? new List<CollaborationTaskVo>();
@@ -284,7 +302,8 @@ public class CollaborationsController : ControllerBase
             request.GitBranch,
             request.GitToken,
             request.AgentIds,
-            request.Config);
+            request.Config,
+            request.TaskFlow);
         
         return CreatedAtAction(nameof(GetCollaboration), new { id }, task);
     }
@@ -329,7 +348,8 @@ public class CollaborationsController : ControllerBase
             request.GitBranch,
             request.GitToken,
             request.AgentIds,
-            request.Config);
+            request.Config,
+            request.TaskFlow);
         
         return Ok(task);
     }
@@ -361,6 +381,21 @@ public class CollaborationsController : ControllerBase
         var task = await _collaborationService.UpdateTaskStatusAsync(taskId, status, userId);
         
         return Ok(task);
+    }
+
+    [HttpPatch("tasks/{taskId}/task-flow")]
+    public async Task<ActionResult<Core.Entities.CollaborationTask>> UpdateTaskFlow(long taskId, [FromBody] UpdateTaskFlowRequest request)
+    {
+        var task = await _collaborationService.GetTaskByIdAsync(taskId);
+        if (task == null)
+        {
+            return NotFound(new { message = "任务不存在" });
+        }
+
+        task.TaskFlow = request.TaskFlow;
+        var updatedTask = await _collaborationTaskRepository.UpdateAsync(task);
+
+        return Ok(updatedTask);
     }
 
     [HttpPost("tasks/{taskId}/execute")]
@@ -397,7 +432,7 @@ public class CollaborationsController : ControllerBase
             return NotFound(new { error = "团队不存在" });
         }
 
-        var messages = await _agentMessageRepository.GetByCollaborationIdAsync(collaboration.Id);
+        var messages = await _groupMessageRepository.GetByCollaborationIdAsync(collaboration.Id);
         
         return Ok(messages);
     }
@@ -443,6 +478,158 @@ public class CollaborationsController : ControllerBase
         }
     }
     
+    [HttpPost("{id}/chat")]
+    public async Task<ActionResult> Chat(long id, [FromBody] CollaborationChatRequest request, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var members = await _collaborationAgentRepository.GetByCollaborationIdAsync(id);
+            if (members.Count == 0)
+                return BadRequest(new { success = false, message = "该协作没有Agent" });
+
+            var mentionedIds = request.MentionedAgentIds ?? new List<string>();
+            long targetAgentId;
+            bool isMentioned = mentionedIds.Count > 0;
+
+            if (isMentioned)
+            {
+                if (!long.TryParse(mentionedIds[0], out targetAgentId))
+                    return BadRequest(new { success = false, message = "无效的Agent ID" });
+
+                var isMember = members.Any(m => m.AgentId == targetAgentId);
+                if (!isMember)
+                    return BadRequest(new { success = false, message = "该Agent不在当前协作中" });
+            }
+            else
+            {
+                var manager = members.FirstOrDefault(m =>
+                    m.Role?.Equals("Manager", StringComparison.OrdinalIgnoreCase) == true);
+                targetAgentId = manager?.AgentId ?? members.First().AgentId;
+            }
+
+            var agentEntity = await _agentRepository.GetByIdAsync(targetAgentId);
+            if (agentEntity == null)
+                return BadRequest(new { success = false, message = "Agent不存在" });
+
+            var chatClient = await _agentFactoryService.CreateAgentAsync(targetAgentId);
+
+            var chatHistory = new List<ChatMessage>();
+            if (!string.IsNullOrEmpty(agentEntity.SystemPrompt))
+                chatHistory.Add(new ChatMessage(ChatRole.System, agentEntity.SystemPrompt));
+
+            var recentMessages = await _groupMessageRepository.GetByCollaborationIdAsync(id, 10);
+            foreach (var msg in recentMessages)
+            {
+                if (msg.SenderType == "User")
+                    chatHistory.Add(new ChatMessage(ChatRole.User, msg.Content));
+                else if (msg.SenderType == "Agent")
+                    chatHistory.Add(new ChatMessage(ChatRole.Assistant, msg.Content));
+            }
+
+            var userPrompt = isMentioned
+                ? request.Content
+                : $"[群聊消息] {request.Content}";
+
+            chatHistory.Add(new ChatMessage(ChatRole.User, userPrompt));
+
+            var memberInfo = members.FirstOrDefault(m => m.AgentId == targetAgentId);
+
+            await _groupMessageRepository.CreateAsync(new GroupMessage
+            {
+                CollaborationId = id,
+                MessageType = "chat",
+                SenderType = "User",
+                Content = request.Content,
+                CreatedAt = DateTime.UtcNow
+            });
+
+            var response = await chatClient.GetResponseAsync(chatHistory, cancellationToken: cancellationToken);
+            var reply = response.Messages.LastOrDefault()?.Text ?? "";
+
+            string? modelName = null;
+            if (!string.IsNullOrEmpty(agentEntity.LlmConfigs))
+            {
+                try
+                {
+                    var configs = System.Text.Json.JsonSerializer.Deserialize<List<LlmConfigItem>>(agentEntity.LlmConfigs);
+                    modelName = configs?.FirstOrDefault(c => c.IsPrimary)?.ModelName;
+                }
+                catch { }
+            }
+
+            await _groupMessageRepository.CreateAsync(new GroupMessage
+            {
+                CollaborationId = id,
+                MessageType = "chat",
+                SenderType = "Agent",
+                FromAgentId = targetAgentId,
+                FromAgentName = agentEntity.Name,
+                FromAgentRole = memberInfo?.Role ?? "Worker",
+                FromAgentType = agentEntity.TypeName,
+                FromAgentAvatar = agentEntity.Avatar,
+                ModelName = modelName,
+                Content = reply,
+                IsMentioned = isMentioned,
+                CreatedAt = DateTime.UtcNow
+            });
+
+            return Ok(new
+            {
+                success = true,
+                data = new
+                {
+                    fromAgentId = targetAgentId,
+                    fromAgentName = agentEntity.Name,
+                    fromAgentRole = memberInfo?.Role ?? "Worker",
+                    fromAgentType = agentEntity.TypeName ?? "",
+                    fromAgentAvatar = agentEntity.Avatar,
+                    modelName,
+                    content = reply,
+                    timestamp = DateTime.UtcNow,
+                    isMentioned
+                }
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "协作聊天失败: CollaborationId={Id}", id);
+            return BadRequest(new { success = false, message = $"聊天失败: {ex.Message}" });
+        }
+    }
+
+    [HttpGet("{id}/chat/history")]
+    public async Task<ActionResult> GetChatHistory(long id, [FromQuery] int limit = 20, [FromQuery] long? beforeId = null)
+    {
+        try
+        {
+            var messages = await _groupMessageRepository.GetByCollaborationIdAsync(id, limit, beforeId);
+
+            var result = messages.Select(m => new
+            {
+                id = m.Id,
+                fromAgentId = m.FromAgentId,
+                fromAgentName = m.FromAgentName ?? "我",
+                fromAgentRole = m.FromAgentRole,
+                fromAgentType = m.FromAgentType,
+                fromAgentAvatar = m.FromAgentAvatar,
+                modelName = m.ModelName,
+                senderType = m.SenderType,
+                content = m.Content,
+                isMentioned = m.IsMentioned,
+                timestamp = m.CreatedAt
+            }).ToList();
+
+            var hasMore = messages.Count > 0 && messages.First().Id > 1;
+
+            return Ok(new { success = true, data = result, hasMore });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "获取聊天历史失败: CollaborationId={Id}", id);
+            return BadRequest(new { success = false, message = $"获取聊天历史失败: {ex.Message}" });
+        }
+    }
+
     [HttpPost("{id}/test-email")]
     public async Task<ActionResult> TestEmailConfigurationFromDb(long id)
     {
@@ -472,4 +659,16 @@ public class CollaborationsController : ControllerBase
 public class TestEmailRequest
 {
     public SmtpTestConfig? Smtp { get; set; }
+}
+
+public class CollaborationChatRequest
+{
+    public string Content { get; set; } = string.Empty;
+    public List<string>? MentionedAgentIds { get; set; }
+}
+
+public class LlmConfigItem
+{
+    public string? ModelName { get; set; }
+    public bool IsPrimary { get; set; }
 }

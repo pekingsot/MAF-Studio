@@ -44,6 +44,7 @@ public class CollaborationTaskVo
     public string? GitBranch { get; set; }
     public string? GitToken { get; set; }
     public string? Config { get; set; }
+    public string? TaskFlow { get; set; }
     public DateTime? CompletedAt { get; set; }
     public DateTime CreatedAt { get; set; }
 }

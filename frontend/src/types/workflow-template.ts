@@ -7,6 +7,7 @@ export enum NodeType {
   AGGREGATOR = 'aggregator',
   CONDITION = 'condition',
   LOOP = 'loop',
+  REVIEW = 'review',
 }
 
 /**
@@ -18,6 +19,8 @@ export enum EdgeType {
   FAN_IN = 'fan-in',
   CONDITIONAL = 'conditional',
   LOOP = 'loop',
+  APPROVED = 'approved',
+  REJECTED = 'rejected',
 }
 
 /**
@@ -32,6 +35,10 @@ export interface WorkflowNode {
   inputTemplate?: string;
   condition?: string;
   parameters?: Record<string, any>;
+  approvalKeyword?: string;
+  rejectTargetNode?: string;
+  maxRetries?: number;
+  reviewCriteria?: string;
 }
 
 /**

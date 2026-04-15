@@ -1,12 +1,13 @@
 import React from 'react';
 import { Card, Button, Tabs, Space } from 'antd';
-import { ArrowLeftOutlined, HistoryOutlined } from '@ant-design/icons';
+import { ArrowLeftOutlined, HistoryOutlined, MessageOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import { useCollaborationDetail } from './useCollaborationDetail';
 import CollaborationInfo from './CollaborationInfo';
 import AgentTable from './AgentTable';
 import TaskTable from './TaskTable';
 import ChatHistory from './ChatHistory';
+import CollaborationChatPanel from './CollaborationChatPanel';
 
 const CollaborationDetail: React.FC = () => {
   const navigate = useNavigate();
@@ -55,12 +56,34 @@ const CollaborationDetail: React.FC = () => {
             {
               key: 'tasks',
               label: `任务 (${collaboration.tasks.length})`,
-              children: <TaskTable tasks={collaboration.tasks} />,
+              children: (
+                <TaskTable
+                  tasks={collaboration.tasks}
+                  agents={collaboration.agents}
+                  collaborationId={id || ''}
+                  onUpdate={() => id && loadCollaboration(id)}
+                />
+              ),
             },
             {
               key: 'chat',
               label: '协作过程',
               children: <ChatHistory collaborationId={id || ''} />,
+            },
+            {
+              key: 'livechat',
+              label: (
+                <span>
+                  <MessageOutlined style={{ marginRight: 4 }} />
+                  协作聊天
+                </span>
+              ),
+              children: (
+                <CollaborationChatPanel
+                  collaborationId={id || ''}
+                  agents={collaboration.agents}
+                />
+              ),
             },
           ]}
           style={{ marginTop: 24 }}

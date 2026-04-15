@@ -6,17 +6,24 @@ export interface CollaborationAgent {
   agentType?: string;
   agentStatus?: string;
   agentAvatar?: string;
-  role?: string; // Agent在工作流中的角色：Manager（协调者）或 Worker（执行者）
-  customPrompt?: string; // Agent的自定义提示词（覆盖系统提示词）
-  systemPrompt?: string; // Agent的系统提示词
+  role?: string;
+  customPrompt?: string;
+  systemPrompt?: string;
   joinedAt: string;
 }
 
 export interface CollaborationTask {
   id: string;
+  collaborationId: string;
   title: string;
   description?: string;
+  prompt?: string;
   status: string;
+  gitUrl?: string;
+  gitBranch?: string;
+  gitToken?: string;
+  config?: string;
+  taskFlow?: string;
   createdAt: string;
   completedAt?: string | null;
 }

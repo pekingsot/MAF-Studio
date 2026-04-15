@@ -187,19 +187,6 @@ const Collaborations: React.FC = () => {
         workerAgents: workerAgents.length > 0 ? workerAgents : undefined
       };
 
-      if (taskWorkflowType === 'ReviewIterative') {
-        config.workflowPlanId = taskWorkflowPlanId;
-        config.maxAttempts = taskMaxAttempts;
-        
-        if (taskThresholds && taskThresholds.trim()) {
-          try {
-            config.thresholds = JSON.parse(taskThresholds);
-          } catch (e) {
-            message.warning('阈值标准JSON格式不正确，已忽略');
-          }
-        }
-      }
-
       values.config = JSON.stringify(config);
       
       if (selectedCollaboration) {
@@ -328,19 +315,6 @@ const Collaborations: React.FC = () => {
         workerAgents: workerAgents.length > 0 ? workerAgents : undefined
       };
 
-      if (taskWorkflowType === 'ReviewIterative') {
-        config.workflowPlanId = taskWorkflowPlanId;
-        config.maxAttempts = taskMaxAttempts;
-        
-        if (taskThresholds && taskThresholds.trim()) {
-          try {
-            config.thresholds = JSON.parse(taskThresholds);
-          } catch (e) {
-            message.warning('阈值标准JSON格式不正确，已忽略');
-          }
-        }
-      }
-
       values.config = JSON.stringify(config);
       
       await collaborationService.updateTask(editingTask.id, values);
@@ -447,15 +421,12 @@ const Collaborations: React.FC = () => {
       let url: string;
       let body: any;
 
-      if (workflowType === 'ReviewIterative') {
+      if (workflowType === 'Magentic' || workflowType === 'ReviewIterative') {
         url = getApiUrl(`/collaborationworkflow/${task.collaborationId}/review-iterative`);
         body = {
           input,
           parameters: {
-            maxIterations: config.maxIterations,
-            maxAttempts: config.maxAttempts,
-            thresholds: config.thresholds,
-            workflowPlanId: config.workflowPlanId
+            maxIterations: config.maxIterations
           }
         };
       } else {
@@ -807,6 +778,7 @@ const Collaborations: React.FC = () => {
               <CollaborationTasks
                 collaborationId={record.id}
                 tasks={record.tasks}
+                agents={record.agents}
                 onCreate={() => handleCreateTask(record)}
                 onExecute={handleExecuteTask}
                 onEdit={handleEditTask}
@@ -1300,7 +1272,7 @@ const Collaborations: React.FC = () => {
                               <Text type="secondary" style={{ fontSize: 12 }}>协调者引导Worker协作讨论</Text>
                             </Space>
                           </Radio>
-                          <Radio value="ReviewIterative">
+                          <Radio value="Magentic">
                             <Space>
                               <BulbOutlined style={{ color: '#722ed1' }} />
                               <span>Magentic智能工作流</span>
@@ -1313,6 +1285,7 @@ const Collaborations: React.FC = () => {
                                     <li><strong>反思：</strong>检查Worker的产出是否达标，维护进度账本</li>
                                   </ul>
                                   <p style={{ marginTop: 8, color: '#1890ff' }}>所有团队成员都作为Worker参与执行，不需要指定Manager Agent</p>
+                                  <p style={{ marginTop: 8, color: '#722ed1' }}>流程编排、参数设置请在任务列表的「流程编排」按钮中配置</p>
                                 </div>
                               }>
                                 <QuestionCircleOutlined style={{ color: '#1890ff', cursor: 'pointer' }} />
@@ -1410,54 +1383,13 @@ const Collaborations: React.FC = () => {
                       />
                     </Form.Item>
 
-                    {taskWorkflowType === 'ReviewIterative' && (
-                      <>
-                        <Form.Item 
-                          label={<span><ApartmentOutlined style={{ marginRight: 4 }} />工作流计划</span>}
-                          help="可选：选择已有的工作流计划，或留空让MagenticManager动态生成"
-                        >
-                          <Select
-                            placeholder="留空则由MagenticManager动态生成工作流"
-                            value={taskWorkflowPlanId}
-                            onChange={(value) => setTaskWorkflowPlanId(value)}
-                            style={{ width: '100%' }}
-                            allowClear
-                          >
-                            <Option value={1}>示例工作流计划 #1</Option>
-                            <Option value={2}>示例工作流计划 #2</Option>
-                          </Select>
-                        </Form.Item>
-                        
-                        <Form.Item 
-                          label={<span><DashboardOutlined style={{ marginRight: 4 }} />阈值标准</span>}
-                          help="多维度评分标准，例如：质量≥85，准确性≥90"
-                        >
-                          <Input.TextArea
-                            rows={3}
-                            placeholder={`JSON格式，例如：
-{
-  "quality": 85,
-  "accuracy": 90,
-  "completeness": 80
-}`}
-                            value={taskThresholds}
-                            onChange={(e) => setTaskThresholds(e.target.value)}
-                          />
-                        </Form.Item>
-                        
-                        <Form.Item label="最大尝试次数">
-                          <InputNumber 
-                            min={1} 
-                            max={20} 
-                            value={taskMaxAttempts}
-                            onChange={(value) => setTaskMaxAttempts(value || 5)}
-                            style={{ width: 120 }}
-                          />
-                          <Text type="secondary" style={{ marginLeft: 8, fontSize: 12 }}>
-                            循环工作流的最大尝试次数
-                          </Text>
-                        </Form.Item>
-                      </>
+                    {taskWorkflowType === 'Magentic' && (
+                      <Alert
+                        message="Magentic智能工作流的流程编排、阈值标准、最大尝试次数等参数请在任务列表的「流程编排」按钮中配置"
+                        type="info"
+                        showIcon
+                        style={{ marginBottom: 16 }}
+                      />
                     )}
                   </>
                 )
@@ -1592,7 +1524,7 @@ const Collaborations: React.FC = () => {
                               <Text type="secondary" style={{ fontSize: 12 }}>协调者引导Worker协作讨论</Text>
                             </Space>
                           </Radio>
-                          <Radio value="ReviewIterative">
+                          <Radio value="Magentic">
                             <Space>
                               <BulbOutlined style={{ color: '#722ed1' }} />
                               <span>Magentic智能工作流</span>
@@ -1605,6 +1537,7 @@ const Collaborations: React.FC = () => {
                                     <li><strong>反思：</strong>检查Worker的产出是否达标，维护进度账本</li>
                                   </ul>
                                   <p style={{ marginTop: 8, color: '#1890ff' }}>所有团队成员都作为Worker参与执行，不需要指定Manager Agent</p>
+                                  <p style={{ marginTop: 8, color: '#722ed1' }}>流程编排、参数设置请在任务列表的「流程编排」按钮中配置</p>
                                 </div>
                               }>
                                 <QuestionCircleOutlined style={{ color: '#1890ff', cursor: 'pointer' }} />
@@ -1702,54 +1635,13 @@ const Collaborations: React.FC = () => {
                       />
                     </Form.Item>
 
-                    {taskWorkflowType === 'ReviewIterative' && (
-                      <>
-                        <Form.Item 
-                          label={<span><ApartmentOutlined style={{ marginRight: 4 }} />工作流计划</span>}
-                          help="可选：选择已有的工作流计划，或留空让Manager动态生成"
-                        >
-                          <Select
-                            placeholder="留空则由Manager动态生成工作流"
-                            value={taskWorkflowPlanId}
-                            onChange={(value) => setTaskWorkflowPlanId(value)}
-                            style={{ width: '100%' }}
-                            allowClear
-                          >
-                            <Option value={1}>示例工作流计划 #1</Option>
-                            <Option value={2}>示例工作流计划 #2</Option>
-                          </Select>
-                        </Form.Item>
-                        
-                        <Form.Item 
-                          label={<span><DashboardOutlined style={{ marginRight: 4 }} />阈值标准</span>}
-                          help="多维度评分标准，例如：质量≥85，准确性≥90"
-                        >
-                          <Input.TextArea
-                            rows={3}
-                            placeholder={`JSON格式，例如：
-{
-  "quality": 85,
-  "accuracy": 90,
-  "completeness": 80
-}`}
-                            value={taskThresholds}
-                            onChange={(e) => setTaskThresholds(e.target.value)}
-                          />
-                        </Form.Item>
-                        
-                        <Form.Item label="最大尝试次数">
-                          <InputNumber 
-                            min={1} 
-                            max={20} 
-                            value={taskMaxAttempts}
-                            onChange={(value) => setTaskMaxAttempts(value || 5)}
-                            style={{ width: 120 }}
-                          />
-                          <Text type="secondary" style={{ marginLeft: 8, fontSize: 12 }}>
-                            循环工作流的最大尝试次数
-                          </Text>
-                        </Form.Item>
-                      </>
+                    {taskWorkflowType === 'Magentic' && (
+                      <Alert
+                        message="Magentic智能工作流的流程编排、阈值标准、最大尝试次数等参数请在任务列表的「流程编排」按钮中配置"
+                        type="info"
+                        showIcon
+                        style={{ marginBottom: 16 }}
+                      />
                     )}
                   </>
                 )

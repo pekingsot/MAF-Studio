@@ -24,6 +24,10 @@ const getEdgeTypeColor = (type: EdgeType) => {
       return 'orange';
     case 'loop':
       return 'magenta';
+    case 'approved':
+      return 'green';
+    case 'rejected':
+      return 'red';
     default:
       return 'default';
   }
@@ -44,6 +48,10 @@ const getEdgeTypeText = (type: EdgeType) => {
       return '条件';
     case 'loop':
       return '循环';
+    case 'approved':
+      return '通过';
+    case 'rejected':
+      return '打回';
     default:
       return type;
   }
@@ -64,6 +72,10 @@ const getEdgeColor = (type: EdgeType) => {
       return '#fa8c16';
     case 'loop':
       return '#eb2f96';
+    case 'approved':
+      return '#52c41a';
+    case 'rejected':
+      return '#ff4d4f';
     default:
       return '#1890ff';
   }

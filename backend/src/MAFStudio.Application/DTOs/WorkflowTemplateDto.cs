@@ -13,7 +13,7 @@ public class WorkflowNodeDto
     public string Id { get; set; } = string.Empty;
 
     /// <summary>
-    /// 节点类型：start, agent, aggregator, condition, loop
+    /// 节点类型：start, agent, aggregator, condition, loop, review
     /// </summary>
     public string Type { get; set; } = string.Empty;
 
@@ -23,12 +23,12 @@ public class WorkflowNodeDto
     public string Name { get; set; } = string.Empty;
 
     /// <summary>
-    /// Agent角色（仅agent类型节点）
+    /// Agent角色（仅agent/review类型节点）
     /// </summary>
     public string? AgentRole { get; set; }
 
     /// <summary>
-    /// 具体的Agent ID（仅agent类型节点）
+    /// 具体的Agent ID（仅agent/review类型节点）
     /// </summary>
     public string? AgentId { get; set; }
 
@@ -43,6 +43,26 @@ public class WorkflowNodeDto
     public string? Condition { get; set; }
 
     /// <summary>
+    /// 审核通过关键词（仅review类型节点，默认 [APPROVED]）
+    /// </summary>
+    public string? ApprovalKeyword { get; set; }
+
+    /// <summary>
+    /// 审核不通过时打回的目标节点ID（仅review类型节点）
+    /// </summary>
+    public string? RejectTargetNode { get; set; }
+
+    /// <summary>
+    /// 最大重试次数（仅review类型节点，默认3次）
+    /// </summary>
+    public int? MaxRetries { get; set; }
+
+    /// <summary>
+    /// 审核标准/提示词（仅review类型节点，指导审核者如何审核）
+    /// </summary>
+    public string? ReviewCriteria { get; set; }
+
+    /// <summary>
     /// 参数配置
     /// </summary>
     public Dictionary<string, object>? Parameters { get; set; }
@@ -54,7 +74,7 @@ public class WorkflowNodeDto
 public class WorkflowEdgeDto
 {
     /// <summary>
-    /// 边类型：sequential, fan-out, fan-in, conditional, loop
+    /// 边类型：sequential, fan-out, fan-in, conditional, loop, approved, rejected
     /// </summary>
     public string Type { get; set; } = "sequential";
 
