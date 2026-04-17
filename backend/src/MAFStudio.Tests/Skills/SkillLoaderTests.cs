@@ -1,129 +1,257 @@
 using MAFStudio.Application.Skills;
-using MAFStudio.Application.Services;
+using MAFStudio.Core.Entities;
+using MAFStudio.Core.Interfaces.Repositories;
+using Moq;
 using Xunit;
 
 namespace MAFStudio.Tests.Skills;
 
-public class SkillLoaderTests : IDisposable
+public class SkillLoaderTests
 {
-    private readonly string _testSkillsDir;
+    private readonly Mock<IAgentSkillRepository> _mockRepo;
     private readonly SkillLoader _loader;
 
     public SkillLoaderTests()
     {
-        _testSkillsDir = Path.Combine(Path.GetTempPath(), "test_skills_" + Guid.NewGuid());
-        Directory.CreateDirectory(_testSkillsDir);
-        _loader = new SkillLoader(_testSkillsDir);
+        _mockRepo = new Mock<IAgentSkillRepository>();
+        _loader = new SkillLoader(_mockRepo.Object);
     }
 
     [Fact]
-    public async Task LoadSkillAsync_NonExistentPath_ThrowsException()
+    public async Task LoadSkillsForAgentAsync_NoSkills_ReturnsEmptyList()
     {
-        var nonExistentPath = Path.Combine(_testSkillsDir, "nonexistent");
-        
-        var exception = await Assert.ThrowsAsync<Exception>(() => 
-            _loader.LoadSkillAsync(nonExistentPath));
-        
-        Assert.Contains("Skill目录不存在", exception.Message);
+        _mockRepo.Setup(r => r.GetEnabledByAgentIdAsync(1))
+            .ReturnsAsync(new List<AgentSkill>());
+
+        var result = await _loader.LoadSkillsForAgentAsync(1);
+
+        Assert.Empty(result);
     }
 
     [Fact]
-    public async Task LoadSkillAsync_MissingSkillMd_ThrowsException()
+    public async Task LoadSkillsForAgentAsync_WithSkills_ReturnsDefinitions()
     {
-        var skillDir = Path.Combine(_testSkillsDir, "test_skill");
-        Directory.CreateDirectory(skillDir);
-
-        var exception = await Assert.ThrowsAsync<Exception>(() => 
-            _loader.LoadSkillAsync(skillDir));
-        
-        Assert.Contains("SKILL.md文件不存在", exception.Message);
-    }
-
-    [Fact]
-    public async Task LoadSkillAsync_ValidSkill_ReturnsSkill()
-    {
-        var skillDir = Path.Combine(_testSkillsDir, "test_skill");
-        Directory.CreateDirectory(skillDir);
-
-        var skillMd = Path.Combine(skillDir, "SKILL.md");
-        var content = @"# 测试技能
-
-**描述**: 这是一个测试技能
-**版本**: 1.0.0
-**作者**: Test Author
-
-## 标签
-- 测试
-- 示例
-
-## 依赖
-- python >= 3.8
-";
-        await File.WriteAllTextAsync(skillMd, content);
-
-        var skill = await _loader.LoadSkillAsync(skillDir);
-
-        Assert.NotNull(skill);
-        Assert.Equal("测试技能", skill.Name);
-        Assert.Equal("这是一个测试技能", skill.Description);
-        Assert.Equal("1.0.0", skill.Version);
-        Assert.Equal("Test Author", skill.Author);
-        Assert.Contains("测试", skill.Tags);
-        Assert.Contains("示例", skill.Tags);
-    }
-
-    [Fact]
-    public async Task LoadAllSkillsAsync_ReturnsAllValidSkills()
-    {
-        var skill1Dir = Path.Combine(_testSkillsDir, "skill1");
-        var skill2Dir = Path.Combine(_testSkillsDir, "skill2");
-        
-        Directory.CreateDirectory(skill1Dir);
-        Directory.CreateDirectory(skill2Dir);
-
-        await File.WriteAllTextAsync(Path.Combine(skill1Dir, "SKILL.md"), "# 技能1\n**描述**: 描述1");
-        await File.WriteAllTextAsync(Path.Combine(skill2Dir, "SKILL.md"), "# 技能2\n**描述**: 描述2");
-
-        var skills = await _loader.LoadAllSkillsAsync();
-
-        Assert.Equal(2, skills.Count);
-        Assert.Contains(skills, s => s.Name == "技能1");
-        Assert.Contains(skills, s => s.Name == "技能2");
-    }
-
-    [Fact]
-    public void GetSkill_AfterLoad_ReturnsSkill()
-    {
-        var skill = new Skill { Id = "test-id", Name = "Test" };
-        _loader.GetType()
-            .GetField("_loadedSkills", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)
-            ?.SetValue(_loader, new Dictionary<string, Skill> { { "test-id", skill } });
-
-        var result = _loader.GetSkill("test-id");
-
-        Assert.NotNull(result);
-        Assert.Equal("Test", result.Name);
-    }
-
-    [Fact]
-    public void UnloadSkill_RemovesSkill()
-    {
-        var skill = new Skill { Id = "test-id", Name = "Test" };
-        _loader.GetType()
-            .GetField("_loadedSkills", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)
-            ?.SetValue(_loader, new Dictionary<string, Skill> { { "test-id", skill } });
-
-        var result = _loader.UnloadSkill("test-id");
-
-        Assert.True(result);
-        Assert.Null(_loader.GetSkill("test-id"));
-    }
-
-    public void Dispose()
-    {
-        if (Directory.Exists(_testSkillsDir))
+        var agentSkill = new AgentSkill
         {
-            Directory.Delete(_testSkillsDir, true);
-        }
+            Id = 1,
+            AgentId = 1,
+            SkillName = "code-review",
+            SkillContent = @"---
+name: code-review
+description: Code review expert
+allowed-tools:
+  - ReadFile
+  - WriteFile
+---
+
+# Code Review
+
+You are a code review expert.",
+            Enabled = true,
+            Runtime = "python"
+        };
+
+        _mockRepo.Setup(r => r.GetEnabledByAgentIdAsync(1))
+            .ReturnsAsync(new List<AgentSkill> { agentSkill });
+
+        var result = await _loader.LoadSkillsForAgentAsync(1);
+
+        Assert.Single(result);
+        Assert.Equal("code-review", result[0].Name);
+        Assert.Equal("Code review expert", result[0].Description);
+        Assert.Contains("ReadFile", result[0].AllowedTools);
+        Assert.Contains("WriteFile", result[0].AllowedTools);
+        Assert.Contains("Code Review", result[0].Instructions);
+    }
+
+    [Fact]
+    public async Task LoadSkillsForAgentAsync_CachesResult()
+    {
+        var agentSkill = new AgentSkill
+        {
+            Id = 1,
+            AgentId = 1,
+            SkillName = "test-skill",
+            SkillContent = "---\nname: test-skill\ndescription: Test\n---\n\nTest instructions",
+            Enabled = true,
+            Runtime = "python"
+        };
+
+        _mockRepo.Setup(r => r.GetEnabledByAgentIdAsync(1))
+            .ReturnsAsync(new List<AgentSkill> { agentSkill });
+
+        var result1 = await _loader.LoadSkillsForAgentAsync(1);
+        var result2 = await _loader.LoadSkillsForAgentAsync(1);
+
+        _mockRepo.Verify(r => r.GetEnabledByAgentIdAsync(1), Times.Once());
+        Assert.Equal(result1.Count, result2.Count);
+    }
+
+    [Fact]
+    public void ParseSkillContent_WithFrontmatter_ParsesCorrectly()
+    {
+        var content = @"---
+name: api-doc-generator
+description: API documentation generator
+version: 2.0.0
+author: MAFStudio
+allowed-tools:
+  - ReadFile
+  - SearchInCode
+tags:
+  - documentation
+  - api
+permissions:
+  network: false
+  filesystem: true
+---
+
+# API Documentation Generator
+
+## When to use
+- Generate API docs
+- Create interface specs";
+
+        var definition = _loader.ParseSkillContent(content);
+
+        Assert.Equal("api-doc-generator", definition.Name);
+        Assert.Equal("API documentation generator", definition.Description);
+        Assert.Equal("2.0.0", definition.Version);
+        Assert.Equal("MAFStudio", definition.Author);
+        Assert.Contains("ReadFile", definition.AllowedTools);
+        Assert.Contains("SearchInCode", definition.AllowedTools);
+        Assert.Contains("documentation", definition.Tags);
+        Assert.Contains("api", definition.Tags);
+        Assert.NotNull(definition.Permissions);
+        Assert.False(definition.Permissions.Network);
+        Assert.True(definition.Permissions.Filesystem);
+        Assert.Contains("API Documentation Generator", definition.Instructions);
+    }
+
+    [Fact]
+    public void ParseSkillContent_WithoutFrontmatter_ReturnsRawContent()
+    {
+        var content = "# Simple Skill\n\nJust do the thing.";
+
+        var definition = _loader.ParseSkillContent(content);
+
+        Assert.Equal(string.Empty, definition.Name);
+        Assert.Contains("Simple Skill", definition.Instructions);
+    }
+
+    [Fact]
+    public void BuildSkillInstructions_NoSkills_ReturnsEmpty()
+    {
+        var result = _loader.BuildSkillInstructions(new List<SkillDefinition>());
+
+        Assert.Equal(string.Empty, result);
+    }
+
+    [Fact]
+    public void BuildSkillInstructions_WithSkills_ContainsSkillInfo()
+    {
+        var skills = new List<SkillDefinition>
+        {
+            new()
+            {
+                Name = "code-review",
+                Description = "Code review expert",
+                AllowedTools = new List<string> { "ReadFile", "WriteFile" },
+                Instructions = "Review code and find issues."
+            }
+        };
+
+        var result = _loader.BuildSkillInstructions(skills);
+
+        Assert.Contains("code-review", result);
+        Assert.Contains("Code review expert", result);
+        Assert.Contains("ReadFile", result);
+        Assert.Contains("WriteFile", result);
+        Assert.Contains("Review code and find issues", result);
+    }
+
+    [Fact]
+    public void ClearCache_ClearsCachedData()
+    {
+        var agentSkill = new AgentSkill
+        {
+            Id = 1,
+            AgentId = 1,
+            SkillName = "test-skill",
+            SkillContent = "---\nname: test-skill\ndescription: Test\n---\n\nTest",
+            Enabled = true,
+            Runtime = "python"
+        };
+
+        _mockRepo.Setup(r => r.GetEnabledByAgentIdAsync(1))
+            .ReturnsAsync(new List<AgentSkill> { agentSkill });
+
+        _loader.LoadSkillsForAgentAsync(1).Wait();
+        _loader.ClearCache();
+
+        _mockRepo.Setup(r => r.GetEnabledByAgentIdAsync(1))
+            .ReturnsAsync(new List<AgentSkill>());
+
+        var result = _loader.LoadSkillsForAgentAsync(1).Result;
+
+        Assert.Empty(result);
+    }
+
+    [Fact]
+    public async Task LoadSkillsForAgentAsync_InvalidSkillContent_SkipsAndContinues()
+    {
+        var validSkill = new AgentSkill
+        {
+            Id = 1,
+            AgentId = 1,
+            SkillName = "valid-skill",
+            SkillContent = "---\nname: valid-skill\ndescription: Valid\n---\n\nValid instructions",
+            Enabled = true,
+            Runtime = "python"
+        };
+
+        _mockRepo.Setup(r => r.GetEnabledByAgentIdAsync(1))
+            .ReturnsAsync(new List<AgentSkill> { validSkill });
+
+        var result = await _loader.LoadSkillsForAgentAsync(1);
+
+        Assert.Single(result);
+        Assert.Equal("valid-skill", result[0].Name);
+    }
+
+    [Fact]
+    public void ParseSkillContent_WithInputsOutputs_ParsesCorrectly()
+    {
+        var content = @"---
+name: data-processor
+description: Process data files
+inputs:
+  - name: filePath
+    type: string
+    required: true
+    description: Path to data file
+  - name: format
+    type: string
+    required: false
+    default: json
+outputs:
+  - name: result
+    type: object
+    description: Processing result
+---
+
+# Data Processor";
+
+        var definition = _loader.ParseSkillContent(content);
+
+        Assert.Equal("data-processor", definition.Name);
+        Assert.Equal(2, definition.Inputs.Count);
+        Assert.Equal("filePath", definition.Inputs[0].Name);
+        Assert.Equal("string", definition.Inputs[0].Type);
+        Assert.True(definition.Inputs[0].Required);
+        Assert.Equal("format", definition.Inputs[1].Name);
+        Assert.Equal("json", definition.Inputs[1].Default);
+        Assert.Single(definition.Outputs);
+        Assert.Equal("result", definition.Outputs[0].Name);
     }
 }

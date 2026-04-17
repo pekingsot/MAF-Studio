@@ -14,6 +14,8 @@ public class GroupMessage
 
     public long? FromAgentId { get; set; }
 
+    public long? ToAgentId { get; set; }
+
     public string? FromAgentName { get; set; }
 
     public string? FromAgentRole { get; set; }
@@ -23,6 +25,8 @@ public class GroupMessage
     public string? FromAgentAvatar { get; set; }
 
     public string? ModelName { get; set; }
+
+    public string? LlmConfigName { get; set; }
 
     public string Content { get; set; } = string.Empty;
 

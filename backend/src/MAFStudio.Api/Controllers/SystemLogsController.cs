@@ -1,8 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Authorization;
 using MAFStudio.Core.Interfaces.Services;
-using System.Security.Claims;
-using MAFStudio.Core.Entities;
 
 namespace MAFStudio.Api.Controllers;
 
@@ -22,42 +20,27 @@ public class SystemLogsController : ControllerBase
 
     [HttpGet]
     public async Task<ActionResult> GetLogs(
-        [FromQuery] string? level, 
-        [FromQuery] string? category, 
+        [FromQuery] string? level,
+        [FromQuery] string? category,
         [FromQuery] string? keyword,
         [FromQuery] string? startTime,
         [FromQuery] string? endTime,
-        [FromQuery] int page = 1, 
+        [FromQuery] int page = 1,
         [FromQuery] int pageSize = 20)
     {
-        var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-        var allLogs = await _systemLogService.GetAsync(level, category, null, 1000);
-        
-        var filteredLogs = allLogs.AsEnumerable();
-        
-        if (!string.IsNullOrEmpty(keyword))
+        DateTime? startDt = null;
+        DateTime? endDt = null;
+
+        if (!string.IsNullOrEmpty(startTime) && DateTime.TryParse(startTime, out var s))
+            startDt = s;
+        if (!string.IsNullOrEmpty(endTime) && DateTime.TryParse(endTime, out var e))
+            endDt = e;
+
+        var (data, total) = await _systemLogService.GetPagedAsync(level, category, keyword, startDt, endDt, page, pageSize);
+
+        return Ok(new
         {
-            filteredLogs = filteredLogs.Where(l => 
-                (l.Message?.Contains(keyword, StringComparison.OrdinalIgnoreCase) ?? false) ||
-                (l.Category?.Contains(keyword, StringComparison.OrdinalIgnoreCase) ?? false));
-        }
-        
-        if (!string.IsNullOrEmpty(startTime) && DateTime.TryParse(startTime, out var start))
-        {
-            filteredLogs = filteredLogs.Where(l => l.CreatedAt >= start);
-        }
-        
-        if (!string.IsNullOrEmpty(endTime) && DateTime.TryParse(endTime, out var end))
-        {
-            filteredLogs = filteredLogs.Where(l => l.CreatedAt <= end);
-        }
-        
-        var total = filteredLogs.Count();
-        var data = filteredLogs
-            .OrderByDescending(l => l.CreatedAt)
-            .Skip((page - 1) * pageSize)
-            .Take(pageSize)
-            .Select(l => new
+            data = data.Select(l => new
             {
                 id = l.Id.ToString(),
                 level = l.Level,
@@ -66,17 +49,11 @@ public class SystemLogsController : ControllerBase
                 exception = l.Exception,
                 stackTrace = l.StackTrace,
                 requestPath = l.RequestPath,
-                requestMethod = (string?)null,
+                requestMethod = l.RequestMethod,
+                source = l.Source,
                 userId = l.UserId,
-                userName = (string?)null,
-                ipAddress = (string?)null,
                 createdAt = l.CreatedAt.ToString("O")
-            })
-            .ToList();
-
-        return Ok(new
-        {
-            data,
+            }),
             page,
             pageSize,
             total
@@ -86,29 +63,14 @@ public class SystemLogsController : ControllerBase
     [HttpGet("statistics")]
     public async Task<ActionResult> GetStatistics([FromQuery] int days = 7)
     {
-        var logs = await _systemLogService.GetAsync(null, null, null, 10000);
-        var startDate = DateTime.UtcNow.AddDays(-days);
-        
-        var recentLogs = logs.Where(l => l.CreatedAt >= startDate).ToList();
-        
-        var levelCounts = recentLogs
-            .GroupBy(l => l.Level)
-            .Select(g => new { level = g.Key, count = g.Count() })
-            .ToList();
-        
-        var dailyCounts = recentLogs
-            .GroupBy(l => l.CreatedAt.Date)
-            .Select(g => new { date = g.Key.ToString("yyyy-MM-dd"), count = g.Count() })
-            .OrderBy(d => d.date)
-            .ToList();
-        
-        var totalErrors = recentLogs.Count(l => l.Level == "Error" || l.Level == "Critical");
+        var levelCounts = await _systemLogService.GetLevelCountsAsync(days);
+        var dailyCounts = await _systemLogService.GetDailyCountsAsync(days);
 
         return Ok(new
         {
-            levelCounts,
+            levelCounts = levelCounts.Select(kv => new { level = kv.Key, count = kv.Value }),
             dailyCounts,
-            totalErrors,
+            totalErrors = levelCounts.Where(kv => kv.Key is "Error" or "Critical").Sum(kv => kv.Value),
             periodDays = days
         });
     }
@@ -122,13 +84,7 @@ public class SystemLogsController : ControllerBase
     [HttpGet("categories")]
     public async Task<ActionResult> GetCategories()
     {
-        var logs = await _systemLogService.GetAsync(null, null, null, 10000);
-        var categories = logs
-            .Where(l => !string.IsNullOrEmpty(l.Category))
-            .Select(l => l.Category!)
-            .Distinct()
-            .OrderBy(c => c)
-            .ToList();
+        var categories = await _systemLogService.GetCategoriesAsync();
         return Ok(categories);
     }
 
@@ -137,31 +93,14 @@ public class SystemLogsController : ControllerBase
     {
         var result = await _systemLogService.DeleteAsync(id);
         if (!result)
-        {
             return NotFound();
-        }
         return Ok(new { success = true });
     }
 
     [HttpDelete("clear")]
-    public async Task<ActionResult> Clear([FromQuery] int? beforeDays)
+    public async Task<ActionResult> Clear([FromQuery] int beforeDays = 30)
     {
-        var logs = await _systemLogService.GetAsync(null, null, null, 100000);
-        var cutoffDate = beforeDays.HasValue 
-            ? DateTime.UtcNow.AddDays(-beforeDays.Value) 
-            : DateTime.MaxValue;
-        
-        var toDelete = logs.Where(l => l.CreatedAt < cutoffDate).ToList();
-        var deletedCount = 0;
-        
-        foreach (var log in toDelete)
-        {
-            if (await _systemLogService.DeleteAsync(log.Id))
-            {
-                deletedCount++;
-            }
-        }
-        
+        var deletedCount = await _systemLogService.ClearBeforeAsync(beforeDays);
         return Ok(new { deletedCount });
     }
 }

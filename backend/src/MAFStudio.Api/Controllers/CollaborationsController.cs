@@ -12,6 +12,7 @@ using MAFStudio.Core.Interfaces.Repositories;
 using MAFStudio.Core.Entities;
 using MAFStudio.Core.Enums;
 using Microsoft.Extensions.AI;
+using MAFStudio.Application.Skills;
 
 namespace MAFStudio.Api.Controllers;
 
@@ -29,6 +30,7 @@ public class CollaborationsController : ControllerBase
     private readonly IAgentFactoryService _agentFactoryService;
     private readonly IAgentRepository _agentRepository;
     private readonly ICollaborationAgentRepository _collaborationAgentRepository;
+    private readonly SkillLoader _skillLoader;
     private readonly ILogger<CollaborationsController> _logger;
 
     public CollaborationsController(
@@ -41,6 +43,7 @@ public class CollaborationsController : ControllerBase
         IAgentFactoryService agentFactoryService,
         IAgentRepository agentRepository,
         ICollaborationAgentRepository collaborationAgentRepository,
+        SkillLoader skillLoader,
         ILogger<CollaborationsController> logger)
     {
         _collaborationService = collaborationService;
@@ -52,6 +55,7 @@ public class CollaborationsController : ControllerBase
         _agentFactoryService = agentFactoryService;
         _agentRepository = agentRepository;
         _collaborationAgentRepository = collaborationAgentRepository;
+        _skillLoader = skillLoader;
         _logger = logger;
     }
 
@@ -487,108 +491,83 @@ public class CollaborationsController : ControllerBase
             if (members.Count == 0)
                 return BadRequest(new { success = false, message = "该协作没有Agent" });
 
-            var mentionedIds = request.MentionedAgentIds ?? new List<string>();
-            long targetAgentId;
-            bool isMentioned = mentionedIds.Count > 0;
+            bool isPrivate = string.Equals(request.MessageType, "private", StringComparison.OrdinalIgnoreCase);
+            string messageType = isPrivate ? "private" : "chat";
 
-            if (isMentioned)
+            _logger.LogInformation("协作聊天请求: CollaborationId={Id}, MessageType={MessageType}, Content={Content}, ToAgentId={ToAgentId}, MentionedAgentIds=[{MentionedIds}]", 
+                id, messageType, request.Content, request.ToAgentId, string.Join(",", request.MentionedAgentIds ?? new List<string>()));
+
+            List<long> targetAgentIds;
+            bool isMentioned;
+
+            if (isPrivate && request.ToAgentId.HasValue)
             {
-                if (!long.TryParse(mentionedIds[0], out targetAgentId))
-                    return BadRequest(new { success = false, message = "无效的Agent ID" });
-
-                var isMember = members.Any(m => m.AgentId == targetAgentId);
-                if (!isMember)
-                    return BadRequest(new { success = false, message = "该Agent不在当前协作中" });
+                var targetId = request.ToAgentId.Value;
+                if (!members.Any(m => m.AgentId == targetId))
+                    return BadRequest(new { success = false, message = "目标Agent不在该协作中" });
+                targetAgentIds = [targetId];
+                isMentioned = true;
             }
             else
             {
-                var manager = members.FirstOrDefault(m =>
-                    m.Role?.Equals("Manager", StringComparison.OrdinalIgnoreCase) == true);
-                targetAgentId = manager?.AgentId ?? members.First().AgentId;
+                var mentionedIds = request.MentionedAgentIds ?? new List<string>();
+                isMentioned = mentionedIds.Count > 0;
+
+                if (isMentioned)
+                {
+                    targetAgentIds = mentionedIds
+                        .Where(mid => long.TryParse(mid, out _))
+                        .Select(long.Parse)
+                        .Where(aid => members.Any(m => m.AgentId == aid))
+                        .ToList();
+
+                    if (targetAgentIds.Count == 0)
+                        return BadRequest(new { success = false, message = "没有有效的被提及Agent" });
+                }
+                else
+                {
+                    var manager = members.FirstOrDefault(m =>
+                        m.Role?.Equals("Manager", StringComparison.OrdinalIgnoreCase) == true);
+                    targetAgentIds = [manager?.AgentId ?? members.First().AgentId];
+                }
             }
-
-            var agentEntity = await _agentRepository.GetByIdAsync(targetAgentId);
-            if (agentEntity == null)
-                return BadRequest(new { success = false, message = "Agent不存在" });
-
-            var chatClient = await _agentFactoryService.CreateAgentAsync(targetAgentId);
-
-            var chatHistory = new List<ChatMessage>();
-            if (!string.IsNullOrEmpty(agentEntity.SystemPrompt))
-                chatHistory.Add(new ChatMessage(ChatRole.System, agentEntity.SystemPrompt));
-
-            var recentMessages = await _groupMessageRepository.GetByCollaborationIdAsync(id, 10);
-            foreach (var msg in recentMessages)
-            {
-                if (msg.SenderType == "User")
-                    chatHistory.Add(new ChatMessage(ChatRole.User, msg.Content));
-                else if (msg.SenderType == "Agent")
-                    chatHistory.Add(new ChatMessage(ChatRole.Assistant, msg.Content));
-            }
-
-            var userPrompt = isMentioned
-                ? request.Content
-                : $"[群聊消息] {request.Content}";
-
-            chatHistory.Add(new ChatMessage(ChatRole.User, userPrompt));
-
-            var memberInfo = members.FirstOrDefault(m => m.AgentId == targetAgentId);
 
             await _groupMessageRepository.CreateAsync(new GroupMessage
             {
                 CollaborationId = id,
-                MessageType = "chat",
+                MessageType = messageType,
                 SenderType = "User",
+                ToAgentId = isPrivate ? request.ToAgentId : null,
                 Content = request.Content,
                 CreatedAt = DateTime.UtcNow
             });
 
-            var response = await chatClient.GetResponseAsync(chatHistory, cancellationToken: cancellationToken);
-            var reply = response.Messages.LastOrDefault()?.Text ?? "";
+            var recentMessages = isPrivate
+                ? (await _groupMessageRepository.GetByCollaborationIdAsync(id, 20))
+                    .Where(m => m.MessageType == "private" &&
+                        (m.ToAgentId == request.ToAgentId || (m.FromAgentId == request.ToAgentId && m.SenderType == "Agent")))
+                    .Take(10).ToList()
+                : await _groupMessageRepository.GetByCollaborationIdAsync(id, 10);
 
-            string? modelName = null;
-            if (!string.IsNullOrEmpty(agentEntity.LlmConfigs))
+            var results = new List<object>();
+
+            _logger.LogInformation("协作聊天: CollaborationId={Id}, MessageType={MessageType}, 目标Agent数量={Count}, AgentIds=[{AgentIds}]", id, messageType, targetAgentIds.Count, string.Join(",", targetAgentIds));
+
+            var agentTasks = targetAgentIds.Select(targetAgentId => ProcessAgentAsync(
+                targetAgentId, id, request.Content, isMentioned, recentMessages, members, messageType, isPrivate ? request.ToAgentId : null, cancellationToken)).ToList();
+
+            var agentResults = await Task.WhenAll(agentTasks);
+
+            foreach (var result in agentResults)
             {
-                try
+                if (result != null)
                 {
-                    var configs = System.Text.Json.JsonSerializer.Deserialize<List<LlmConfigItem>>(agentEntity.LlmConfigs);
-                    modelName = configs?.FirstOrDefault(c => c.IsPrimary)?.ModelName;
+                    results.Add(result);
                 }
-                catch { }
             }
 
-            await _groupMessageRepository.CreateAsync(new GroupMessage
-            {
-                CollaborationId = id,
-                MessageType = "chat",
-                SenderType = "Agent",
-                FromAgentId = targetAgentId,
-                FromAgentName = agentEntity.Name,
-                FromAgentRole = memberInfo?.Role ?? "Worker",
-                FromAgentType = agentEntity.TypeName,
-                FromAgentAvatar = agentEntity.Avatar,
-                ModelName = modelName,
-                Content = reply,
-                IsMentioned = isMentioned,
-                CreatedAt = DateTime.UtcNow
-            });
-
-            return Ok(new
-            {
-                success = true,
-                data = new
-                {
-                    fromAgentId = targetAgentId,
-                    fromAgentName = agentEntity.Name,
-                    fromAgentRole = memberInfo?.Role ?? "Worker",
-                    fromAgentType = agentEntity.TypeName ?? "",
-                    fromAgentAvatar = agentEntity.Avatar,
-                    modelName,
-                    content = reply,
-                    timestamp = DateTime.UtcNow,
-                    isMentioned
-                }
-            });
+            _logger.LogInformation("协作聊天完成: CollaborationId={Id}, 结果数量={ResultCount}", id, results.Count);
+            return Ok(new { success = true, data = results });
         }
         catch (Exception ex)
         {
@@ -597,12 +576,233 @@ public class CollaborationsController : ControllerBase
         }
     }
 
+    private async Task<object?> ProcessAgentAsync(
+        long targetAgentId,
+        long collaborationId,
+        string content,
+        bool isMentioned,
+        List<GroupMessage> recentMessages,
+        List<CollaborationAgent> members,
+        string messageType,
+        long? toAgentId,
+        CancellationToken cancellationToken)
+    {
+        _logger.LogInformation("开始处理Agent: AgentId={AgentId}", targetAgentId);
+
+        var agentEntity = await _agentRepository.GetByIdAsync(targetAgentId);
+        if (agentEntity == null)
+        {
+            _logger.LogWarning("Agent不存在，跳过: AgentId={AgentId}", targetAgentId);
+            return null;
+        }
+
+        _logger.LogInformation("Agent信息: AgentId={AgentId}, Name={Name}, LlmConfigs={LlmConfigs}", targetAgentId, agentEntity.Name, agentEntity.LlmConfigs);
+
+        IChatClient chatClient;
+        try
+        {
+            chatClient = await _agentFactoryService.CreateAgentAsync(targetAgentId);
+            _logger.LogInformation("创建Agent客户端成功: AgentId={AgentId}", targetAgentId);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "创建Agent客户端失败: AgentId={AgentId}, 错误={Error}", targetAgentId, ex.Message);
+            var failContent = $"[系统提示] Agent {agentEntity.Name} 创建失败: {ex.Message}";
+            await _groupMessageRepository.CreateAsync(new GroupMessage
+            {
+                CollaborationId = collaborationId,
+                MessageType = messageType,
+                SenderType = "Agent",
+                FromAgentId = targetAgentId,
+                ToAgentId = toAgentId,
+                FromAgentName = agentEntity.Name,
+                FromAgentRole = members.FirstOrDefault(m => m.AgentId == targetAgentId)?.Role ?? "Worker",
+                FromAgentType = agentEntity.TypeName,
+                FromAgentAvatar = agentEntity.Avatar,
+                Content = failContent,
+                IsMentioned = isMentioned,
+                CreatedAt = DateTime.UtcNow
+            });
+            return new
+            {
+                fromAgentId = targetAgentId,
+                fromAgentName = agentEntity.Name,
+                fromAgentRole = members.FirstOrDefault(m => m.AgentId == targetAgentId)?.Role ?? "Worker",
+                fromAgentType = agentEntity.TypeName ?? "",
+                fromAgentAvatar = agentEntity.Avatar,
+                modelName = (string?)null,
+                llmConfigName = (string?)null,
+                content = failContent,
+                timestamp = DateTime.UtcNow,
+                isMentioned
+            };
+        }
+
+        var chatHistory = new List<ChatMessage>();
+        if (!string.IsNullOrEmpty(agentEntity.SystemPrompt))
+            chatHistory.Add(new ChatMessage(ChatRole.System, agentEntity.SystemPrompt));
+
+        try
+        {
+            var skillDefinitions = await _skillLoader.LoadSkillsForAgentAsync(targetAgentId);
+            var skillInstructions = _skillLoader.BuildSkillInstructions(skillDefinitions);
+            if (!string.IsNullOrEmpty(skillInstructions))
+            {
+                chatHistory.Add(new ChatMessage(ChatRole.System, skillInstructions));
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "加载Agent技能指令失败: AgentId={AgentId}", targetAgentId);
+        }
+
+        foreach (var msg in recentMessages)
+        {
+            if (msg.SenderType == "User")
+            {
+                chatHistory.Add(new ChatMessage(ChatRole.User, msg.Content));
+            }
+            else if (msg.SenderType == "Agent")
+            {
+                if (msg.FromAgentId == targetAgentId)
+                {
+                    chatHistory.Add(new ChatMessage(ChatRole.Assistant, msg.Content));
+                }
+                else
+                {
+                    chatHistory.Add(new ChatMessage(ChatRole.User, $"[{msg.FromAgentName ?? "其他Agent"}]: {msg.Content}"));
+                }
+            }
+        }
+
+        var userPrompt = isMentioned
+            ? content
+            : $"[群聊消息] {content}";
+
+        chatHistory.Add(new ChatMessage(ChatRole.User, userPrompt));
+
+        var memberInfo = members.FirstOrDefault(m => m.AgentId == targetAgentId);
+
+        ChatResponse response;
+        try
+        {
+            response = await chatClient.GetResponseAsync(chatHistory, cancellationToken: cancellationToken);
+            _logger.LogInformation("Agent调用成功: AgentId={AgentId}, ModelId={ModelId}, 回复长度={Length}", targetAgentId, response.ModelId, response.Messages.LastOrDefault()?.Text?.Length ?? 0);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Agent调用失败: AgentId={AgentId}, 错误={Error}", targetAgentId, ex.Message);
+            var failContent = $"[系统提示] Agent {agentEntity.Name} 调用失败: {ex.Message}";
+            await _groupMessageRepository.CreateAsync(new GroupMessage
+            {
+                CollaborationId = collaborationId,
+                MessageType = messageType,
+                SenderType = "Agent",
+                FromAgentId = targetAgentId,
+                ToAgentId = toAgentId,
+                FromAgentName = agentEntity.Name,
+                FromAgentRole = memberInfo?.Role ?? "Worker",
+                FromAgentType = agentEntity.TypeName,
+                FromAgentAvatar = agentEntity.Avatar,
+                Content = failContent,
+                IsMentioned = isMentioned,
+                CreatedAt = DateTime.UtcNow
+            });
+            return new
+            {
+                fromAgentId = targetAgentId,
+                fromAgentName = agentEntity.Name,
+                fromAgentRole = memberInfo?.Role ?? "Worker",
+                fromAgentType = agentEntity.TypeName ?? "",
+                fromAgentAvatar = agentEntity.Avatar,
+                modelName = (string?)null,
+                llmConfigName = (string?)null,
+                content = failContent,
+                timestamp = DateTime.UtcNow,
+                isMentioned
+            };
+        }
+
+        var reply = response.Messages.LastOrDefault()?.Text ?? "";
+
+        string? modelName = response.ModelId;
+        string? llmConfigName = null;
+        if (!string.IsNullOrEmpty(agentEntity.LlmConfigs))
+        {
+            try
+            {
+                var jsonOptions = new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true };
+                var configs = System.Text.Json.JsonSerializer.Deserialize<List<LlmConfigItem>>(agentEntity.LlmConfigs, jsonOptions);
+
+                var primaryConfig = configs?.FirstOrDefault(c => c.IsPrimary) ?? configs?.FirstOrDefault();
+                modelName ??= primaryConfig?.ModelName;
+                llmConfigName = primaryConfig?.LlmConfigName;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "解析LlmConfigs失败: AgentId={AgentId}", targetAgentId);
+            }
+        }
+
+        _logger.LogInformation("最终模型信息: AgentId={AgentId}, ModelName={ModelName}, LlmConfigName={LlmConfigName}", targetAgentId, modelName, llmConfigName);
+
+        await _groupMessageRepository.CreateAsync(new GroupMessage
+        {
+            CollaborationId = collaborationId,
+            MessageType = messageType,
+            SenderType = "Agent",
+            FromAgentId = targetAgentId,
+            ToAgentId = toAgentId,
+            FromAgentName = agentEntity.Name,
+            FromAgentRole = memberInfo?.Role ?? "Worker",
+            FromAgentType = agentEntity.TypeName,
+            FromAgentAvatar = agentEntity.Avatar,
+            ModelName = modelName,
+            LlmConfigName = llmConfigName,
+            Content = reply,
+            IsMentioned = isMentioned,
+            CreatedAt = DateTime.UtcNow
+        });
+
+        _logger.LogInformation("Agent {AgentId}({AgentName}) 回复成功", targetAgentId, agentEntity.Name);
+
+        return new
+        {
+            fromAgentId = targetAgentId,
+            fromAgentName = agentEntity.Name,
+            fromAgentRole = memberInfo?.Role ?? "Worker",
+            fromAgentType = agentEntity.TypeName ?? "",
+            fromAgentAvatar = agentEntity.Avatar,
+            modelName,
+            llmConfigName,
+            content = reply,
+            timestamp = DateTime.UtcNow,
+            isMentioned
+        };
+    }
+
     [HttpGet("{id}/chat/history")]
-    public async Task<ActionResult> GetChatHistory(long id, [FromQuery] int limit = 20, [FromQuery] long? beforeId = null)
+    public async Task<ActionResult> GetChatHistory(long id, [FromQuery] int limit = 20, [FromQuery] long? beforeId = null, [FromQuery] string? messageType = null, [FromQuery] long? toAgentId = null)
     {
         try
         {
-            var messages = await _groupMessageRepository.GetByCollaborationIdAsync(id, limit, beforeId);
+            var allMessages = await _groupMessageRepository.GetByCollaborationIdAsync(id, limit * 3, beforeId);
+
+            var filtered = allMessages.AsEnumerable();
+            if (!string.IsNullOrEmpty(messageType) && messageType.Equals("private", StringComparison.OrdinalIgnoreCase) && toAgentId.HasValue)
+            {
+                filtered = filtered.Where(m =>
+                    m.MessageType == "private" &&
+                    (m.ToAgentId == toAgentId.Value || (m.FromAgentId == toAgentId.Value && m.SenderType == "Agent")));
+            }
+            else if (!string.IsNullOrEmpty(messageType))
+            {
+                filtered = filtered.Where(m => m.MessageType == messageType);
+            }
+
+            var messages = filtered.Take(limit + 1).ToList();
+            var hasMore = messages.Count > limit;
+            if (hasMore) messages = messages.Take(limit).ToList();
 
             var result = messages.Select(m => new
             {
@@ -612,14 +812,15 @@ public class CollaborationsController : ControllerBase
                 fromAgentRole = m.FromAgentRole,
                 fromAgentType = m.FromAgentType,
                 fromAgentAvatar = m.FromAgentAvatar,
+                toAgentId = m.ToAgentId,
+                messageType = m.MessageType,
                 modelName = m.ModelName,
+                llmConfigName = m.LlmConfigName,
                 senderType = m.SenderType,
                 content = m.Content,
                 isMentioned = m.IsMentioned,
                 timestamp = m.CreatedAt
             }).ToList();
-
-            var hasMore = messages.Count > 0 && messages.First().Id > 1;
 
             return Ok(new { success = true, data = result, hasMore });
         }
@@ -665,10 +866,13 @@ public class CollaborationChatRequest
 {
     public string Content { get; set; } = string.Empty;
     public List<string>? MentionedAgentIds { get; set; }
+    public string? MessageType { get; set; }
+    public long? ToAgentId { get; set; }
 }
 
 public class LlmConfigItem
 {
+    public string? LlmConfigName { get; set; }
     public string? ModelName { get; set; }
     public bool IsPrimary { get; set; }
 }

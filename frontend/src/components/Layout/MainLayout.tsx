@@ -15,9 +15,7 @@ import {
   SettingOutlined,
   AppstoreAddOutlined,
   BugOutlined,
-  SafetyOutlined,
   UserAddOutlined,
-  LockOutlined,
 } from '@ant-design/icons';
 import { useAuth } from '../../contexts/AuthContext';
 
@@ -51,9 +49,6 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
     }
     if (['/llm-configs', '/logs'].includes(path)) {
       return ['system'];
-    }
-    if (['/users', '/roles', '/permissions'].includes(path)) {
-      return ['permission-management'];
     }
     return [];
   };
@@ -154,17 +149,9 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
             </Menu.Item>
           </SubMenu>
           {isAdmin && (
-            <SubMenu key="permission-management" icon={<SafetyOutlined />} title="权限管理">
-              <Menu.Item key="/users" icon={<UserAddOutlined />}>
-                <Link to="/users">用户管理</Link>
-              </Menu.Item>
-              <Menu.Item key="/roles" icon={<TeamOutlined />}>
-                <Link to="/roles">角色管理</Link>
-              </Menu.Item>
-              <Menu.Item key="/permissions" icon={<LockOutlined />}>
-                <Link to="/permissions">权限管理</Link>
-              </Menu.Item>
-            </SubMenu>
+            <Menu.Item key="/users" icon={<UserAddOutlined />}>
+              <Link to="/users">用户管理</Link>
+            </Menu.Item>
           )}
         </Menu>
       </Sider>

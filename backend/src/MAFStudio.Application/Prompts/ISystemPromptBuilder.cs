@@ -14,4 +14,5 @@ public class SystemPromptContext
     public string? TaskDescription { get; set; }
     public string? TaskPrompt { get; set; }
     public string? AgentPrompt { get; set; }
+    public string? SkillInstructions { get; set; }
 }

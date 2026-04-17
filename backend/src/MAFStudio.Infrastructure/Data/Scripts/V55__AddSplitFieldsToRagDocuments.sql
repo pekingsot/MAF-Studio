@@ -1,0 +1,4 @@
+ALTER TABLE rag_documents
+    ADD COLUMN IF NOT EXISTS split_method VARCHAR(50),
+    ADD COLUMN IF NOT EXISTS chunk_size INTEGER,
+    ADD COLUMN IF NOT EXISTS chunk_overlap INTEGER;

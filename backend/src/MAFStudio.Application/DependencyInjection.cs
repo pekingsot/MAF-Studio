@@ -5,6 +5,7 @@ using MAFStudio.Application.Interfaces;
 using MAFStudio.Application.Skills;
 using MAFStudio.Application.Capabilities;
 using MAFStudio.Application.Prompts;
+using MAFStudio.Application.Services.Rag;
 
 namespace MAFStudio.Application;
 
@@ -36,7 +37,7 @@ public static class DependencyInjection
         services.AddScoped<IWorkspaceService, WorkspaceService>();
         services.AddScoped<IGitService, GitService>();
         
-        services.AddSingleton<SkillLoader>();
+        services.AddScoped<SkillLoader>();
         services.AddScoped<SkillExecutor>();
         
         services.AddScoped<IGroupChatConclusionService, GroupChatConclusionService>();
@@ -46,6 +47,12 @@ public static class DependencyInjection
         services.AddScoped<ISystemPromptBuilderFactory, SystemPromptBuilderFactory>();
         
         services.AddScoped<IEmailService, EmailService>();
+        
+        services.AddScoped<IEmbeddingService, EmbeddingService>();
+        services.AddScoped<IRerankService, RerankService>();
+        services.AddScoped<IVectorStoreService, VectorStoreService>();
+        services.AddScoped<ITextSplitterService, TextSplitterService>();
+        services.AddScoped<RagService>();
         
         return services;
     }

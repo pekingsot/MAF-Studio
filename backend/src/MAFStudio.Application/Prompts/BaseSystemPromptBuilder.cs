@@ -27,6 +27,11 @@ public abstract class BaseSystemPromptBuilder : ISystemPromptBuilder
             prompt += "\n\n团队成员：\n" + context.MembersInfo;
         }
         
+        if (!string.IsNullOrEmpty(context.SkillInstructions))
+        {
+            prompt += context.SkillInstructions;
+        }
+        
         return ReplaceVariables(prompt, context);
     }
 

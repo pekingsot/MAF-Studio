@@ -15,7 +15,6 @@ public static class DependencyInjection
         
         services.AddScoped<IUserRepository, UserRepository>();
         services.AddScoped<IAgentRepository, AgentRepository>();
-        services.AddScoped<IAgentModelRepository, AgentModelRepository>();
         services.AddScoped<IAgentTypeRepository, AgentTypeRepository>();
         services.AddScoped<IAgentMessageRepository, AgentMessageRepository>();
         services.AddScoped<ICollaborationRepository, CollaborationRepository>();
@@ -37,6 +36,11 @@ public static class DependencyInjection
         services.AddScoped<IWorkflowSessionRepository, WorkflowSessionRepository>();
         services.AddScoped<IMessageRepository, MessageRepository>();
         services.AddScoped<IGroupMessageRepository, GroupMessageRepository>();
+        services.AddScoped<IAgentSkillRepository, AgentSkillRepository>();
+        services.AddScoped<ISkillTemplateRepository, SkillTemplateRepository>();
+        services.AddScoped<ISystemConfigRepository, SystemConfigRepository>();
+        services.AddScoped<IRagDocumentRepository, RagDocumentRepository>();
+        services.AddScoped<IRagDocumentChunkRepository, RagDocumentChunkRepository>();
         
         return services;
     }

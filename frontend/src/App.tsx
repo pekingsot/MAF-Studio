@@ -41,8 +41,6 @@ const RagTest = lazy(() => import('./pages/RagTest'));
 const RagSettings = lazy(() => import('./pages/RagSettings'));
 const SystemLogs = lazy(() => import('./pages/SystemLogs'));
 const Users = lazy(() => import('./pages/Users'));
-const Roles = lazy(() => import('./pages/Roles'));
-const Permissions = lazy(() => import('./pages/Permissions'));
 const CoordinationSessions = lazy(() => import('./pages/coordination-sessions'));
 const CoordinationSessionDetail = lazy(() => import('./pages/coordination-session-detail'));
 
@@ -80,9 +78,11 @@ function App() {
   return (
     <MainLayout>
       <Content style={{ 
-        padding: location.pathname === '/workflow-editor' ? 0 : '24px', 
+        padding: (location.pathname === '/workflow-editor' || location.pathname === '/chat') ? 0 : '24px', 
         minHeight: 'calc(100vh - 64px)',
-        height: location.pathname === '/workflow-editor' ? 'calc(100vh - 64px)' : 'auto',
+        height: (location.pathname === '/workflow-editor' || location.pathname === '/chat') ? 'calc(100vh - 64px)' : 'auto',
+        position: 'relative',
+        overflow: 'hidden',
       }}>
         <Routes>
           <Route path="/" element={lazyLoad(Dashboard)} />
@@ -109,8 +109,6 @@ function App() {
           <Route path="/rag-settings" element={lazyLoad(RagSettings)} />
           <Route path="/system-logs" element={lazyLoad(SystemLogs)} />
           <Route path="/users" element={lazyLoad(Users)} />
-          <Route path="/roles" element={lazyLoad(Roles)} />
-          <Route path="/permissions" element={lazyLoad(Permissions)} />
           <Route path="/login" element={<Navigate to="/" replace />} />
         </Routes>
       </Content>

@@ -113,6 +113,15 @@ builder.Services.AddOpenTelemetry()
 builder.Services.AddInfrastructure();
 builder.Services.AddApplication();
 
+builder.Services.AddHttpClient("Infinity", client =>
+{
+    client.Timeout = TimeSpan.FromSeconds(120);
+});
+builder.Services.AddHttpClient("Qdrant", client =>
+{
+    client.Timeout = TimeSpan.FromSeconds(30);
+});
+
 builder.Services.AddScoped<IDatabaseInitializer, DatabaseInitializer>();
 
 builder.Services.AddSignalR();

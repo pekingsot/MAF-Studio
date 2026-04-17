@@ -39,6 +39,7 @@ const Collaborations: React.FC = () => {
     collaborations,
     agents,
     loading,
+    loadInitialData,
     loadCollaborationData,
     refreshCollaboration,
     setCollaborations,
@@ -94,14 +95,16 @@ const Collaborations: React.FC = () => {
       if (selectedCollaboration) {
         await collaborationService.updateCollaboration(selectedCollaboration.id, values);
         message.success('更新成功');
+        setModalVisible(false);
+        setSelectedCollaboration(null);
+        await loadCollaborationData(selectedCollaboration.id);
       } else {
-        await collaborationService.createCollaboration(values);
+        const newCollab = await collaborationService.createCollaboration(values);
         message.success('创建成功');
+        setModalVisible(false);
+        setSelectedCollaboration(null);
+        await loadInitialData();
       }
-      
-      setModalVisible(false);
-      setSelectedCollaboration(null);
-      await loadCollaborationData(selectedCollaboration?.id || '');
     } catch (error) {
       message.error(selectedCollaboration ? '更新失败' : '创建失败');
     }

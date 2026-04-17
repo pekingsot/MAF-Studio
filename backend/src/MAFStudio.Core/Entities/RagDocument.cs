@@ -22,6 +22,12 @@ public class RagDocument
 
     public long UserId { get; set; }
 
+    public string? SplitMethod { get; set; }
+
+    public int? ChunkSize { get; set; }
+
+    public int? ChunkOverlap { get; set; }
+
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
     public DateTime? ProcessedAt { get; set; }

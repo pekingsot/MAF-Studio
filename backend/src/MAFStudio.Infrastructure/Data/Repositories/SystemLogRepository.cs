@@ -20,35 +20,58 @@ public class SystemLogRepository : ISystemLogRepository
         return await connection.QueryFirstOrDefaultAsync<SystemLog>(sql, new { Id = id });
     }
 
-    public async Task<List<SystemLog>> GetAsync(string? level = null, string? category = null, long? userId = null, int limit = 100)
+    public async Task<(List<SystemLog> Data, int Total)> GetPagedAsync(
+        string? level = null, string? category = null, string? keyword = null,
+        DateTime? startTime = null, DateTime? endTime = null,
+        int page = 1, int pageSize = 20)
     {
         using var connection = _context.CreateConnection();
-        var sql = "SELECT * FROM system_logs WHERE 1=1";
+
+        var whereClauses = new List<string> { "1=1" };
         var parameters = new DynamicParameters();
 
         if (!string.IsNullOrEmpty(level))
         {
-            sql += " AND level = @Level";
+            whereClauses.Add("level = @Level");
             parameters.Add("Level", level);
         }
 
         if (!string.IsNullOrEmpty(category))
         {
-            sql += " AND category = @Category";
+            whereClauses.Add("category = @Category");
             parameters.Add("Category", category);
         }
 
-        if (userId.HasValue)
+        if (!string.IsNullOrEmpty(keyword))
         {
-            sql += " AND user_id = @UserId";
-            parameters.Add("UserId", userId.Value);
+            whereClauses.Add("(message ILIKE @Keyword OR category ILIKE @Keyword)");
+            parameters.Add("Keyword", $"%{keyword}%");
         }
 
-        sql += " ORDER BY created_at DESC LIMIT @Limit";
-        parameters.Add("Limit", limit);
+        if (startTime.HasValue)
+        {
+            whereClauses.Add("created_at >= @StartTime");
+            parameters.Add("StartTime", startTime.Value);
+        }
 
-        var result = await connection.QueryAsync<SystemLog>(sql, parameters);
-        return result.ToList();
+        if (endTime.HasValue)
+        {
+            whereClauses.Add("created_at <= @EndTime");
+            parameters.Add("EndTime", endTime.Value);
+        }
+
+        var whereClause = string.Join(" AND ", whereClauses);
+
+        var countSql = $"SELECT COUNT(*) FROM system_logs WHERE {whereClause}";
+        var total = await connection.ExecuteScalarAsync<int>(countSql, parameters);
+
+        parameters.Add("Offset", (page - 1) * pageSize);
+        parameters.Add("PageSize", pageSize);
+
+        var dataSql = $"SELECT * FROM system_logs WHERE {whereClause} ORDER BY created_at DESC OFFSET @Offset LIMIT @PageSize";
+        var data = (await connection.QueryAsync<SystemLog>(dataSql, parameters)).ToList();
+
+        return (data, total);
     }
 
     public async Task<SystemLog> CreateAsync(SystemLog log)
@@ -56,8 +79,8 @@ public class SystemLogRepository : ISystemLogRepository
         using var connection = _context.CreateConnection();
         log.CreatedAt = DateTime.UtcNow;
         const string sql = @"
-            INSERT INTO system_logs (level, category, message, exception, stack_trace, user_id, request_path, additional_data, created_at)
-            VALUES (@Level, @Category, @Message, @Exception, @StackTrace, @UserId, @RequestPath, @AdditionalData, @CreatedAt)
+            INSERT INTO system_logs (level, category, message, exception, stack_trace, user_id, request_path, request_method, source, additional_data, created_at)
+            VALUES (@Level, @Category, @Message, @Exception, @StackTrace, @UserId, @RequestPath, @RequestMethod, @Source, @AdditionalData, @CreatedAt)
             RETURNING *";
         return await connection.QueryFirstAsync<SystemLog>(sql, log);
     }
@@ -68,5 +91,45 @@ public class SystemLogRepository : ISystemLogRepository
         const string sql = "DELETE FROM system_logs WHERE id = @Id";
         var rows = await connection.ExecuteAsync(sql, new { Id = id });
         return rows > 0;
+    }
+
+    public async Task<int> DeleteBeforeAsync(DateTime cutoff)
+    {
+        using var connection = _context.CreateConnection();
+        const string sql = "DELETE FROM system_logs WHERE created_at < @Cutoff";
+        return await connection.ExecuteAsync(sql, new { Cutoff = cutoff });
+    }
+
+    public async Task<List<string>> GetCategoriesAsync()
+    {
+        using var connection = _context.CreateConnection();
+        const string sql = "SELECT DISTINCT category FROM system_logs WHERE category IS NOT NULL ORDER BY category";
+        var result = await connection.QueryAsync<string>(sql);
+        return result.ToList();
+    }
+
+    public async Task<Dictionary<string, int>> GetLevelCountsAsync(int days = 7)
+    {
+        using var connection = _context.CreateConnection();
+        const string sql = @"
+            SELECT level, COUNT(*) as count 
+            FROM system_logs 
+            WHERE created_at >= NOW() - INTERVAL '@Days days'
+            GROUP BY level";
+        var result = await connection.QueryAsync<(string Level, int Count)>(sql, new { Days = days });
+        return result.ToDictionary(r => r.Level, r => r.Count);
+    }
+
+    public async Task<List<object>> GetDailyCountsAsync(int days = 7)
+    {
+        using var connection = _context.CreateConnection();
+        const string sql = @"
+            SELECT DATE(created_at) as date, COUNT(*) as count 
+            FROM system_logs 
+            WHERE created_at >= NOW() - INTERVAL '@Days days'
+            GROUP BY DATE(created_at) 
+            ORDER BY date";
+        var result = await connection.QueryAsync(sql, new { Days = days });
+        return result.Cast<object>().ToList();
     }
 }

@@ -204,17 +204,19 @@ export const collaborationService = {
     return response.data;
   },
 
-  sendChatMessage: async (collaborationId: string, content: string, mentionedAgentIds?: string[]): Promise<any> => {
-    const response = await api.post(`/collaborations/${collaborationId}/chat`, {
-      content,
-      mentionedAgentIds,
-    });
+  sendChatMessage: async (collaborationId: string, content: string, mentionedAgentIds?: string[], messageType?: string, toAgentId?: number): Promise<any> => {
+    const payload: any = { content, mentionedAgentIds };
+    if (messageType) payload.messageType = messageType;
+    if (toAgentId) payload.toAgentId = toAgentId;
+    const response = await api.post(`/collaborations/${collaborationId}/chat`, payload);
     return response.data;
   },
 
-  getChatHistory: async (collaborationId: string, limit: number = 20, beforeId?: number): Promise<any> => {
+  getChatHistory: async (collaborationId: string, limit: number = 20, beforeId?: number, messageType?: string, toAgentId?: number): Promise<any> => {
     const params: any = { limit };
     if (beforeId) params.beforeId = beforeId;
+    if (messageType) params.messageType = messageType;
+    if (toAgentId) params.toAgentId = toAgentId;
     const response = await api.get(`/collaborations/${collaborationId}/chat/history`, { params });
     return response.data;
   },

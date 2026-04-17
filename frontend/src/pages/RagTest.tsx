@@ -33,7 +33,7 @@ interface LLMConfig {
   id: string;
   name: string;
   provider: string;
-  modelName: string;
+  defaultModel: string;
   isEnabled: boolean;
 }
 
@@ -765,7 +765,7 @@ const RagTest: React.FC = () => {
                         <Select placeholder="选择用于回答的大模型配置">
                           {llmConfigs.map(c => (
                             <Option key={c.id} value={c.id}>
-                              {c.name} ({c.provider} - {c.modelName})
+                              {c.name} ({c.provider} - {c.defaultModel})
                             </Option>
                           ))}
                         </Select>

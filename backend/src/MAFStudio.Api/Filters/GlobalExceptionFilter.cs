@@ -63,7 +63,9 @@ public class GlobalExceptionFilter : IExceptionFilter
                 context.Exception.ToString(),
                 context.Exception.StackTrace,
                 userId,
-                requestPath
+                requestPath,
+                requestMethod,
+                $"{controllerName}.{actionName}"
             ).GetAwaiter().GetResult();
             
             _logger.LogInformation("系统日志已保存到数据库");

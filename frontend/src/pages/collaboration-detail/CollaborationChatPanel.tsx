@@ -210,17 +210,29 @@ const CollaborationChatPanel: React.FC<CollaborationChatPanelProps> = ({
       return <Avatar size={36} icon={<UserOutlined />} style={{ marginLeft: 8, backgroundColor: '#87d068', flexShrink: 0 }} />;
     }
     if (msg.fromAgentAvatar) {
-      return <Avatar size={36} src={msg.fromAgentAvatar} style={{ marginRight: 8, flexShrink: 0 }} />;
+      const isUrl = msg.fromAgentAvatar.startsWith('http') || msg.fromAgentAvatar.startsWith('/');
+      if (isUrl) {
+        return <Avatar size={36} src={msg.fromAgentAvatar} style={{ marginRight: 8, flexShrink: 0 }} />;
+      }
+      return <Avatar size={36} style={{ marginRight: 8, flexShrink: 0, backgroundColor: getAvatarColor(msg.fromAgentName), fontSize: 18 }}>{msg.fromAgentAvatar}</Avatar>;
     }
     return <Avatar size={36} icon={<RobotOutlined />} style={{ backgroundColor: getAvatarColor(msg.fromAgentName), marginRight: 8, flexShrink: 0 }} />;
   };
 
   const getAgentTooltip = (agent: CollaborationAgent) => (
-    <div>
+    <div style={{ maxWidth: 300 }}>
       <div><strong>{agent.agentName}</strong></div>
       {agent.agentType && <div>类型：{agent.agentType}</div>}
       {agent.role && <div>角色：{agent.role === 'Manager' ? '协调者' : agent.role}</div>}
       {agent.agentStatus && <div>状态：{agent.agentStatus}</div>}
+      {agent.customPrompt && (
+        <div style={{ marginTop: 4, borderTop: '1px solid #eee', paddingTop: 4 }}>
+          <div style={{ color: '#999', fontSize: 11 }}>自定义提示词：</div>
+          <div style={{ fontSize: 11, maxHeight: 120, overflow: 'auto', whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
+            {agent.customPrompt.length > 200 ? agent.customPrompt.substring(0, 200) + '...' : agent.customPrompt}
+          </div>
+        </div>
+      )}
     </div>
   );
 
@@ -277,11 +289,6 @@ const CollaborationChatPanel: React.FC<CollaborationChatPanelProps> = ({
                         {msg.fromAgentRole === 'Manager' ? '协调者' : msg.fromAgentRole}
                       </Tag>
                     )}
-                    {msg.fromAgentType && (
-                      <Tag style={{ fontSize: 11, lineHeight: '18px', padding: '0 4px', margin: 0 }}>
-                        {msg.fromAgentType}
-                      </Tag>
-                    )}
                     {msg.modelName && (
                       <Tag color="geekblue" style={{ fontSize: 10, lineHeight: '16px', padding: '0 4px', margin: 0 }}>
                         {msg.modelName}
@@ -290,7 +297,7 @@ const CollaborationChatPanel: React.FC<CollaborationChatPanelProps> = ({
                     {msg.isMentioned && (
                       <Tag color="purple" style={{ fontSize: 10, lineHeight: '16px', padding: '0 4px', margin: 0 }}>@</Tag>
                     )}
-                    <span style={{ fontSize: 11, color: '#bbb', marginLeft: 'auto' }}>
+                    <span style={{ fontSize: 11, color: '#bbb' }}>
                       {msg.timestamp.toLocaleTimeString()}
                     </span>
                   </div>

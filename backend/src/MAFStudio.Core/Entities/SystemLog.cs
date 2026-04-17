@@ -6,7 +6,7 @@ public class SystemLog
     [Dapper.Contrib.Extensions.Key]
     public long Id { get; set; }
 
-    public string Level { get; set; } = "Info";
+    public string Level { get; set; } = "Information";
 
     public string Category { get; set; } = string.Empty;
 
@@ -19,6 +19,10 @@ public class SystemLog
     public long? UserId { get; set; }
 
     public string? RequestPath { get; set; }
+
+    public string? RequestMethod { get; set; }
+
+    public string? Source { get; set; }
 
     public string? AdditionalData { get; set; }
 

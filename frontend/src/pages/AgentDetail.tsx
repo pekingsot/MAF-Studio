@@ -1,9 +1,10 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { useParams } from 'react-router-dom';
-import { Card, Descriptions, Button, Tag, message } from 'antd';
-import { ArrowLeftOutlined } from '@ant-design/icons';
+import { Card, Descriptions, Button, Tag, message, Tabs } from 'antd';
+import { ArrowLeftOutlined, InfoCircleOutlined, ThunderboltOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import { agentService, Agent } from '../services/agentService';
+import AgentSkillManagement from './skill-management/AgentSkillPanel';
 
 const AgentDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -42,17 +43,15 @@ const AgentDetail: React.FC = () => {
     Error: 'red',
   };
 
-  return (
-    <div>
-      <Button
-        icon={<ArrowLeftOutlined />}
-        onClick={() => navigate('/agents')}
-        style={{ marginBottom: 16 }}
-      >
-        返回列表
-      </Button>
-
-      <Card title={agent.name} loading={loading}>
+  const tabItems = [
+    {
+      key: 'info',
+      label: (
+        <span>
+          <InfoCircleOutlined /> 基本信息
+        </span>
+      ),
+      children: (
         <Descriptions bordered column={2}>
           <Descriptions.Item label="ID">{agent.id}</Descriptions.Item>
           <Descriptions.Item label="类型">{agent.type}</Descriptions.Item>
@@ -81,6 +80,33 @@ const AgentDetail: React.FC = () => {
             </pre>
           </Descriptions.Item>
         </Descriptions>
+      ),
+    },
+    {
+      key: 'skills',
+      label: (
+        <span>
+          <ThunderboltOutlined /> 技能配置
+        </span>
+      ),
+      children: agent.id ? (
+        <AgentSkillManagement agentId={agent.id} agentName={agent.name} />
+      ) : null,
+    },
+  ];
+
+  return (
+    <div>
+      <Button
+        icon={<ArrowLeftOutlined />}
+        onClick={() => navigate('/agents')}
+        style={{ marginBottom: 16 }}
+      >
+        返回列表
+      </Button>
+
+      <Card title={agent.name} loading={loading}>
+        <Tabs items={tabItems} />
       </Card>
     </div>
   );

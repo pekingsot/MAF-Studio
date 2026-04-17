@@ -50,13 +50,13 @@ public class GroupMessageRepository : IGroupMessageRepository
         var sql = @"
             INSERT INTO group_messages (
                 collaboration_id, message_type, sender_type,
-                from_agent_id, from_agent_name, from_agent_role,
-                from_agent_type, from_agent_avatar, model_name,
+                from_agent_id, to_agent_id, from_agent_name, from_agent_role,
+                from_agent_type, from_agent_avatar, model_name, llm_config_name,
                 content, is_mentioned, created_at
             ) VALUES (
                 @CollaborationId, @MessageType, @SenderType,
-                @FromAgentId, @FromAgentName, @FromAgentRole,
-                @FromAgentType, @FromAgentAvatar, @ModelName,
+                @FromAgentId, @ToAgentId, @FromAgentName, @FromAgentRole,
+                @FromAgentType, @FromAgentAvatar, @ModelName, @LlmConfigName,
                 @Content, @IsMentioned, @CreatedAt
             )
             RETURNING id";

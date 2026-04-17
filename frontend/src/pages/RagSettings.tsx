@@ -42,9 +42,11 @@ const RagSettings: React.FC = () => {
 
       form.setFieldsValue({
         vectorizationEndpoint: configMap['vectorization_endpoint'] || '',
+        embeddingModel: configMap['embedding_model'] || 'BAAI/bge-m3',
         rerankEndpoint: configMap['rerank_endpoint'] || '',
+        rerankModel: configMap['rerank_model'] || 'BAAI/bge-reranker-v2-m3',
         vectorDbEndpoint: configMap['vector_db_endpoint'] || '',
-        vectorDbCollection: configMap['vector_db_collection'] || 'rag_documents',
+        vectorDbCollection: configMap['vector_db_collection'] || 'maf_documents',
         defaultSplitMethod: configMap['default_split_method'] || 'recursive',
         defaultChunkSize: parseInt(configMap['default_chunk_size']) || 500,
         defaultChunkOverlap: parseInt(configMap['default_chunk_overlap']) || 50,
@@ -65,16 +67,18 @@ const RagSettings: React.FC = () => {
       
       const configs = [
         { key: 'vectorization_endpoint', value: values.vectorizationEndpoint || '', description: '向量化接口地址' },
+        { key: 'embedding_model', value: values.embeddingModel || 'BAAI/bge-m3', description: '向量化模型名称' },
         { key: 'rerank_endpoint', value: values.rerankEndpoint || '', description: '重排序接口地址' },
+        { key: 'rerank_model', value: values.rerankModel || 'BAAI/bge-reranker-v2-m3', description: '重排序模型名称' },
         { key: 'vector_db_endpoint', value: values.vectorDbEndpoint || '', description: '向量库接口地址' },
-        { key: 'vector_db_collection', value: values.vectorDbCollection || 'rag_documents', description: '向量库集合名称' },
+        { key: 'vector_db_collection', value: values.vectorDbCollection || 'maf_documents', description: '向量库集合名称' },
         { key: 'default_split_method', value: values.defaultSplitMethod || 'recursive', description: '默认分割方式' },
         { key: 'default_chunk_size', value: String(values.defaultChunkSize || 500), description: '默认分块大小' },
         { key: 'default_chunk_overlap', value: String(values.defaultChunkOverlap || 50), description: '默认分块重叠' },
         { key: 'skip_extensions', value: values.skipExtensions || defaultSkipExtensions, description: '跳过分割的文件扩展名' },
       ];
 
-      await api.post('/systemconfigs/batch', { Configs: configs });
+      await api.post('/systemconfigs/batch', { configs: configs });
       message.success('配置保存成功');
     } catch (error) {
       message.error('配置保存失败');
@@ -129,16 +133,38 @@ const RagSettings: React.FC = () => {
                 label="向量化接口地址"
                 tooltip="Infinity或其他向量化服务的API地址"
               >
-                <Input placeholder="http://localhost:8000/embed" />
+                <Input placeholder="http://localhost:7997" />
               </Form.Item>
             </Col>
+            <Col span={12}>
+              <Form.Item
+                name="embeddingModel"
+                label="向量化模型"
+                tooltip="用于文本向量化的模型名称"
+              >
+                <Input placeholder="BAAI/bge-m3" />
+              </Form.Item>
+            </Col>
+          </Row>
+
+          <Divider orientation="left">重排序服务配置</Divider>
+          <Row gutter={24}>
             <Col span={12}>
               <Form.Item
                 name="rerankEndpoint"
                 label="重排序接口地址"
                 tooltip="Infinity或其他重排序服务的API地址"
               >
-                <Input placeholder="http://localhost:8000/rerank" />
+                <Input placeholder="http://localhost:7997" />
+              </Form.Item>
+            </Col>
+            <Col span={12}>
+              <Form.Item
+                name="rerankModel"
+                label="重排序模型"
+                tooltip="用于查询结果重排序的模型名称"
+              >
+                <Input placeholder="BAAI/bge-reranker-v2-m3" />
               </Form.Item>
             </Col>
           </Row>
