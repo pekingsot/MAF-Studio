@@ -1,3 +1,4 @@
+import { getErrorMessage } from '../utils/errorHandler';
 import React, { useState, useEffect } from 'react';
 import { Modal, Form, Select, InputNumber, Input, Button, Space, message, Card, Radio, List, Tag } from 'antd';
 import { PlayCircleOutlined, SettingOutlined, SwapOutlined, TeamOutlined, MessageOutlined } from '@ant-design/icons';
@@ -142,8 +143,8 @@ const WorkflowConfigModal: React.FC<WorkflowConfigModalProps> = ({
           message.error(`执行失败: ${result.error}`);
         }
       }
-    } catch (error: any) {
-      message.error(`执行失败: ${error.message}`);
+    } catch (error: unknown) {
+      message.error(`执行失败: ${getErrorMessage(error)}`);
     } finally {
       setLoading(false);
     }

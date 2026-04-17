@@ -66,7 +66,7 @@ export interface WorkflowDefinition {
 export interface ParameterDefinition {
   type: 'string' | 'number' | 'boolean' | 'array';
   description?: string;
-  default?: any;
+  default?: string | number | boolean | unknown[] | Record<string, unknown> | null;
   required?: boolean;
 }
 

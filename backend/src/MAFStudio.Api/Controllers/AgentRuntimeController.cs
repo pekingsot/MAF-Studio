@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Authorization;
 using MAFStudio.Application.Interfaces;
+using MAFStudio.Application.VOs;
 using MAFStudio.Core.Interfaces.Repositories;
 using MAFStudio.Core.Interfaces.Services;
 using MAFStudio.Core.Enums;
@@ -100,7 +101,7 @@ public class AgentRuntimeController : ControllerBase
                 return BadRequest(new { message = "智能体未配置大模型" });
             }
 
-            var llmConfigs = JsonSerializer.Deserialize<List<LlmConfigInfo>>(agent.LlmConfigs, new JsonSerializerOptions 
+            var llmConfigs = JsonSerializer.Deserialize<List<LlmConfigInfoVo>>(agent.LlmConfigs, new JsonSerializerOptions 
             { 
                 PropertyNameCaseInsensitive = true 
             });
@@ -337,34 +338,4 @@ public class TestRequest
     public string? Input { get; set; }
     public long? LlmConfigId { get; set; }
     public long? LlmModelConfigId { get; set; }
-}
-
-public class LlmConfigInfo
-{
-    [System.Text.Json.Serialization.JsonPropertyName("llmConfigId")]
-    public long LlmConfigId { get; set; }
-    
-    [System.Text.Json.Serialization.JsonPropertyName("llmConfigName")]
-    public string LlmConfigName { get; set; } = string.Empty;
-    
-    [System.Text.Json.Serialization.JsonPropertyName("llmModelConfigId")]
-    public long? LlmModelConfigId { get; set; }
-    
-    [System.Text.Json.Serialization.JsonPropertyName("modelName")]
-    public string ModelName { get; set; } = string.Empty;
-    
-    [System.Text.Json.Serialization.JsonPropertyName("isPrimary")]
-    public bool IsPrimary { get; set; }
-    
-    [System.Text.Json.Serialization.JsonPropertyName("priority")]
-    public int Priority { get; set; }
-    
-    [System.Text.Json.Serialization.JsonPropertyName("isValid")]
-    public bool IsValid { get; set; }
-    
-    [System.Text.Json.Serialization.JsonPropertyName("lastChecked")]
-    public DateTime LastChecked { get; set; }
-    
-    [System.Text.Json.Serialization.JsonPropertyName("msg")]
-    public string Msg { get; set; } = string.Empty;
 }

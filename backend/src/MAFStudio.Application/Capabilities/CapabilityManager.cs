@@ -1,6 +1,7 @@
 using System.Reflection;
 using Microsoft.Extensions.DependencyInjection;
 using MAFStudio.Application.Services;
+using MAFStudio.Core.Exceptions;
 
 namespace MAFStudio.Application.Capabilities;
 

@@ -3,6 +3,7 @@ using MAFStudio.Core.Enums;
 using MAFStudio.Core.Interfaces.Repositories;
 using MAFStudio.Core.Interfaces.Services;
 using MAFStudio.Application.DTOs;
+using MAFStudio.Application.VOs;
 using System.Text.Json;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.Logging;
@@ -125,7 +126,7 @@ public class AgentService : IAgentService
             // 如果模型验证失败，设置为 Error 状态
             if (!string.IsNullOrEmpty(agent.LlmConfigs))
             {
-                var llmConfigs = JsonSerializer.Deserialize<List<LlmConfigInfo>>(agent.LlmConfigs, JsonOptions);
+                var llmConfigs = JsonSerializer.Deserialize<List<LlmConfigInfoVo>>(agent.LlmConfigs, JsonOptions);
                 if (llmConfigs != null && llmConfigs.Any(c => !c.IsValid))
                 {
                     status = AgentStatus.Error;
@@ -158,8 +159,8 @@ public class AgentService : IAgentService
 
         try
         {
-            var llmConfigs = JsonSerializer.Deserialize<List<LlmConfigInfo>>(agent.LlmConfigs, JsonOptions)
-                ?? new List<LlmConfigInfo>();
+            var llmConfigs = JsonSerializer.Deserialize<List<LlmConfigInfoVo>>(agent.LlmConfigs, JsonOptions)
+                ?? new List<LlmConfigInfoVo>();
 
             foreach (var configInfo in llmConfigs)
             {

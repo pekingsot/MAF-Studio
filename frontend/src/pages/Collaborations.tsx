@@ -1,7 +1,8 @@
+import { getErrorMessage } from '../utils/errorHandler';
 import React, { useState, useRef, useMemo, useCallback } from 'react';
 import { Table, Button, Modal, Form, Input, Tag, Space, message, Tabs, Select, Popconfirm, Row, Col, Alert, Radio, InputNumber, Typography, Tooltip, Transfer, Collapse, Switch } from 'antd';
 import { PlusOutlined, EditOutlined, DeleteOutlined, TeamOutlined, UserOutlined, FolderOutlined, EyeOutlined, EyeInvisibleOutlined, SwapOutlined, CrownOutlined, BulbOutlined, InfoCircleOutlined, MailOutlined, ApartmentOutlined, DashboardOutlined, QuestionCircleOutlined, StopOutlined } from '@ant-design/icons';
-import { collaborationService, Collaboration } from '../services/collaborationService';
+import { collaborationService, Collaboration, CollaborationTask, CollaborationAgent } from '../services/collaborationService';
 import { agentService, Agent } from '../services/agentService';
 import { useNavigate } from 'react-router-dom';
 import ChatHistory from './collaboration-detail/ChatHistory';
@@ -126,7 +127,7 @@ const Collaborations: React.FC = () => {
         setAddAgentModalVisible(false);
         await refreshCollaboration(selectedCollaboration.id);
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       const errorMessage = error?.response?.data?.message || error?.message || '添加失败';
       message.error(errorMessage);
     }
@@ -181,7 +182,7 @@ const Collaborations: React.FC = () => {
         .filter(key => Number(key) !== taskManagerAgentId)
         .map(key => ({ agentId: Number(key) }));
       
-      const config: any = {
+      const config: Record<string, unknown> = {
         workflowType: taskWorkflowType,
         orchestrationMode: taskOrchestrationMode,
         maxIterations: taskMaxIterations,
@@ -222,7 +223,7 @@ const Collaborations: React.FC = () => {
     }
   };
 
-  const handleEditTask = async (task: any) => {
+  const handleEditTask = async (task: CollaborationTask) => {
     const collaboration = collaborations.find(c => c.id === task.collaborationId);
     if (!collaboration) {
       message.error('找不到对应的团队');
@@ -257,7 +258,7 @@ const Collaborations: React.FC = () => {
           allAgentIds.push(config.managerAgentId.toString());
         }
         if (config.workerAgents && config.workerAgents.length > 0) {
-          allAgentIds.push(...config.workerAgents.map((w: any) => w.agentId.toString()));
+          allAgentIds.push(...config.workerAgents.map((w: { agentId: number }) => w.agentId.toString()));
         }
         setEditTaskAgents(allAgentIds);
       } catch {
@@ -309,7 +310,7 @@ const Collaborations: React.FC = () => {
         .filter(key => Number(key) !== taskManagerAgentId)
         .map(key => ({ agentId: Number(key) }));
       
-      const config: any = {
+      const config: Record<string, unknown> = {
         workflowType: taskWorkflowType,
         orchestrationMode: taskOrchestrationMode,
         maxIterations: taskMaxIterations,
@@ -329,7 +330,7 @@ const Collaborations: React.FC = () => {
     }
   };
 
-  const handleDeleteTask = async (task: any) => {
+  const handleDeleteTask = async (task: CollaborationTask) => {
     try {
       await collaborationService.deleteTask(task.id);
       message.success('任务删除成功');
@@ -339,7 +340,7 @@ const Collaborations: React.FC = () => {
     }
   };
 
-  const handleExecuteTask = (task: any) => {
+  const handleExecuteTask = (task: CollaborationTask) => {
     const collaboration = collaborations.find(c => c.id === task.collaborationId);
     
     if (!collaboration) {
@@ -349,7 +350,7 @@ const Collaborations: React.FC = () => {
 
     const agents = collaboration.agents || [];
     
-    let config: any = {
+    let config: Record<string, unknown> = {
       workflowType: 'GroupChat',
       orchestrationMode: 'RoundRobin',
       maxIterations: 10
@@ -415,14 +416,14 @@ const Collaborations: React.FC = () => {
     executeTaskWithConfig(task, collaboration, config);
   };
 
-  const executeTaskWithConfig = async (task: any, collaboration: Collaboration, config: any) => {
+  const executeTaskWithConfig = async (task: CollaborationTask, collaboration: Collaboration, config: Record<string, unknown>) => {
     const input = task.description || task.title;
     const token = localStorage.getItem('token');
     
     try {
       const workflowType = config.workflowType || 'GroupChat';
       let url: string;
-      let body: any;
+      let body: Record<string, unknown>;
 
       if (workflowType === 'Magentic' || workflowType === 'ReviewIterative') {
         url = getApiUrl(`/collaborationworkflow/${task.collaborationId}/review-iterative`);
@@ -502,12 +503,12 @@ const Collaborations: React.FC = () => {
     }
   };
 
-  const handleViewChatHistory = (task: any) => {
+  const handleViewChatHistory = (task: CollaborationTask) => {
     setSelectedTask(task);
     setChatHistoryModalVisible(true);
   };
 
-  const handleEditAgent = (collaboration: Collaboration, agent: any) => {
+  const handleEditAgent = (collaboration: Collaboration, agent: CollaborationAgent) => {
     setSelectedCollaboration(collaboration);
     setEditingAgent(agent);
     editAgentForm.setFieldsValue({
@@ -563,14 +564,14 @@ const Collaborations: React.FC = () => {
       dataIndex: 'agents',
       key: 'agents',
       width: '8%',
-      render: (agents: any[]) => agents.length,
+      render: (agents: CollaborationAgent[]) => agents.length,
     },
     {
       title: '任务',
       dataIndex: 'tasks',
       key: 'tasks',
       width: '8%',
-      render: (tasks: any[]) => tasks.length,
+      render: (tasks: CollaborationTask[]) => tasks.length,
     },
     {
       title: '状态',
@@ -598,7 +599,7 @@ const Collaborations: React.FC = () => {
       title: '操作',
       key: 'action',
       width: '14%',
-      render: (_: any, record: Collaboration) => (
+      render: (_: unknown, record: Collaboration) => (
         <Space size="small" wrap>
           <Button
             type="link"
@@ -617,7 +618,7 @@ const Collaborations: React.FC = () => {
               setModalVisible(true);
               
               // 解析配置 JSON 字符串
-              let formValues: any = { ...record };
+              let formValues: Record<string, unknown> = { ...record };
               if (record.config) {
                 try {
                   const config = JSON.parse(record.config);
@@ -692,7 +693,7 @@ const Collaborations: React.FC = () => {
                       dataIndex: 'customPrompt',
                       key: 'customPrompt',
                       width: 300,
-                      render: (customPrompt: string, agentRecord: any) => {
+                      render: (customPrompt: string, agentRecord: CollaborationAgent) => {
                         const displayText = customPrompt || agentRecord.systemPrompt || '-';
                         const isFromSystemPrompt = !customPrompt && agentRecord.systemPrompt;
                         const truncatedText = displayText.length > 50 ? `${displayText.substring(0, 50)}...` : displayText;
@@ -745,7 +746,7 @@ const Collaborations: React.FC = () => {
                       title: '操作',
                       key: 'action',
                       width: 150,
-                      render: (_: any, agentRecord: any) => (
+                      render: (_: unknown, agentRecord: CollaborationAgent) => (
                         <Space>
                           <Button 
                             type="link" 
@@ -991,8 +992,8 @@ const Collaborations: React.FC = () => {
                               } else {
                                 message.error({ content: result.message, key: 'testEmail' });
                               }
-                            } catch (error: any) {
-                              message.error({ content: error.message || '测试邮件发送失败', key: 'testEmail' });
+                            } catch (error: unknown) {
+                              message.error({ content: getErrorMessage(error, '测试邮件发送失败'), key: 'testEmail' });
                             }
                           }}
                         >
@@ -1033,7 +1034,7 @@ const Collaborations: React.FC = () => {
                 .filter(agent => {
                   // 过滤掉已经在团队中的智能体
                   const isInCollaboration = selectedCollaboration?.agents?.some(
-                    (ca: any) => ca.agentId === agent.id
+                    (ca: { agentId: number }) => ca.agentId === agent.id
                   );
                   return !isInCollaboration;
                 })
@@ -1048,7 +1049,7 @@ const Collaborations: React.FC = () => {
 
           {agents.filter(agent => {
             const isInCollaboration = selectedCollaboration?.agents?.some(
-              (ca: any) => ca.agentId === agent.id
+              (ca: { agentId: number }) => ca.agentId === agent.id
             );
             return !isInCollaboration;
           }).length === 0 && (
@@ -1878,7 +1879,7 @@ const Collaborations: React.FC = () => {
             }
             return true;
           }).map((msg, index) => {
-            let agentsInfo: any[] = [];
+            let agentsInfo: CollaborationAgent[] = [];
             
             if (msg.role === 'system' && msg.metadata) {
               try {
@@ -1915,7 +1916,7 @@ const Collaborations: React.FC = () => {
                   <div style={{ marginTop: 12 }}>
                     <Text strong style={{ display: 'block', marginBottom: 8 }}>🤖 参与Agent：</Text>
                     <Space wrap>
-                      {agentsInfo.map((agent: any) => (
+                      {agentsInfo.map((agent: CollaborationAgent) => (
                         <Tooltip 
                           key={agent.id}
                           title={

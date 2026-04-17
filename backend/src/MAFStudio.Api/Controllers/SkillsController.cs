@@ -1,7 +1,6 @@
 using System.Text.Json;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using MAFStudio.Api.Extensions;
 using MAFStudio.Application.Skills;
 using MAFStudio.Core.Entities;
 using MAFStudio.Core.Interfaces.Repositories;
@@ -16,7 +15,6 @@ public class SkillsController : ControllerBase
     private readonly IAgentSkillRepository _skillRepository;
     private readonly ISkillTemplateRepository _templateRepository;
     private readonly SkillLoader _skillLoader;
-    private readonly ILogger<SkillsController> _logger;
 
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
@@ -26,278 +24,204 @@ public class SkillsController : ControllerBase
     public SkillsController(
         IAgentSkillRepository skillRepository,
         ISkillTemplateRepository templateRepository,
-        SkillLoader skillLoader,
-        ILogger<SkillsController> logger)
+        SkillLoader skillLoader)
     {
         _skillRepository = skillRepository;
         _templateRepository = templateRepository;
         _skillLoader = skillLoader;
-        _logger = logger;
     }
 
     [HttpGet("agent/{agentId}")]
     public async Task<ActionResult> GetAgentSkills(long agentId)
     {
-        try
-        {
-            var skills = await _skillRepository.GetByAgentIdAsync(agentId);
-            return Ok(new { success = true, data = skills.Select(MapToDto) });
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "获取Agent技能失败: AgentId={AgentId}", agentId);
-            return BadRequest(new { success = false, message = $"获取技能失败: {ex.Message}" });
-        }
+        var skills = await _skillRepository.GetByAgentIdAsync(agentId);
+        return Ok(new { success = true, data = skills.Select(MapToDto) });
     }
 
     [HttpGet("agent/{agentId}/enabled")]
     public async Task<ActionResult> GetEnabledAgentSkills(long agentId)
     {
-        try
-        {
-            var skills = await _skillRepository.GetEnabledByAgentIdAsync(agentId);
-            var definitions = new List<object>();
+        var skills = await _skillRepository.GetEnabledByAgentIdAsync(agentId);
+        var definitions = new List<object>();
 
-            foreach (var skill in skills)
+        foreach (var skill in skills)
+        {
+            var def = _skillLoader.ParseSkillContent(skill.SkillContent);
+            definitions.Add(new
             {
-                var def = _skillLoader.ParseSkillContent(skill.SkillContent);
-                definitions.Add(new
-                {
-                    skill.Id,
-                    skill.SkillName,
-                    skill.Enabled,
-                    skill.Priority,
-                    skill.Runtime,
-                    def.Description,
-                    def.AllowedTools,
-                    def.Tags,
-                    def.Permissions
-                });
-            }
+                skill.Id,
+                skill.SkillName,
+                skill.Enabled,
+                skill.Priority,
+                skill.Runtime,
+                def.Description,
+                def.AllowedTools,
+                def.Tags,
+                def.Permissions
+            });
+        }
 
-            return Ok(new { success = true, data = definitions });
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "获取Agent启用技能失败: AgentId={AgentId}", agentId);
-            return BadRequest(new { success = false, message = $"获取技能失败: {ex.Message}" });
-        }
+        return Ok(new { success = true, data = definitions });
     }
 
     [HttpPost("agent/{agentId}")]
     public async Task<ActionResult> AddSkillToAgent(long agentId, [FromBody] AddSkillRequest request)
     {
-        try
+        var existing = await _skillRepository.GetByAgentIdAsync(agentId);
+        if (existing.Any(s => s.SkillName == request.SkillName))
         {
-            var existing = await _skillRepository.GetByAgentIdAsync(agentId);
-            if (existing.Any(s => s.SkillName == request.SkillName))
-            {
-                return BadRequest(new { success = false, message = $"技能 {request.SkillName} 已存在" });
-            }
-
-            var skill = new AgentSkill
-            {
-                AgentId = agentId,
-                SkillName = request.SkillName,
-                SkillContent = request.SkillContent,
-                Enabled = request.Enabled ?? true,
-                Priority = request.Priority ?? 0,
-                Runtime = request.Runtime ?? "python",
-                EntryPoint = request.EntryPoint,
-                AllowedTools = request.AllowedTools != null
-                    ? JsonSerializer.Serialize(request.AllowedTools) : null,
-                Permissions = request.Permissions != null
-                    ? JsonSerializer.Serialize(request.Permissions) : null,
-                Parameters = request.Parameters != null
-                    ? JsonSerializer.Serialize(request.Parameters) : null
-            };
-
-            var created = await _skillRepository.CreateAsync(skill);
-            _skillLoader.ClearCache();
-
-            return Ok(new { success = true, data = MapToDto(created) });
+            return BadRequest(new { success = false, message = $"技能 {request.SkillName} 已存在" });
         }
-        catch (Exception ex)
+
+        var skill = new AgentSkill
         {
-            _logger.LogError(ex, "添加Agent技能失败: AgentId={AgentId}", agentId);
-            return BadRequest(new { success = false, message = $"添加技能失败: {ex.Message}" });
-        }
+            AgentId = agentId,
+            SkillName = request.SkillName,
+            SkillContent = request.SkillContent,
+            Enabled = request.Enabled ?? true,
+            Priority = request.Priority ?? 0,
+            Runtime = request.Runtime ?? "python",
+            EntryPoint = request.EntryPoint,
+            AllowedTools = request.AllowedTools != null
+                ? JsonSerializer.Serialize(request.AllowedTools) : null,
+            Permissions = request.Permissions != null
+                ? JsonSerializer.Serialize(request.Permissions) : null,
+            Parameters = request.Parameters != null
+                ? JsonSerializer.Serialize(request.Parameters) : null
+        };
+
+        var created = await _skillRepository.CreateAsync(skill);
+        _skillLoader.ClearCache();
+
+        return Ok(new { success = true, data = MapToDto(created) });
     }
 
     [HttpPut("agent/{agentId}/{skillId}")]
     public async Task<ActionResult> UpdateSkill(long agentId, long skillId, [FromBody] UpdateSkillRequest request)
     {
-        try
+        var skill = await _skillRepository.GetByIdAsync(skillId);
+        if (skill == null || skill.AgentId != agentId)
         {
-            var skill = await _skillRepository.GetByIdAsync(skillId);
-            if (skill == null || skill.AgentId != agentId)
-            {
-                return NotFound(new { success = false, message = "技能不存在" });
-            }
-
-            if (request.SkillContent != null) skill.SkillContent = request.SkillContent;
-            if (request.Enabled.HasValue) skill.Enabled = request.Enabled.Value;
-            if (request.Priority.HasValue) skill.Priority = request.Priority.Value;
-            if (request.Runtime != null) skill.Runtime = request.Runtime;
-            if (request.EntryPoint != null) skill.EntryPoint = request.EntryPoint;
-            if (request.AllowedTools != null)
-                skill.AllowedTools = JsonSerializer.Serialize(request.AllowedTools);
-            if (request.Permissions != null)
-                skill.Permissions = JsonSerializer.Serialize(request.Permissions);
-
-            var updated = await _skillRepository.UpdateAsync(skill);
-            _skillLoader.ClearCache();
-
-            return Ok(new { success = true, data = MapToDto(updated) });
+            return NotFound(new { success = false, message = "技能不存在" });
         }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "更新Agent技能失败: SkillId={SkillId}", skillId);
-            return BadRequest(new { success = false, message = $"更新技能失败: {ex.Message}" });
-        }
+
+        if (request.SkillContent != null) skill.SkillContent = request.SkillContent;
+        if (request.Enabled.HasValue) skill.Enabled = request.Enabled.Value;
+        if (request.Priority.HasValue) skill.Priority = request.Priority.Value;
+        if (request.Runtime != null) skill.Runtime = request.Runtime;
+        if (request.EntryPoint != null) skill.EntryPoint = request.EntryPoint;
+        if (request.AllowedTools != null)
+            skill.AllowedTools = JsonSerializer.Serialize(request.AllowedTools);
+        if (request.Permissions != null)
+            skill.Permissions = JsonSerializer.Serialize(request.Permissions);
+
+        var updated = await _skillRepository.UpdateAsync(skill);
+        _skillLoader.ClearCache();
+
+        return Ok(new { success = true, data = MapToDto(updated) });
     }
 
     [HttpDelete("agent/{agentId}/{skillId}")]
     public async Task<ActionResult> DeleteSkill(long agentId, long skillId)
     {
-        try
+        var skill = await _skillRepository.GetByIdAsync(skillId);
+        if (skill == null || skill.AgentId != agentId)
         {
-            var skill = await _skillRepository.GetByIdAsync(skillId);
-            if (skill == null || skill.AgentId != agentId)
-            {
-                return NotFound(new { success = false, message = "技能不存在" });
-            }
-
-            var result = await _skillRepository.DeleteAsync(skillId);
-            _skillLoader.ClearCache();
-
-            return Ok(new { success = true });
+            return NotFound(new { success = false, message = "技能不存在" });
         }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "删除Agent技能失败: SkillId={SkillId}", skillId);
-            return BadRequest(new { success = false, message = $"删除技能失败: {ex.Message}" });
-        }
+
+        await _skillRepository.DeleteAsync(skillId);
+        _skillLoader.ClearCache();
+
+        return Ok(new { success = true });
     }
 
     [HttpPost("agent/{agentId}/from-template/{templateId}")]
     public async Task<ActionResult> AddSkillFromTemplate(long agentId, long templateId, [FromBody] AddFromTemplateRequest? request = null)
     {
-        try
+        var template = await _templateRepository.GetByIdAsync(templateId);
+        if (template == null)
         {
-            var template = await _templateRepository.GetByIdAsync(templateId);
-            if (template == null)
-            {
-                return NotFound(new { success = false, message = "模板不存在" });
-            }
-
-            var skillName = request?.SkillName ?? template.Name;
-
-            var existing = await _skillRepository.GetByAgentIdAsync(agentId);
-            if (existing.Any(s => s.SkillName == skillName))
-            {
-                return BadRequest(new { success = false, message = $"技能 {skillName} 已存在" });
-            }
-
-            var skill = new AgentSkill
-            {
-                AgentId = agentId,
-                SkillName = skillName,
-                SkillContent = template.Content,
-                Enabled = true,
-                Priority = request?.Priority ?? 0,
-                Runtime = template.Runtime
-            };
-
-            var created = await _skillRepository.CreateAsync(skill);
-            await _templateRepository.IncrementUsageCountAsync(templateId);
-            _skillLoader.ClearCache();
-
-            return Ok(new { success = true, data = MapToDto(created) });
+            return NotFound(new { success = false, message = "模板不存在" });
         }
-        catch (Exception ex)
+
+        var skillName = request?.SkillName ?? template.Name;
+
+        var existing = await _skillRepository.GetByAgentIdAsync(agentId);
+        if (existing.Any(s => s.SkillName == skillName))
         {
-            _logger.LogError(ex, "从模板添加技能失败: AgentId={AgentId}, TemplateId={TemplateId}", agentId, templateId);
-            return BadRequest(new { success = false, message = $"添加技能失败: {ex.Message}" });
+            return BadRequest(new { success = false, message = $"技能 {skillName} 已存在" });
         }
+
+        var skill = new AgentSkill
+        {
+            AgentId = agentId,
+            SkillName = skillName,
+            SkillContent = template.Content,
+            Enabled = true,
+            Priority = request?.Priority ?? 0,
+            Runtime = template.Runtime
+        };
+
+        var created = await _skillRepository.CreateAsync(skill);
+        await _templateRepository.IncrementUsageCountAsync(templateId);
+        _skillLoader.ClearCache();
+
+        return Ok(new { success = true, data = MapToDto(created) });
     }
 
     [HttpGet("templates")]
     public async Task<ActionResult> GetTemplates([FromQuery] string? category = null)
     {
-        try
-        {
-            var templates = string.IsNullOrEmpty(category)
-                ? await _templateRepository.GetAllAsync()
-                : await _templateRepository.GetByCategoryAsync(category);
+        var templates = string.IsNullOrEmpty(category)
+            ? await _templateRepository.GetAllAsync()
+            : await _templateRepository.GetByCategoryAsync(category);
 
-            return Ok(new
-            {
-                success = true,
-                data = templates.Select(t => new
-                {
-                    t.Id,
-                    t.Name,
-                    t.Description,
-                    t.Category,
-                    t.Tags,
-                    t.Runtime,
-                    t.UsageCount,
-                    t.IsOfficial
-                })
-            });
-        }
-        catch (Exception ex)
+        return Ok(new
         {
-            _logger.LogError(ex, "获取技能模板失败");
-            return BadRequest(new { success = false, message = $"获取模板失败: {ex.Message}" });
-        }
+            success = true,
+            data = templates.Select(t => new
+            {
+                t.Id,
+                t.Name,
+                t.Description,
+                t.Category,
+                t.Tags,
+                t.Runtime,
+                t.UsageCount,
+                t.IsOfficial
+            })
+        });
     }
 
     [HttpGet("templates/{id}")]
     public async Task<ActionResult> GetTemplate(long id)
     {
-        try
+        var template = await _templateRepository.GetByIdAsync(id);
+        if (template == null)
         {
-            var template = await _templateRepository.GetByIdAsync(id);
-            if (template == null)
-            {
-                return NotFound(new { success = false, message = "模板不存在" });
-            }
+            return NotFound(new { success = false, message = "模板不存在" });
+        }
 
-            return Ok(new { success = true, data = template });
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "获取技能模板失败: TemplateId={Id}", id);
-            return BadRequest(new { success = false, message = $"获取模板失败: {ex.Message}" });
-        }
+        return Ok(new { success = true, data = template });
     }
 
     [HttpPost("templates")]
     public async Task<ActionResult> CreateTemplate([FromBody] CreateTemplateRequest request)
     {
-        try
+        var template = new SkillTemplate
         {
-            var template = new SkillTemplate
-            {
-                Name = request.Name,
-                Description = request.Description,
-                Content = request.Content,
-                Category = request.Category,
-                Tags = request.Tags,
-                Runtime = request.Runtime ?? "python",
-                IsOfficial = false
-            };
+            Name = request.Name,
+            Description = request.Description,
+            Content = request.Content,
+            Category = request.Category,
+            Tags = request.Tags,
+            Runtime = request.Runtime ?? "python",
+            IsOfficial = false
+        };
 
-            var created = await _templateRepository.CreateAsync(template);
-            return Ok(new { success = true, data = created });
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "创建技能模板失败");
-            return BadRequest(new { success = false, message = $"创建模板失败: {ex.Message}" });
-        }
+        var created = await _templateRepository.CreateAsync(template);
+        return Ok(new { success = true, data = created });
     }
 
     [HttpPost("parse")]

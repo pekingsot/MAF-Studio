@@ -1,3 +1,4 @@
+import { getErrorMessage } from '../../utils/errorHandler';
 import React, { useState, useEffect } from 'react';
 import {
   Card, Table, Button, Modal, Form, Input, Select, Switch, InputNumber,
@@ -67,8 +68,8 @@ const AgentSkillPanel: React.FC<{ agentId: number; agentName: string }> = ({ age
     try {
       const data = await skillService.getAgentSkills(agentId);
       setSkills(data);
-    } catch (error: any) {
-      message.error(`加载技能列表失败: ${error.message}`);
+    } catch (error: unknown) {
+      message.error(`加载技能列表失败: ${getErrorMessage(error)}`);
     } finally {
       setLoading(false);
     }
@@ -78,12 +79,12 @@ const AgentSkillPanel: React.FC<{ agentId: number; agentName: string }> = ({ age
     try {
       const data = await skillService.getTemplates();
       setTemplates(data);
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('加载模板失败:', error);
     }
   };
 
-  const handleAddSkill = async (values: any) => {
+  const handleAddSkill = async (values: Record<string, unknown>) => {
     try {
       await skillService.addSkillToAgent(agentId, {
         skill_name: values.skill_name,
@@ -98,8 +99,8 @@ const AgentSkillPanel: React.FC<{ agentId: number; agentName: string }> = ({ age
       setAddModalVisible(false);
       addForm.resetFields();
       loadSkills();
-    } catch (error: any) {
-      message.error(`添加失败: ${error.message}`);
+    } catch (error: unknown) {
+      message.error(`添加失败: ${getErrorMessage(error)}`);
     }
   };
 
@@ -109,8 +110,8 @@ const AgentSkillPanel: React.FC<{ agentId: number; agentName: string }> = ({ age
       message.success(`从模板 ${template.name} 创建技能成功`);
       setTemplateModalVisible(false);
       loadSkills();
-    } catch (error: any) {
-      message.error(`创建失败: ${error.message}`);
+    } catch (error: unknown) {
+      message.error(`创建失败: ${getErrorMessage(error)}`);
     }
   };
 
@@ -119,8 +120,8 @@ const AgentSkillPanel: React.FC<{ agentId: number; agentName: string }> = ({ age
       await skillService.updateSkill(agentId, skill.id, { enabled: !skill.enabled });
       message.success(`技能已${skill.enabled ? '禁用' : '启用'}`);
       loadSkills();
-    } catch (error: any) {
-      message.error(`操作失败: ${error.message}`);
+    } catch (error: unknown) {
+      message.error(`操作失败: ${getErrorMessage(error)}`);
     }
   };
 
@@ -133,14 +134,14 @@ const AgentSkillPanel: React.FC<{ agentId: number; agentName: string }> = ({ age
           await skillService.deleteSkill(agentId, skill.id);
           message.success('技能已删除');
           loadSkills();
-        } catch (error: any) {
-          message.error(`删除失败: ${error.message}`);
+        } catch (error: unknown) {
+          message.error(`删除失败: ${getErrorMessage(error)}`);
         }
       },
     });
   };
 
-  const handleEditSkill = async (values: any) => {
+  const handleEditSkill = async (values: Record<string, unknown>) => {
     if (!selectedSkill) return;
     try {
       await skillService.updateSkill(agentId, selectedSkill.id, {
@@ -154,8 +155,8 @@ const AgentSkillPanel: React.FC<{ agentId: number; agentName: string }> = ({ age
       message.success('技能更新成功');
       setEditModalVisible(false);
       loadSkills();
-    } catch (error: any) {
-      message.error(`更新失败: ${error.message}`);
+    } catch (error: unknown) {
+      message.error(`更新失败: ${getErrorMessage(error)}`);
     }
   };
 
@@ -233,7 +234,7 @@ const AgentSkillPanel: React.FC<{ agentId: number; agentName: string }> = ({ age
       title: '操作',
       key: 'action',
       width: 200,
-      render: (_: any, record: AgentSkill) => (
+      render: (_: unknown, record: AgentSkill) => (
         <Space size="small">
           <Tooltip title="预览解析结果">
             <Button type="link" size="small" icon={<FileTextOutlined />} onClick={() => handlePreview(record)} />
@@ -291,7 +292,7 @@ const AgentSkillPanel: React.FC<{ agentId: number; agentName: string }> = ({ age
       title: '操作',
       key: 'action',
       width: 100,
-      render: (_: any, record: SkillTemplate) => (
+      render: (_: unknown, record: SkillTemplate) => (
         <Button
           type="primary"
           size="small"

@@ -3,14 +3,16 @@ using System.Text.Json;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.Logging;
 using MAFStudio.Application.Interfaces;
+using MAFStudio.Core.Configuration;
 using MAFStudio.Core.Entities;
 using MAFStudio.Core.Enums;
 using MAFStudio.Core.Interfaces.Repositories;
 using MAFStudio.Core.Interfaces.Services;
+using Microsoft.Extensions.Options;
 
 namespace MAFStudio.Application.Services.Rag;
 
-public class RagService
+public class RagService : IRagService
 {
     private readonly IRagDocumentRepository _documentRepo;
     private readonly IRagDocumentChunkRepository _chunkRepo;
@@ -21,6 +23,7 @@ public class RagService
     private readonly ITextSplitterService _textSplitterService;
     private readonly IChatService _chatService;
     private readonly ILlmConfigService _llmConfigService;
+    private readonly IOptions<WorkspaceOptions> _workspaceOptions;
     private readonly ILogger<RagService> _logger;
 
     public RagService(
@@ -33,6 +36,7 @@ public class RagService
         ITextSplitterService textSplitterService,
         IChatService chatService,
         ILlmConfigService llmConfigService,
+        IOptions<WorkspaceOptions> workspaceOptions,
         ILogger<RagService> logger)
     {
         _documentRepo = documentRepo;
@@ -44,6 +48,7 @@ public class RagService
         _textSplitterService = textSplitterService;
         _chatService = chatService;
         _llmConfigService = llmConfigService;
+        _workspaceOptions = workspaceOptions;
         _logger = logger;
     }
 
@@ -355,7 +360,7 @@ public class RagService
             return await File.ReadAllTextAsync(doc.FilePath);
         }
 
-        var workspaceBase = "/home/pekingost/workspace";
+        var workspaceBase = _workspaceOptions.Value.BaseDir;
         var fullPath = Path.Combine(workspaceBase, doc.FilePath ?? doc.FileName);
         if (File.Exists(fullPath))
         {
@@ -375,55 +380,4 @@ public class RagService
         var config = await _configRepo.GetByKeyAsync(key);
         return config?.Value ?? defaultValue;
     }
-}
-
-public class VectorizeResult
-{
-    public int SuccessCount { get; set; }
-    public string? ErrorMessage { get; set; }
-}
-
-public class RagQueryResult
-{
-    public string? Answer { get; set; }
-    public List<RagSource> Sources { get; set; } = new();
-}
-
-public class RagSource
-{
-    public string Content { get; set; } = string.Empty;
-    public double Score { get; set; }
-    public string FileName { get; set; } = string.Empty;
-    public string DocumentId { get; set; } = string.Empty;
-    public int ChunkIndex { get; set; }
-}
-
-public class VectorDocsResult
-{
-    public long Total { get; set; }
-    public List<VectorDocItem> Documents { get; set; } = new();
-}
-
-public class VectorDocItem
-{
-    public string Id { get; set; } = string.Empty;
-    public string Content { get; set; } = string.Empty;
-    public double Score { get; set; }
-    public string DocumentId { get; set; } = string.Empty;
-    public int ChunkIndex { get; set; }
-    public string FileName { get; set; } = string.Empty;
-}
-
-public class SplitMethodInfo
-{
-    public string Key { get; set; } = string.Empty;
-    public string Name { get; set; } = string.Empty;
-    public string Description { get; set; } = string.Empty;
-}
-
-public class FileTypeInfo
-{
-    public string Extension { get; set; } = string.Empty;
-    public string Name { get; set; } = string.Empty;
-    public string Category { get; set; } = string.Empty;
 }

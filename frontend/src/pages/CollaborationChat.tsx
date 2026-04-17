@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { Card, Select, Tag, Avatar, Space, Spin, Empty, Mentions, Tooltip, Button, message as antMessage, Tabs } from 'antd';
 import { SendOutlined, RobotOutlined, UserOutlined, TeamOutlined, LoadingOutlined, CommentOutlined, HolderOutlined, MessageOutlined } from '@ant-design/icons';
 import { collaborationService, Collaboration, CollaborationAgent } from '../services/collaborationService';
+import { getErrorMessage } from '../utils/errorHandler';
 
 interface ChatMsg {
   id: string | number;
@@ -106,19 +107,19 @@ const CollaborationChat: React.FC = () => {
     } catch {}
   };
 
-  const mapMessage = (m: any): ChatMsg => ({
-    id: m.id,
-    fromAgentId: m.from_agent_id ?? m.fromAgentId,
-    fromAgentName: m.from_agent_name ?? m.fromAgentName ?? '我',
-    fromAgentRole: m.from_agent_role ?? m.fromAgentRole,
-    fromAgentType: m.from_agent_type ?? m.fromAgentType,
-    fromAgentAvatar: m.from_agent_avatar ?? m.fromAgentAvatar,
-    modelName: m.model_name ?? m.modelName,
-    llmConfigName: m.llm_config_name ?? m.llmConfigName,
-    content: m.content,
-    type: (m.sender_type ?? m.senderType) === 'Agent' ? 'agent' : 'user',
-    timestamp: new Date(m.timestamp),
-    isMentioned: m.is_mentioned ?? m.isMentioned,
+  const mapMessage = (m: Record<string, unknown>): ChatMsg => ({
+    id: m.id as number,
+    fromAgentId: (m.from_agent_id ?? m.fromAgentId) as number,
+    fromAgentName: ((m.from_agent_name ?? m.fromAgentName) as string) ?? '我',
+    fromAgentRole: (m.from_agent_role ?? m.fromAgentRole) as string | undefined,
+    fromAgentType: (m.from_agent_type ?? m.fromAgentType) as string | undefined,
+    fromAgentAvatar: (m.from_agent_avatar ?? m.fromAgentAvatar) as string | undefined,
+    modelName: (m.model_name ?? m.modelName) as string | undefined,
+    llmConfigName: (m.llm_config_name ?? m.llmConfigName) as string | undefined,
+    content: m.content as string,
+    type: ((m.sender_type ?? m.senderType) as string) === 'Agent' ? 'agent' : 'user',
+    timestamp: new Date(m.timestamp as string),
+    isMentioned: (m.is_mentioned ?? m.isMentioned) as boolean | undefined,
   });
 
   const loadRecentHistory = useCallback(async (tabKey?: string) => {
@@ -316,26 +317,26 @@ const CollaborationChat: React.FC = () => {
 
       if (response.success && response.data) {
         const results = Array.isArray(response.data) ? response.data : [response.data];
-        const agentMsgs: ChatMsg[] = results.map((d: any) => ({
-          id: d.fromAgentId ?? `agent-${Date.now()}-${Math.random()}`,
-          fromAgentId: d.fromAgentId,
-          fromAgentName: d.fromAgentName,
-          fromAgentRole: d.fromAgentRole,
-          fromAgentType: d.fromAgentType,
-          fromAgentAvatar: d.fromAgentAvatar,
-          modelName: d.modelName,
-          llmConfigName: d.llmConfigName,
-          content: d.content,
+        const agentMsgs: ChatMsg[] = results.map((d: Record<string, unknown>) => ({
+          id: (d.fromAgentId as number) ?? `agent-${Date.now()}-${Math.random()}`,
+          fromAgentId: d.fromAgentId as number,
+          fromAgentName: d.fromAgentName as string,
+          fromAgentRole: d.fromAgentRole as string | undefined,
+          fromAgentType: d.fromAgentType as string | undefined,
+          fromAgentAvatar: d.fromAgentAvatar as string | undefined,
+          modelName: d.modelName as string | undefined,
+          llmConfigName: d.llmConfigName as string | undefined,
+          content: d.content as string,
           type: 'agent' as const,
-          timestamp: new Date(d.timestamp),
-          isMentioned: d.isMentioned ?? false,
+          timestamp: new Date(d.timestamp as string),
+          isMentioned: (d.isMentioned as boolean) ?? false,
         }));
         setCurrentMessages(prev => [...prev, ...agentMsgs]);
       } else {
         antMessage.error(response.message || '发送失败');
       }
-    } catch (error: any) {
-      antMessage.error(error?.response?.data?.message || '聊天请求失败');
+    } catch (error: unknown) {
+      antMessage.error(getErrorMessage(error, '聊天请求失败'));
     } finally {
       setSending(false);
       setThinkingAgent('');

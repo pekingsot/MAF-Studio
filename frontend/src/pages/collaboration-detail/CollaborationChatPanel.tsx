@@ -41,18 +41,18 @@ const CollaborationChatPanel: React.FC<CollaborationChatPanelProps> = ({
     try {
       const res = await collaborationService.getChatHistory(collaborationId, 20);
       if (res.success && res.data) {
-        const historyMsgs: ChatMsg[] = res.data.map((m: any) => ({
-          id: m.id,
-          fromAgentId: m.from_agent_id ?? m.fromAgentId,
-          fromAgentName: m.from_agent_name ?? m.fromAgentName,
-          fromAgentRole: m.from_agent_role ?? m.fromAgentRole,
-          fromAgentType: m.from_agent_type ?? m.fromAgentType,
-          fromAgentAvatar: m.from_agent_avatar ?? m.fromAgentAvatar,
-          modelName: m.model_name ?? m.modelName,
-          content: m.content,
-          type: (m.sender_type ?? m.senderType) === 'Agent' ? 'agent' : 'user',
-          timestamp: new Date(m.timestamp),
-          isMentioned: m.is_mentioned ?? m.isMentioned,
+        const historyMsgs: ChatMsg[] = res.data.map((m: Record<string, unknown>) => ({
+          id: m.id as number,
+          fromAgentId: (m.from_agent_id ?? m.fromAgentId) as number,
+          fromAgentName: ((m.from_agent_name ?? m.fromAgentName) as string) ?? '我',
+          fromAgentRole: (m.from_agent_role ?? m.fromAgentRole) as string | undefined,
+          fromAgentType: (m.from_agent_type ?? m.fromAgentType) as string | undefined,
+          fromAgentAvatar: (m.from_agent_avatar ?? m.fromAgentAvatar) as string | undefined,
+          modelName: (m.model_name ?? m.modelName) as string | undefined,
+          content: m.content as string,
+          type: ((m.sender_type ?? m.senderType) as string) === 'Agent' ? 'agent' : 'user',
+          timestamp: new Date(m.timestamp as string),
+          isMentioned: (m.is_mentioned ?? m.isMentioned) as boolean | undefined,
         }));
         setMessages(historyMsgs);
         setHasMoreHistory(res.hasMore ?? false);
@@ -77,18 +77,18 @@ const CollaborationChatPanel: React.FC<CollaborationChatPanelProps> = ({
     try {
       const res = await collaborationService.getChatHistory(collaborationId, 20, oldestId);
       if (res.success && res.data && res.data.length > 0) {
-        const olderMsgs: ChatMsg[] = res.data.map((m: any) => ({
-          id: m.id,
-          fromAgentId: m.from_agent_id ?? m.fromAgentId,
-          fromAgentName: m.from_agent_name ?? m.fromAgentName,
-          fromAgentRole: m.from_agent_role ?? m.fromAgentRole,
-          fromAgentType: m.from_agent_type ?? m.fromAgentType,
-          fromAgentAvatar: m.from_agent_avatar ?? m.fromAgentAvatar,
-          modelName: m.model_name ?? m.modelName,
-          content: m.content,
-          type: (m.sender_type ?? m.senderType) === 'Agent' ? 'agent' : 'user',
-          timestamp: new Date(m.timestamp),
-          isMentioned: m.is_mentioned ?? m.isMentioned,
+        const olderMsgs: ChatMsg[] = res.data.map((m: Record<string, unknown>) => ({
+          id: m.id as number,
+          fromAgentId: (m.from_agent_id ?? m.fromAgentId) as number,
+          fromAgentName: ((m.from_agent_name ?? m.fromAgentName) as string) ?? '我',
+          fromAgentRole: (m.from_agent_role ?? m.fromAgentRole) as string | undefined,
+          fromAgentType: (m.from_agent_type ?? m.fromAgentType) as string | undefined,
+          fromAgentAvatar: (m.from_agent_avatar ?? m.fromAgentAvatar) as string | undefined,
+          modelName: (m.model_name ?? m.modelName) as string | undefined,
+          content: m.content as string,
+          type: ((m.sender_type ?? m.senderType) as string) === 'Agent' ? 'agent' : 'user',
+          timestamp: new Date(m.timestamp as string),
+          isMentioned: (m.is_mentioned ?? m.isMentioned) as boolean | undefined,
         }));
         setMessages(prev => [...olderMsgs, ...prev]);
         setHasMoreHistory(res.hasMore ?? false);
@@ -173,7 +173,7 @@ const CollaborationChatPanel: React.FC<CollaborationChatPanelProps> = ({
       } else {
         antMessage.error(response.message || '发送失败');
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       antMessage.error(error?.response?.data?.message || '聊天请求失败');
     } finally {
       setSending(false);

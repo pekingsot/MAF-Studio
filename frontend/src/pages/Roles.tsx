@@ -1,3 +1,4 @@
+import { getErrorMessage } from '../utils/errorHandler';
 import React, { useState, useEffect } from 'react';
 import { Table, Card, Button, Modal, Form, Input, Switch, message, Tag, Space, Popconfirm, Transfer } from 'antd';
 import { PlusOutlined, EditOutlined, DeleteOutlined, SafetyOutlined } from '@ant-design/icons';
@@ -56,8 +57,8 @@ const Roles: React.FC = () => {
 
       const data = await response.json();
       setRoles(data);
-    } catch (error: any) {
-      message.error(error.message || '加载角色列表失败');
+    } catch (error: unknown) {
+      message.error(getErrorMessage(error, '加载角色列表失败'));
     } finally {
       setLoading(false);
     }
@@ -78,12 +79,12 @@ const Roles: React.FC = () => {
 
       const data = await response.json();
       setPermissions(data);
-    } catch (error: any) {
-      message.error(error.message || '加载权限列表失败');
+    } catch (error: unknown) {
+      message.error(getErrorMessage(error, '加载权限列表失败'));
     }
   };
 
-  const handleCreateRole = async (values: any) => {
+  const handleCreateRole = async (values: Record<string, unknown>) => {
     try {
       const token = authService.getToken();
       const response = await fetch(getApiUrl('/roles'), {
@@ -97,19 +98,19 @@ const Roles: React.FC = () => {
 
       if (!response.ok) {
         const error = await response.json();
-        throw new Error(error.message || '创建角色失败');
+        throw new Error(getErrorMessage(error, '创建角色失败'));
       }
 
       message.success('角色创建成功');
       setModalVisible(false);
       form.resetFields();
       loadRoles();
-    } catch (error: any) {
-      message.error(error.message || '创建角色失败');
+    } catch (error: unknown) {
+      message.error(getErrorMessage(error, '创建角色失败'));
     }
   };
 
-  const handleUpdateRole = async (values: any) => {
+  const handleUpdateRole = async (values: Record<string, unknown>) => {
     if (!editingRole) return;
 
     try {
@@ -125,7 +126,7 @@ const Roles: React.FC = () => {
 
       if (!response.ok) {
         const error = await response.json();
-        throw new Error(error.message || '更新角色失败');
+        throw new Error(getErrorMessage(error, '更新角色失败'));
       }
 
       message.success('角色更新成功');
@@ -133,8 +134,8 @@ const Roles: React.FC = () => {
       setEditingRole(null);
       form.resetFields();
       loadRoles();
-    } catch (error: any) {
-      message.error(error.message || '更新角色失败');
+    } catch (error: unknown) {
+      message.error(getErrorMessage(error, '更新角色失败'));
     }
   };
 
@@ -150,13 +151,13 @@ const Roles: React.FC = () => {
 
       if (!response.ok) {
         const error = await response.json();
-        throw new Error(error.message || '删除角色失败');
+        throw new Error(getErrorMessage(error, '删除角色失败'));
       }
 
       message.success('角色删除成功');
       loadRoles();
-    } catch (error: any) {
-      message.error(error.message || '删除角色失败');
+    } catch (error: unknown) {
+      message.error(getErrorMessage(error, '删除角色失败'));
     }
   };
 
@@ -178,12 +179,12 @@ const Roles: React.FC = () => {
       const rolePermissionCodes = rolePermissionsData.map((p: Permission) => p.code);
       setRolePermissions(rolePermissionCodes);
       setPermissionModalVisible(true);
-    } catch (error: any) {
-      message.error(error.message || '获取角色权限失败');
+    } catch (error: unknown) {
+      message.error(getErrorMessage(error, '获取角色权限失败'));
     }
   };
 
-  const handlePermissionChange = async (targetKeys: any[]) => {
+  const handlePermissionChange = async (targetKeys: string[]) => {
     if (!selectedRole) return;
 
     try {
@@ -231,8 +232,8 @@ const Roles: React.FC = () => {
       message.success('权限更新成功');
       setPermissionModalVisible(false);
       loadRoles();
-    } catch (error: any) {
-      message.error(error.message || '更新权限失败');
+    } catch (error: unknown) {
+      message.error(getErrorMessage(error, '更新权限失败'));
     }
   };
 
@@ -296,7 +297,7 @@ const Roles: React.FC = () => {
     {
       title: '操作',
       key: 'action',
-      render: (_: any, record: Role) => (
+      render: (_: unknown, record: Role) => (
         <Space>
           <Button
             type="link"

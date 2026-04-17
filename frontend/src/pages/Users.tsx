@@ -1,3 +1,4 @@
+import { getErrorMessage } from '../utils/errorHandler';
 import React, { useState, useEffect } from 'react';
 import { Table, Card, Button, Modal, Form, Input, Select, message, Tag, Space, Popconfirm, Transfer } from 'antd';
 import { UserOutlined, MailOutlined, PlusOutlined, DeleteOutlined, TeamOutlined } from '@ant-design/icons';
@@ -55,8 +56,8 @@ const Users: React.FC = () => {
 
       const data = await response.json();
       setUsers(data);
-    } catch (error: any) {
-      message.error(error.message || '加载用户列表失败');
+    } catch (error: unknown) {
+      message.error(getErrorMessage(error, '加载用户列表失败'));
     } finally {
       setLoading(false);
     }
@@ -77,8 +78,8 @@ const Users: React.FC = () => {
 
       const data = await response.json();
       setRoles(data);
-    } catch (error: any) {
-      message.error(error.message || '加载角色列表失败');
+    } catch (error: unknown) {
+      message.error(getErrorMessage(error, '加载角色列表失败'));
     }
   };
 
@@ -101,12 +102,12 @@ const Users: React.FC = () => {
       setUserRoles(userRoleCodes);
       setAvailableRoles(roles.map(r => r.code));
       setRoleModalVisible(true);
-    } catch (error: any) {
-      message.error(error.message || '获取用户角色失败');
+    } catch (error: unknown) {
+      message.error(getErrorMessage(error, '获取用户角色失败'));
     }
   };
 
-  const handleRoleChange = async (targetKeys: any[]) => {
+  const handleRoleChange = async (targetKeys: string[]) => {
     if (!selectedUser) return;
 
     try {
@@ -154,8 +155,8 @@ const Users: React.FC = () => {
       message.success('角色更新成功');
       setRoleModalVisible(false);
       loadUsers();
-    } catch (error: any) {
-      message.error(error.message || '更新角色失败');
+    } catch (error: unknown) {
+      message.error(getErrorMessage(error, '更新角色失败'));
     }
   };
 
@@ -208,7 +209,7 @@ const Users: React.FC = () => {
     {
       title: '操作',
       key: 'action',
-      render: (_: any, record: User) => (
+      render: (_: unknown, record: User) => (
         <Space>
           <Button
             type="link"
@@ -271,8 +272,8 @@ const Users: React.FC = () => {
               setModalVisible(false);
               form.resetFields();
               loadUsers();
-            } catch (error: any) {
-              message.error(error.message || '创建用户失败');
+            } catch (error: unknown) {
+              message.error(getErrorMessage(error, '创建用户失败'));
             }
           }}
         >

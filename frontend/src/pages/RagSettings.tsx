@@ -2,17 +2,10 @@ import React, { useEffect, useState, useRef } from 'react';
 import { Card, Form, Input, Button, message, Divider, Row, Col, Space, Tag, InputNumber, Select } from 'antd';
 import { SaveOutlined, ReloadOutlined } from '@ant-design/icons';
 import api from '../services/api';
+import type { SystemConfig } from '../types/llm';
 
 const { Option } = Select;
 const { TextArea } = Input;
-
-interface SystemConfig {
-  id: string;
-  key: string;
-  value: string;
-  description?: string;
-  group?: string;
-}
 
 const RagSettings: React.FC = () => {
   const [form] = Form.useForm();

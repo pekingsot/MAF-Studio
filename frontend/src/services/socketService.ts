@@ -69,7 +69,7 @@ class SocketService {
     }
   }
 
-  onMessage(callback: (message: any) => void): void {
+  onMessage(callback: (message: Record<string, unknown>) => void): void {
     if (this.socket) {
       this.socket.on('ReceiveMessage', callback);
     }
@@ -87,7 +87,7 @@ class SocketService {
     }
   }
 
-  onAgentStatusUpdated(callback: (agent: any) => void): void {
+  onAgentStatusUpdated(callback: (agent: Record<string, unknown>) => void): void {
     if (this.socket) {
       this.socket.on('AgentStatusUpdated', callback);
     }

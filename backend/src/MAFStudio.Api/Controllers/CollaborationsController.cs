@@ -10,7 +10,6 @@ using MAFStudio.Core.Enums;
 using MAFStudio.Api.Extensions;
 using MAFStudio.Core.Interfaces.Repositories;
 using MAFStudio.Core.Entities;
-using MAFStudio.Core.Enums;
 using Microsoft.Extensions.AI;
 using MAFStudio.Application.Skills;
 
@@ -732,7 +731,7 @@ public class CollaborationsController : ControllerBase
             try
             {
                 var jsonOptions = new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true };
-                var configs = System.Text.Json.JsonSerializer.Deserialize<List<LlmConfigItem>>(agentEntity.LlmConfigs, jsonOptions);
+                var configs = System.Text.Json.JsonSerializer.Deserialize<List<LlmConfigInfoVo>>(agentEntity.LlmConfigs, jsonOptions);
 
                 var primaryConfig = configs?.FirstOrDefault(c => c.IsPrimary) ?? configs?.FirstOrDefault();
                 modelName ??= primaryConfig?.ModelName;
@@ -868,11 +867,4 @@ public class CollaborationChatRequest
     public List<string>? MentionedAgentIds { get; set; }
     public string? MessageType { get; set; }
     public long? ToAgentId { get; set; }
-}
-
-public class LlmConfigItem
-{
-    public string? LlmConfigName { get; set; }
-    public string? ModelName { get; set; }
-    public bool IsPrimary { get; set; }
 }

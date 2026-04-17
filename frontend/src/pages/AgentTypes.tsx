@@ -1,3 +1,4 @@
+import { getErrorMessage } from '../utils/errorHandler';
 import React, { useEffect, useState, useRef } from 'react';
 import { Table, Button, Modal, Form, Input, Select, Tag, Space, message, Switch, InputNumber, Divider, Row, Col, Tooltip, Typography } from 'antd';
 import { PlusOutlined, EditOutlined, DeleteOutlined, LockOutlined } from '@ant-design/icons';
@@ -81,7 +82,7 @@ const AgentTypes: React.FC = () => {
       await api.delete(`/agenttypes/${id}`);
       message.success('删除成功');
       loadTypes();
-    } catch (error: any) {
+    } catch (error: unknown) {
       if (error.response?.status === 400) {
         message.error(error.response.data || '系统内置类型不能删除');
       } else {
@@ -107,7 +108,7 @@ const AgentTypes: React.FC = () => {
       }
       setModalVisible(false);
       loadTypes();
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('[DEBUG] 错误:', error);
       console.error('[DEBUG] 错误响应:', error.response);
       
@@ -118,7 +119,7 @@ const AgentTypes: React.FC = () => {
       } else if (error.response?.status === 401) {
         message.error('未登录或登录已过期');
       } else {
-        message.error(error.response?.data?.message || error.message || '操作失败');
+        message.error(error.response?.data?.message || getErrorMessage(error, '操作失败'));
       }
     }
   };
@@ -214,7 +215,7 @@ const AgentTypes: React.FC = () => {
       title: '参数',
       key: 'defaults',
       width: 100,
-      render: (_: any, record: AgentType) => (
+      render: (_: unknown, record: AgentType) => (
         <div style={{ fontSize: 12 }}>
           <div>温度: {record.defaultTemperature}</div>
           <div>Tokens: {record.defaultMaxTokens}</div>
@@ -241,7 +242,7 @@ const AgentTypes: React.FC = () => {
       key: 'action',
       width: 120,
       fixed: 'right' as const,
-      render: (_: any, record: AgentType) => (
+      render: (_: unknown, record: AgentType) => (
         <Space size={0}>
           <Button type="link" size="small" icon={<EditOutlined />} onClick={() => handleEdit(record)}>
             编辑

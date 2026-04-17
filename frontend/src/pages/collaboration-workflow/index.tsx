@@ -1,3 +1,4 @@
+import { getErrorMessage } from '../../utils/errorHandler';
 import React, { useState, useEffect } from 'react';
 import { Card, Table, Button, Modal, message, Space, Tag } from 'antd';
 import { PlayCircleOutlined } from '@ant-design/icons';
@@ -19,8 +20,8 @@ const CollaborationWorkflowPage: React.FC = () => {
     try {
       const data = await collaborationService.getAllCollaborations();
       setCollaborations(data);
-    } catch (error: any) {
-      message.error(`加载协作列表失败: ${error.message}`);
+    } catch (error: unknown) {
+      message.error(`加载协作列表失败: ${getErrorMessage(error)}`);
     } finally {
       setLoading(false);
     }
@@ -66,7 +67,7 @@ const CollaborationWorkflowPage: React.FC = () => {
     {
       title: 'Agent数量',
       key: 'agentCount',
-      render: (_: any, record: Collaboration) => record.agents?.length || 0,
+      render: (_: unknown, record: Collaboration) => record.agents?.length || 0,
     },
     {
       title: '创建时间',
@@ -77,7 +78,7 @@ const CollaborationWorkflowPage: React.FC = () => {
     {
       title: '操作',
       key: 'action',
-      render: (_: any, record: Collaboration) => (
+      render: (_: unknown, record: Collaboration) => (
         <Space>
           <Button
             type="primary"

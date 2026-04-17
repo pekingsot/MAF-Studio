@@ -2,6 +2,7 @@ using System.Diagnostics;
 using System.Text;
 using System.Text.Json;
 using MAFStudio.Application.Services;
+using MAFStudio.Core.Exceptions;
 using MAFStudio.Core.Interfaces.Repositories;
 using Microsoft.Extensions.Logging;
 

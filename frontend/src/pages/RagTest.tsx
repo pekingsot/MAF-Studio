@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { Card, Row, Col, Form, Input, Select, Button, message, Table, Tag, Space, Divider, InputNumber, Tabs, Popconfirm, Modal, Alert, Pagination, Upload, Radio, RadioChangeEvent } from 'antd';
+import { Card, Row, Col, Form, Input, Select, Button, message, Table, Tag, Space, Divider, InputNumber, Tabs, Popconfirm, Modal, Alert, Pagination, Upload, Radio, RadioChangeEvent, UploadFile } from 'antd';
 import { DeleteOutlined, CopyOutlined, FileTextOutlined, SplitCellsOutlined, DatabaseOutlined, SearchOutlined, RobotOutlined, UploadOutlined, InboxOutlined } from '@ant-design/icons';
 import api from '../services/api';
 
@@ -45,13 +45,30 @@ interface VectorDocument {
   chunkIndex?: number;
 }
 
+interface OptionItem {
+  value: string;
+  label: string;
+  extension?: string;
+}
+
+interface RagQueryResult {
+  answer: string;
+  sources?: Array<{
+    content: string;
+    score: number;
+    documentId: string;
+    chunkIndex: number;
+  }>;
+  chunks?: RagDocumentChunk[];
+}
+
 const RagTest: React.FC = () => {
   const [documents, setDocuments] = useState<RagDocument[]>([]);
-  const [splitMethods, setSplitMethods] = useState<any[]>([]);
-  const [fileTypes, setFileTypes] = useState<any[]>([]);
+  const [splitMethods, setSplitMethods] = useState<OptionItem[]>([]);
+  const [fileTypes, setFileTypes] = useState<OptionItem[]>([]);
   const [llmConfigs, setLLMConfigs] = useState<LLMConfig[]>([]);
   const [loading, setLoading] = useState(false);
-  const [testResult, setTestResult] = useState<any>(null);
+  const [testResult, setTestResult] = useState<RagQueryResult | null>(null);
   const [selectedDocument, setSelectedDocument] = useState<RagDocument | null>(null);
   const [chunks, setChunks] = useState<RagDocumentChunk[]>([]);
   const [chunksModalVisible, setChunksModalVisible] = useState(false);
@@ -64,9 +81,9 @@ const RagTest: React.FC = () => {
   
   // 文件上传相关状态
   const [uploadMode, setUploadMode] = useState<'text' | 'file'>('file');
-  const [fileList, setFileList] = useState<any[]>([]);
+  const [fileList, setFileList] = useState<UploadFile[]>([]);
   const [uploading, setUploading] = useState(false);
-  const [supportedTypes, setSupportedTypes] = useState<any[]>([]);
+  const [supportedTypes, setSupportedTypes] = useState<OptionItem[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const initializedRef = useRef(false);
 
@@ -215,14 +232,14 @@ const RagTest: React.FC = () => {
       message.success('文件上传成功');
       setFileList([]);
       loadData();
-    } catch (error: any) {
+    } catch (error: unknown) {
       message.error(error.response?.data?.message || '上传失败');
     } finally {
       setUploading(false);
     }
   };
 
-  const handleFileChange = (info: any) => {
+  const handleFileChange = (info: { fileList: UploadFile[] }) => {
     setFileList(info.fileList.slice(-1));
     
     if (info.fileList.length > 0) {
@@ -270,7 +287,7 @@ const RagTest: React.FC = () => {
       message.success(`向量入库完成，成功 ${response.data.successCount} 个分块`);
       loadData();
       loadVectorDocs(vectorDocsPage, vectorDocsPageSize, vectorDocsKeyword);
-    } catch (error: any) {
+    } catch (error: unknown) {
       message.error(error.response?.data?.message || '向量入库失败');
     } finally {
       setVectorizing(false);
@@ -288,7 +305,7 @@ const RagTest: React.FC = () => {
       const response = await api.post('/rag/query', values);
       setRagQueryResult(response.data);
       message.success('RAG检索完成');
-    } catch (error: any) {
+    } catch (error: unknown) {
       message.error(error.response?.data?.message || 'RAG检索失败');
     } finally {
       setRagLoading(false);
@@ -334,7 +351,7 @@ const RagTest: React.FC = () => {
       key: 'splitMethod',
       width: 100,
       render: (method: string) => {
-        const m = splitMethods.find((s: any) => s.value === method);
+        const m = splitMethods.find((s: OptionItem) => s.value === method);
         return m?.label || method || '-';
       },
     },
@@ -357,7 +374,7 @@ const RagTest: React.FC = () => {
       title: '操作',
       key: 'action',
       width: 280,
-      render: (_: any, record: RagDocument) => (
+      render: (_: unknown, record: RagDocument) => (
         <Space size="small">
           <Button type="link" size="small" onClick={() => handleViewChunks(record)}>
             查看分块
@@ -415,7 +432,7 @@ const RagTest: React.FC = () => {
       title: '操作',
       key: 'action',
       width: 80,
-      render: (_: any, record: RagDocumentChunk) => (
+      render: (_: unknown, record: RagDocumentChunk) => (
         <Button 
           type="link" 
           icon={<CopyOutlined />} 
@@ -433,7 +450,7 @@ const RagTest: React.FC = () => {
       dataIndex: 'chunkIndex',
       key: 'chunkIndex',
       width: 60,
-      render: (_: any, __: any, index: number) => index + 1,
+      render: (_: unknown, __: unknown, index: number) => index + 1,
     },
     {
       title: '内容',
@@ -445,13 +462,13 @@ const RagTest: React.FC = () => {
       title: '字符数',
       key: 'length',
       width: 80,
-      render: (_: any, record: any) => record.content?.length || 0,
+      render: (_: unknown, record: RagDocumentChunk) => record.content?.length || 0,
     },
     {
       title: '操作',
       key: 'action',
       width: 80,
-      render: (_: any, record: any) => (
+      render: (_: unknown, record: RagDocumentChunk) => (
         <Button 
           type="link" 
           icon={<CopyOutlined />} 
@@ -495,7 +512,7 @@ const RagTest: React.FC = () => {
       title: '操作',
       key: 'action',
       width: 100,
-      render: (_: any, record: VectorDocument) => (
+      render: (_: unknown, record: VectorDocument) => (
         <Space>
           <Button type="link" size="small" icon={<CopyOutlined />} onClick={() => handleCopy(record.content)}>
             复制
@@ -533,7 +550,7 @@ const RagTest: React.FC = () => {
                     <Form form={form} layout="vertical">
                       <Form.Item label="分割方式" name="splitMethod">
                         <Select placeholder="选择分割方式">
-                          {splitMethods.map((m: any) => (
+                          {splitMethods.map((m: OptionItem) => (
                             <Option key={m.value} value={m.value}>
                               {m.label} - {m.description}
                             </Option>
@@ -569,7 +586,7 @@ const RagTest: React.FC = () => {
                       <Table
                         dataSource={testResult.chunks}
                         columns={testResultColumns}
-                        rowKey={(_: any, index?: number) => `chunk-${index ?? 0}`}
+                        rowKey={(_: unknown, index?: number) => `chunk-${index ?? 0}`}
                         pagination={false}
                         scroll={{ y: 500 }}
                       />
@@ -606,7 +623,7 @@ const RagTest: React.FC = () => {
                               fileList={fileList}
                               beforeUpload={() => false}
                               onChange={handleFileChange}
-                              accept={supportedTypes.map((t: any) => t.extension).join(',')}
+                              accept={supportedTypes.map((t: OptionItem) => t.extension).join(',')}
                               maxCount={1}
                             >
                               <p className="ant-upload-drag-icon">
@@ -631,7 +648,7 @@ const RagTest: React.FC = () => {
                           </Form.Item>
                           <Form.Item label="文件类型" name="fileType">
                             <Select placeholder="选择文件类型" allowClear>
-                              {fileTypes.map((t: any) => (
+                              {fileTypes.map((t: OptionItem) => (
                                 <Option key={t.ext} value={t.ext}>
                                   {t.name} ({t.ext}) {t.needSplit ? '' : '- 不分割'}
                                 </Option>
@@ -646,7 +663,7 @@ const RagTest: React.FC = () => {
                       
                       <Form.Item label="分割方式" name="splitMethod">
                         <Select placeholder="选择分割方式">
-                          {splitMethods.map((m: any) => (
+                          {splitMethods.map((m: OptionItem) => (
                             <Option key={m.value} value={m.value}>
                               {m.label} - {m.description}
                             </Option>
@@ -816,7 +833,7 @@ const RagTest: React.FC = () => {
                         </div>
                         
                         <Divider orientation="left">相关文档片段 ({ragQueryResult.sources?.length || 0})</Divider>
-                        {ragQueryResult.sources?.map((source: any, index: number) => (
+                        {ragQueryResult.sources?.map((source: RagQueryResult["sources"][number], index: number) => (
                           <Card 
                             key={index} 
                             size="small" 

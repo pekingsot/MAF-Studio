@@ -1,3 +1,4 @@
+import { getErrorMessage } from '../../utils/errorHandler';
 import React, { useState, useRef, useEffect } from 'react';
 import {
   Table, Button, Space, Tag, Modal, Form, Input, Select, message, Popconfirm,
@@ -12,7 +13,7 @@ import {
   ApartmentOutlined, MessageOutlined, SafetyCertificateOutlined
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
-import ReactFlow, { Background, Controls, MiniMap, useNodesState, useEdgesState } from 'reactflow';
+import ReactFlow, { Background, Controls, MiniMap, useNodesState, useEdgesState, Edge } from 'reactflow';
 import 'reactflow/dist/style.css';
 import { CollaborationTask, CollaborationAgent, TASK_STATUS_COLOR_MAP } from './types';
 import { collaborationService } from '../../services/collaborationService';
@@ -20,7 +21,7 @@ import { collaborationWorkflowService, ChatMessageDto } from '../../services/col
 import { workflowTemplateApi } from '../../services/workflow-template-api';
 import { nodeTypes } from '../../components/workflow/CustomNodes';
 import { edgeTypes } from '../../components/workflow/CustomEdges';
-import type { WorkflowDefinition, WorkflowNode, WorkflowTemplate } from '../../types/workflow-template';
+import type { WorkflowDefinition, WorkflowNode, WorkflowTemplate, NodeType as NodeTypeEnum, EdgeType } from '../../types/workflow-template';
 
 const { TextArea } = Input;
 const { Option } = Select;
@@ -72,18 +73,18 @@ const TaskTable: React.FC<TaskTableProps> = ({ tasks, agents, collaborationId, o
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [execMessages]);
 
-  const handleCreate = async (values: any) => {
+  const handleCreate = async (values: Record<string, unknown>) => {
     setSaving(true);
     try {
-      const config: Record<string, any> = {};
+      const config: Record<string, unknown> = {};
       if (values.workflowType) {
         config.workflowType = values.workflowType;
       }
       await collaborationService.createTask(collaborationId, {
-        title: values.title,
-        description: values.description,
-        prompt: values.prompt,
-        agentIds: values.agentIds,
+        title: values.title as string,
+        description: values.description as string | undefined,
+        prompt: values.prompt as string | undefined,
+        agentIds: values.agentIds as number[] | undefined,
         config: Object.keys(config).length > 0 ? JSON.stringify(config) : undefined,
       });
       message.success('任务创建成功');
@@ -91,8 +92,8 @@ const TaskTable: React.FC<TaskTableProps> = ({ tasks, agents, collaborationId, o
       createForm.resetFields();
       setCreateWorkflowType('');
       onUpdate();
-    } catch (error: any) {
-      message.error(`创建失败: ${error.message}`);
+    } catch (error: unknown) {
+      message.error(`创建失败: ${getErrorMessage(error)}`);
     } finally {
       setSaving(false);
     }
@@ -115,18 +116,18 @@ const TaskTable: React.FC<TaskTableProps> = ({ tasks, agents, collaborationId, o
     setEditModalVisible(true);
   };
 
-  const handleUpdate = async (values: any) => {
+  const handleUpdate = async (values: Record<string, unknown>) => {
     if (!currentTask) return;
     setSaving(true);
     try {
-      const config: Record<string, any> = {};
+      const config: Record<string, unknown> = {};
       if (values.workflowType) {
         config.workflowType = values.workflowType;
       }
       await collaborationService.updateTask(currentTask.id, {
-        title: values.title,
-        description: values.description,
-        prompt: values.prompt,
+        title: values.title as string,
+        description: values.description as string | undefined,
+        prompt: values.prompt as string | undefined,
         config: Object.keys(config).length > 0 ? JSON.stringify(config) : undefined,
       });
       message.success('任务更新成功');
@@ -134,8 +135,8 @@ const TaskTable: React.FC<TaskTableProps> = ({ tasks, agents, collaborationId, o
       editForm.resetFields();
       setEditWorkflowType('');
       onUpdate();
-    } catch (error: any) {
-      message.error(`更新失败: ${error.message}`);
+    } catch (error: unknown) {
+      message.error(`更新失败: ${getErrorMessage(error)}`);
     } finally {
       setSaving(false);
     }
@@ -146,8 +147,8 @@ const TaskTable: React.FC<TaskTableProps> = ({ tasks, agents, collaborationId, o
       await collaborationService.deleteTask(taskId);
       message.success('任务删除成功');
       onUpdate();
-    } catch (error: any) {
-      message.error(`删除失败: ${error.message}`);
+    } catch (error: unknown) {
+      message.error(`删除失败: ${getErrorMessage(error)}`);
     }
   };
 
@@ -156,8 +157,8 @@ const TaskTable: React.FC<TaskTableProps> = ({ tasks, agents, collaborationId, o
       await collaborationService.updateTaskStatus(taskId, 'Cancelled');
       message.success('任务已关闭');
       onUpdate();
-    } catch (error: any) {
-      message.error(`关闭失败: ${error.message}`);
+    } catch (error: unknown) {
+      message.error(`关闭失败: ${getErrorMessage(error)}`);
     }
   };
 
@@ -188,7 +189,7 @@ const TaskTable: React.FC<TaskTableProps> = ({ tasks, agents, collaborationId, o
     try {
       const data = await workflowTemplateApi.getAll(true);
       setTemplates(data || []);
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('加载模板失败:', error);
     } finally {
       setTemplatesLoading(false);
@@ -236,8 +237,8 @@ const TaskTable: React.FC<TaskTableProps> = ({ tasks, agents, collaborationId, o
       } else {
         message.error(`生成失败: ${response.error || '未知错误'}`);
       }
-    } catch (error: any) {
-      message.error(`生成失败: ${error.message}`);
+    } catch (error: unknown) {
+      message.error(`生成失败: ${getErrorMessage(error)}`);
     } finally {
       setLoading(false);
     }
@@ -272,32 +273,32 @@ const TaskTable: React.FC<TaskTableProps> = ({ tasks, agents, collaborationId, o
       setMagenticStep('done');
       message.success('Magentic工作流执行完成');
       onUpdate();
-    } catch (error: any) {
-      message.error(`执行失败: ${error.message}`);
+    } catch (error: unknown) {
+      message.error(`执行失败: ${getErrorMessage(error)}`);
       setMagenticStep('preview');
     } finally {
       setLoading(false);
     }
   };
 
-  const handleSaveAsTemplate = async (values: any) => {
+  const handleSaveAsTemplate = async (values: Record<string, unknown>) => {
     if (!generatedWorkflow) return;
 
     try {
       await workflowTemplateApi.saveMagenticPlan({
-        name: values.name,
-        description: values.description,
-        category: values.category,
-        tags: values.tags?.split(',').map((t: string) => t.trim()),
+        name: values.name as string,
+        description: values.description as string | undefined,
+        category: values.category as string | undefined,
+        tags: (values.tags as string)?.split(',').map((t: string) => t.trim()),
         workflow: generatedWorkflow,
-        isPublic: values.isPublic || false,
-        enableLearning: values.enableLearning || false,
+        isPublic: (values.isPublic as boolean) || false,
+        enableLearning: (values.enableLearning as boolean) || false,
         originalTask: taskInput,
       });
       message.success('保存为模板成功');
       setSaveModalVisible(false);
-    } catch (error: any) {
-      message.error(`保存失败: ${error.message}`);
+    } catch (error: unknown) {
+      message.error(`保存失败: ${getErrorMessage(error)}`);
     }
   };
 
@@ -341,7 +342,7 @@ const TaskTable: React.FC<TaskTableProps> = ({ tasks, agents, collaborationId, o
           position: { x: 300, y: index * 120 },
           data: node,
         }));
-        const reactFlowEdges: any[] = [];
+        const reactFlowEdges: Edge[] = [];
         flow.edges.forEach((edge, index) => {
           const targets = Array.isArray(edge.to) ? edge.to : [edge.to];
           targets.forEach((target, targetIndex) => {
@@ -372,7 +373,7 @@ const TaskTable: React.FC<TaskTableProps> = ({ tasks, agents, collaborationId, o
     const id = `node-${Date.now()}`;
     const newNode: WorkflowNode = {
       id,
-      type: type as any,
+      type: type as NodeTypeEnum,
       name: type === 'start' ? '开始' : type === 'agent' ? '新Agent节点' : type === 'aggregator' ? '汇总结果' : type === 'condition' ? '条件判断' : type === 'review' ? '审核节点' : '循环节点',
     };
     const yPos = orchestrationNodes.length > 0
@@ -384,7 +385,7 @@ const TaskTable: React.FC<TaskTableProps> = ({ tasks, agents, collaborationId, o
     ]);
   };
 
-  const handleOrchestrationNodeClick = (_: React.MouseEvent, node: any) => {
+  const handleOrchestrationNodeClick = (_: React.MouseEvent, node: { data: WorkflowNode }) => {
     setSelectedOrchestrationNode(node.data as WorkflowNode);
   };
 
@@ -440,8 +441,8 @@ const TaskTable: React.FC<TaskTableProps> = ({ tasks, agents, collaborationId, o
       } else {
         message.error(result.error || '自动生成流程编排失败');
       }
-    } catch (error: any) {
-      message.error('自动生成流程编排失败: ' + (error.message || '未知错误'));
+    } catch (error: unknown) {
+      message.error('自动生成流程编排失败: ' + (getErrorMessage(error)));
     } finally {
       setAutoGenerating(false);
     }
@@ -453,10 +454,10 @@ const TaskTable: React.FC<TaskTableProps> = ({ tasks, agents, collaborationId, o
     try {
       const nodes = orchestrationNodes.map(n => n.data as WorkflowNode);
       const edges = orchestrationEdges.map((e, index) => ({
-        type: (e.data?.type as any) || 'sequential',
+        type: (e.data?.type as EdgeType) || 'sequential',
         from: e.source,
         to: e.target,
-        description: e.data?.description,
+        description: e.data?.description as string | undefined,
       }));
       const flow: WorkflowDefinition = { nodes, edges };
       await collaborationService.updateTaskFlow(
@@ -466,8 +467,8 @@ const TaskTable: React.FC<TaskTableProps> = ({ tasks, agents, collaborationId, o
       message.success('流程编排保存成功');
       setOrchestrationDrawerVisible(false);
       onUpdate();
-    } catch (error: any) {
-      message.error(`保存失败: ${error.message}`);
+    } catch (error: unknown) {
+      message.error(`保存失败: ${getErrorMessage(error)}`);
     } finally {
       setOrchestrationSaving(false);
     }

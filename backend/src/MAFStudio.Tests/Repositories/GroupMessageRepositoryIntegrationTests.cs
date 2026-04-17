@@ -1,5 +1,6 @@
 using Dapper;
 using MAFStudio.Api.Controllers;
+using MAFStudio.Application.VOs;
 using MAFStudio.Core.Entities;
 using MAFStudio.Infrastructure.Data;
 using MAFStudio.Infrastructure.Data.Repositories;
@@ -105,7 +106,7 @@ public class GroupMessageRepositoryIntegrationTests
         if (!string.IsNullOrEmpty(llmConfigs))
         {
             var jsonOptions = new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true };
-            var configs = System.Text.Json.JsonSerializer.Deserialize<List<LlmConfigItem>>(llmConfigs, jsonOptions);
+            var configs = System.Text.Json.JsonSerializer.Deserialize<List<LlmConfigInfoVo>>(llmConfigs, jsonOptions);
             modelName = configs?.FirstOrDefault(c => c.IsPrimary)?.ModelName;
         }
 

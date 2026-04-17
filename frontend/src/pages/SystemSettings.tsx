@@ -2,16 +2,7 @@ import React, { useEffect, useState, useRef } from 'react';
 import { Card, Form, Input, Button, message, Divider, Row, Col, Space, Tag } from 'antd';
 import { SaveOutlined, ReloadOutlined } from '@ant-design/icons';
 import api from '../services/api';
-
-interface SystemConfig {
-  id: string;
-  key: string;
-  value: string;
-  description?: string;
-  group?: string;
-  createdAt: string;
-  updatedAt?: string;
-}
+import type { SystemConfig } from '../types/llm';
 
 const SystemSettings: React.FC = () => {
   const [configs, setConfigs] = useState<SystemConfig[]>([]);

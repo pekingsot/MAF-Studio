@@ -1,3 +1,4 @@
+import { getErrorMessage } from '../utils/errorHandler';
 import React, { useState, useEffect, useRef } from 'react';
 import { Card, Form, Input, Button, Avatar, message, Divider, Space, Typography, Row, Col } from 'antd';
 import { UserOutlined, MailOutlined, LockOutlined, SaveOutlined } from '@ant-design/icons';
@@ -35,19 +36,19 @@ const Profile: React.FC = () => {
     }
   };
 
-  const handleUpdateProfile = async (values: any) => {
+  const handleUpdateProfile = async (values: Record<string, unknown>) => {
     try {
       setLoading(true);
       message.success('个人信息更新成功');
       loadUserProfile();
-    } catch (error: any) {
-      message.error(error.message || '更新失败');
+    } catch (error: unknown) {
+      message.error(getErrorMessage(error, '更新失败'));
     } finally {
       setLoading(false);
     }
   };
 
-  const handleChangePassword = async (values: any) => {
+  const handleChangePassword = async (values: Record<string, unknown>) => {
     if (values.newPassword !== values.confirmPassword) {
       message.error('两次输入的密码不一致');
       return;
@@ -57,8 +58,8 @@ const Profile: React.FC = () => {
       setLoading(true);
       message.success('密码修改成功');
       passwordForm.resetFields();
-    } catch (error: any) {
-      message.error(error.message || '修改失败');
+    } catch (error: unknown) {
+      message.error(getErrorMessage(error, '修改失败'));
     } finally {
       setLoading(false);
     }

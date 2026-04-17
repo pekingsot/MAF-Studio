@@ -1,3 +1,4 @@
+import { getErrorMessage } from '../utils/errorHandler';
 import React, { useState, useEffect } from 'react';
 import {
   Card,
@@ -62,8 +63,8 @@ const WorkflowExecute: React.FC = () => {
     try {
       const data = await workflowTemplateApi.getAll();
       setTemplates(data);
-    } catch (error: any) {
-      message.error(`加载模板失败: ${error.message}`);
+    } catch (error: unknown) {
+      message.error(`加载模板失败: ${getErrorMessage(error)}`);
     } finally {
       setLoading(false);
     }
@@ -96,7 +97,7 @@ const WorkflowExecute: React.FC = () => {
   /**
    * 执行工作流
    */
-  const handleExecute = async (values: any) => {
+  const handleExecute = async (values: Record<string, unknown>) => {
     if (!selectedTemplate) return;
 
     try {
@@ -112,8 +113,8 @@ const WorkflowExecute: React.FC = () => {
       } else {
         message.error(`执行失败: ${result.error}`);
       }
-    } catch (error: any) {
-      message.error(`执行失败: ${error.message}`);
+    } catch (error: unknown) {
+      message.error(`执行失败: ${getErrorMessage(error)}`);
     }
   };
 

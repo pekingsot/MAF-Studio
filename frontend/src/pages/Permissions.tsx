@@ -1,3 +1,4 @@
+import { getErrorMessage } from '../utils/errorHandler';
 import React, { useState, useEffect } from 'react';
 import { Table, Card, Button, Modal, Form, Input, Switch, message, Tag, Space, Popconfirm } from 'antd';
 import { PlusOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons';
@@ -42,14 +43,14 @@ const Permissions: React.FC = () => {
 
       const data = await response.json();
       setPermissions(data);
-    } catch (error: any) {
-      message.error(error.message || '加载权限列表失败');
+    } catch (error: unknown) {
+      message.error(getErrorMessage(error, '加载权限列表失败'));
     } finally {
       setLoading(false);
     }
   };
 
-  const handleCreatePermission = async (values: any) => {
+  const handleCreatePermission = async (values: Record<string, unknown>) => {
     try {
       const token = authService.getToken();
       const response = await fetch(getApiUrl('/permissions'), {
@@ -63,19 +64,19 @@ const Permissions: React.FC = () => {
 
       if (!response.ok) {
         const error = await response.json();
-        throw new Error(error.message || '创建权限失败');
+        throw new Error(getErrorMessage(error, '创建权限失败'));
       }
 
       message.success('权限创建成功');
       setModalVisible(false);
       form.resetFields();
       loadPermissions();
-    } catch (error: any) {
-      message.error(error.message || '创建权限失败');
+    } catch (error: unknown) {
+      message.error(getErrorMessage(error, '创建权限失败'));
     }
   };
 
-  const handleUpdatePermission = async (values: any) => {
+  const handleUpdatePermission = async (values: Record<string, unknown>) => {
     if (!editingPermission) return;
 
     try {
@@ -91,7 +92,7 @@ const Permissions: React.FC = () => {
 
       if (!response.ok) {
         const error = await response.json();
-        throw new Error(error.message || '更新权限失败');
+        throw new Error(getErrorMessage(error, '更新权限失败'));
       }
 
       message.success('权限更新成功');
@@ -99,8 +100,8 @@ const Permissions: React.FC = () => {
       setEditingPermission(null);
       form.resetFields();
       loadPermissions();
-    } catch (error: any) {
-      message.error(error.message || '更新权限失败');
+    } catch (error: unknown) {
+      message.error(getErrorMessage(error, '更新权限失败'));
     }
   };
 
@@ -116,13 +117,13 @@ const Permissions: React.FC = () => {
 
       if (!response.ok) {
         const error = await response.json();
-        throw new Error(error.message || '删除权限失败');
+        throw new Error(getErrorMessage(error, '删除权限失败'));
       }
 
       message.success('权限删除成功');
       loadPermissions();
-    } catch (error: any) {
-      message.error(error.message || '删除权限失败');
+    } catch (error: unknown) {
+      message.error(getErrorMessage(error, '删除权限失败'));
     }
   };
 
@@ -201,7 +202,7 @@ const Permissions: React.FC = () => {
     {
       title: '操作',
       key: 'action',
-      render: (_: any, record: Permission) => (
+      render: (_: unknown, record: Permission) => (
         <Space>
           <Button
             type="link"

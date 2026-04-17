@@ -1,6 +1,9 @@
 using MAFStudio.Application.Services.Rag;
 using MAFStudio.Application.Interfaces;
+using MAFStudio.Core.Configuration;
+using MAFStudio.Core.Entities;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using Moq;
 
 namespace MAFStudio.Tests.Rag;
@@ -127,6 +130,7 @@ public class RagServiceTests
     private readonly Mock<ITextSplitterService> _textSplitterService;
     private readonly Mock<MAFStudio.Core.Interfaces.Services.IChatService> _chatService;
     private readonly Mock<MAFStudio.Core.Interfaces.Services.ILlmConfigService> _llmConfigService;
+    private readonly Mock<IOptions<WorkspaceOptions>> _workspaceOptions;
     private readonly Mock<ILogger<RagService>> _logger;
     private readonly RagService _ragService;
 
@@ -141,6 +145,8 @@ public class RagServiceTests
         _textSplitterService = new Mock<ITextSplitterService>();
         _chatService = new Mock<MAFStudio.Core.Interfaces.Services.IChatService>();
         _llmConfigService = new Mock<MAFStudio.Core.Interfaces.Services.ILlmConfigService>();
+        _workspaceOptions = new Mock<IOptions<WorkspaceOptions>>();
+        _workspaceOptions.Setup(x => x.Value).Returns(new WorkspaceOptions { BaseDir = "/tmp/test-workspace" });
         _logger = new Mock<ILogger<RagService>>();
 
         _configRepo.Setup(x => x.GetByKeyAsync("vector_db_collection"))
@@ -164,6 +170,7 @@ public class RagServiceTests
             _textSplitterService.Object,
             _chatService.Object,
             _llmConfigService.Object,
+            _workspaceOptions.Object,
             _logger.Object);
     }
 

@@ -47,7 +47,7 @@ export const useLLMConfigs = () => {
       const url = modelId
         ? `/llmconfigs/${configId}/models/${modelId}/test`
         : `/llmconfigs/${configId}/test`;
-      const response = await api.post<ConnectionStatus & { model?: any }>(url);
+      const response = await api.post<ConnectionStatus & { model?: Record<string, unknown> }>(url);
       setConnectionStatus((prev) => ({
         ...prev,
         [testId]: response.data,

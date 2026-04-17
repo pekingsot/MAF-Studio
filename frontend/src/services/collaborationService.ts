@@ -205,7 +205,7 @@ export const collaborationService = {
   },
 
   sendChatMessage: async (collaborationId: string, content: string, mentionedAgentIds?: string[], messageType?: string, toAgentId?: number): Promise<any> => {
-    const payload: any = { content, mentionedAgentIds };
+    const payload: Record<string, unknown> = { content, mentionedAgentIds };
     if (messageType) payload.messageType = messageType;
     if (toAgentId) payload.toAgentId = toAgentId;
     const response = await api.post(`/collaborations/${collaborationId}/chat`, payload);
@@ -213,7 +213,7 @@ export const collaborationService = {
   },
 
   getChatHistory: async (collaborationId: string, limit: number = 20, beforeId?: number, messageType?: string, toAgentId?: number): Promise<any> => {
-    const params: any = { limit };
+    const params: Record<string, unknown> = { limit };
     if (beforeId) params.beforeId = beforeId;
     if (messageType) params.messageType = messageType;
     if (toAgentId) params.toAgentId = toAgentId;

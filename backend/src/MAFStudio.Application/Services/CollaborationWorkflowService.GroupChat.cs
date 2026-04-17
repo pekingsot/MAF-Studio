@@ -4,6 +4,7 @@ using MAFStudio.Application.Workflows;
 using MAFStudio.Application.Workflows.Selection;
 using MAFStudio.Core.Entities;
 using MAFStudio.Core.Enums;
+using MAFStudio.Core.Exceptions;
 using MAFStudio.Core.Interfaces.Repositories;
 using Microsoft.Agents.AI;
 using Microsoft.Agents.AI.Workflows;

@@ -1,3 +1,5 @@
+using MAFStudio.Core.Entities;
+
 namespace MAFStudio.Application.Interfaces;
 
 public interface IEmbeddingService
@@ -25,26 +27,4 @@ public interface IVectorStoreService
 public interface ITextSplitterService
 {
     List<TextChunk> Split(string text, string? method = null, int? chunkSize = null, int? chunkOverlap = null);
-}
-
-public class RerankResult
-{
-    public int Index { get; set; }
-    public string Text { get; set; } = string.Empty;
-    public double RelevanceScore { get; set; }
-}
-
-public class VectorSearchResult
-{
-    public string Id { get; set; } = string.Empty;
-    public string Content { get; set; } = string.Empty;
-    public double Score { get; set; }
-    public Dictionary<string, string> Metadata { get; set; } = new();
-}
-
-public class TextChunk
-{
-    public int Index { get; set; }
-    public string Content { get; set; } = string.Empty;
-    public Dictionary<string, object> Metadata { get; set; } = new();
 }

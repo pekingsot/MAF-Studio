@@ -3,6 +3,7 @@ using MAFStudio.Application.Interfaces;
 using MAFStudio.Application.Prompts;
 using MAFStudio.Core.Entities;
 using MAFStudio.Core.Enums;
+using MAFStudio.Core.Exceptions;
 using MAFStudio.Core.Interfaces.Repositories;
 using MAFStudio.Core.Interfaces.Services;
 using Microsoft.Extensions.AI;

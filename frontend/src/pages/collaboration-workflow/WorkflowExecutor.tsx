@@ -1,3 +1,4 @@
+import { getErrorMessage } from '../../utils/errorHandler';
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import {
   Card, Button, Input, message, Spin, Divider, List, Tag, Space, Typography,
@@ -90,7 +91,7 @@ const WorkflowExecutor: React.FC<WorkflowExecutorProps> = ({ collaborationId, co
     try {
       const data = await workflowTemplateApi.getAll(true);
       setTemplates(data || []);
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('加载模板失败:', error);
     } finally {
       setTemplatesLoading(false);
@@ -182,8 +183,8 @@ const WorkflowExecutor: React.FC<WorkflowExecutorProps> = ({ collaborationId, co
       } else {
         message.error(`生成失败: ${response.error || '未知错误'}`);
       }
-    } catch (error: any) {
-      message.error(`生成失败: ${error.message}`);
+    } catch (error: unknown) {
+      message.error(`生成失败: ${getErrorMessage(error)}`);
     } finally {
       setLoading(false);
     }
@@ -216,15 +217,15 @@ const WorkflowExecutor: React.FC<WorkflowExecutorProps> = ({ collaborationId, co
       );
       setMagenticStep('done');
       message.success('Magentic工作流执行完成');
-    } catch (error: any) {
-      message.error(`执行失败: ${error.message}`);
+    } catch (error: unknown) {
+      message.error(`执行失败: ${getErrorMessage(error)}`);
       setMagenticStep('preview');
     } finally {
       setLoading(false);
     }
   };
 
-  const handleSaveAsTemplate = async (values: any) => {
+  const handleSaveAsTemplate = async (values: Record<string, unknown>) => {
     if (!generatedWorkflow) return;
 
     try {
@@ -240,8 +241,8 @@ const WorkflowExecutor: React.FC<WorkflowExecutorProps> = ({ collaborationId, co
       });
       message.success('保存为模板成功');
       setSaveModalVisible(false);
-    } catch (error: any) {
-      message.error(`保存失败: ${error.message}`);
+    } catch (error: unknown) {
+      message.error(`保存失败: ${getErrorMessage(error)}`);
     }
   };
 
@@ -278,8 +279,8 @@ const WorkflowExecutor: React.FC<WorkflowExecutorProps> = ({ collaborationId, co
         }
       );
       message.success('群聊工作流执行完成');
-    } catch (error: any) {
-      message.error(`执行失败: ${error.message}`);
+    } catch (error: unknown) {
+      message.error(`执行失败: ${getErrorMessage(error)}`);
     } finally {
       setLoading(false);
     }

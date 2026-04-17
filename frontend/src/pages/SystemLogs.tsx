@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { Table, Card, Select, Input, DatePicker, Button, Space, Tag, Modal, Descriptions, Statistic, Row, Col, message, Popconfirm, Tooltip } from 'antd';
+import { Table, Card, Select, Input, DatePicker, Button, Space, Tag, Modal, Descriptions, Statistic, Row, Col, message, Popconfirm, Tooltip, TablePaginationConfig } from 'antd';
 import { SearchOutlined, ReloadOutlined, DeleteOutlined, ClearOutlined, ExclamationCircleOutlined, BugOutlined, WarningOutlined, InfoCircleOutlined, StopOutlined } from '@ant-design/icons';
 import api from '../services/api';
 import dayjs from 'dayjs';
@@ -121,8 +121,8 @@ const SystemLogs: React.FC = () => {
     setTimeout(() => loadLogs(1, pagination.pageSize), 100);
   };
 
-  const handleTableChange = (pag: any) => {
-    loadLogs(pag.current, pag.pageSize);
+  const handleTableChange = (pag: TablePaginationConfig) => {
+    loadLogs(pag.current ?? 1, pag.pageSize ?? 20);
   };
 
   const handleDelete = async (id: string) => {
@@ -273,7 +273,7 @@ const SystemLogs: React.FC = () => {
       title: '操作',
       key: 'action',
       width: 80,
-      render: (_: any, record: SystemLog) => (
+      render: (_: unknown, record: SystemLog) => (
         <Space size={0}>
           <Button type="link" size="small" onClick={() => showLogDetail(record)}>
             详情

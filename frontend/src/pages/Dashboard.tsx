@@ -2,7 +2,7 @@ import React, { useEffect, useState, useRef } from 'react';
 import { Row, Col, Card, Statistic, Table, Tag, Badge, Tooltip, Space, Button, List, Typography, Divider, Popover, Descriptions } from 'antd';
 import { RobotOutlined, TeamOutlined, MessageOutlined, CheckCircleOutlined, ApiOutlined, CheckCircleFilled, CloseCircleFilled, LoadingOutlined, StarFilled, ClockCircleOutlined, DesktopOutlined, DockerOutlined } from '@ant-design/icons';
 import { agentService, Agent } from '../services/agentService';
-import { collaborationService, Collaboration } from '../services/collaborationService';
+import { collaborationService, Collaboration, CollaborationAgent, CollaborationTask } from '../services/collaborationService';
 import api from '../services/api';
 
 const { Text } = Typography;
@@ -209,14 +209,14 @@ const Dashboard: React.FC = () => {
       dataIndex: 'agents',
       key: 'agents',
       width: 100,
-      render: (agents: any[]) => agents.length,
+      render: (agents: CollaborationAgent[]) => agents.length,
     },
     {
       title: '任务数量',
       dataIndex: 'tasks',
       key: 'tasks',
       width: 100,
-      render: (tasks: any[]) => tasks.length,
+      render: (tasks: CollaborationTask[]) => tasks.length,
     },
     {
       title: '状态',

@@ -159,7 +159,7 @@ const PropertyPanel: React.FC<PropertyPanelProps> = ({ node, onUpdate, onDelete 
   /**
    * 表单值改变处理
    */
-  const handleValuesChange = (changedValues: any, allValues: any) => {
+  const handleValuesChange = (changedValues: Record<string, unknown>, allValues: Record<string, unknown>) => {
     onUpdate({ ...node, ...allValues });
   };
 

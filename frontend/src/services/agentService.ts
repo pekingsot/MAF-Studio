@@ -1,4 +1,5 @@
 import api from './api';
+import type { LlmConfigInfo } from '../types/llm';
 
 export interface Agent {
   id: number;
@@ -20,18 +21,6 @@ export interface Agent {
   updatedAt?: string;
   lastActiveAt?: string;
   llmConfigs?: LlmConfigInfo[];
-}
-
-export interface LlmConfigInfo {
-  llmConfigId: number;
-  llmConfigName: string;
-  llmModelConfigId?: number;
-  modelName: string;
-  isPrimary: boolean;
-  priority: number;
-  isValid: boolean;
-  lastChecked?: string;
-  msg: string;
 }
 
 export interface CreateAgentRequest {

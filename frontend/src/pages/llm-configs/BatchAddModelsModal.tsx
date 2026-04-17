@@ -1,3 +1,4 @@
+import { getErrorMessage } from '../../utils/errorHandler';
 import React, { useState } from 'react';
 import { Modal, Form, Input, InputNumber, Switch, message } from 'antd';
 import { LLMModelConfig } from './types';
@@ -41,8 +42,8 @@ const BatchAddModelsModal: React.FC<BatchAddModelsModalProps> = ({
       form.resetFields();
       onSuccess();
       onCancel();
-    } catch (error: any) {
-      message.error(error.message || '批量添加失败');
+    } catch (error: unknown) {
+      message.error(getErrorMessage(error, '批量添加失败'));
     } finally {
       setLoading(false);
     }

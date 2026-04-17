@@ -1,3 +1,4 @@
+import { getErrorMessage } from '../../utils/errorHandler';
 import React, { useState } from 'react';
 import { Table, Button, Popconfirm, Select, Input, message, Tag, Space, Tooltip } from 'antd';
 import { DeleteOutlined, SaveOutlined, TeamOutlined, UserOutlined, InfoCircleOutlined, EditOutlined } from '@ant-design/icons';
@@ -38,8 +39,8 @@ const AgentTable: React.FC<AgentTableProps> = ({ agents, collaborationId, onRemo
       message.success('角色更新成功');
       setEditingAgentId(null);
       onUpdate();
-    } catch (error: any) {
-      message.error(`更新失败: ${error.message}`);
+    } catch (error: unknown) {
+      message.error(`更新失败: ${getErrorMessage(error)}`);
     } finally {
       setSaving(false);
     }

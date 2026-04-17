@@ -1,3 +1,4 @@
+import { getErrorMessage } from '../utils/errorHandler';
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import {
   Card, Button, Input, message, Spin, Divider, List, Tag, Space, Typography,
@@ -58,7 +59,7 @@ const MagenticWorkflow: React.FC = () => {
     try {
       const data = await collaborationService.getAllCollaborations();
       setCollaborations(data || []);
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('加载协作列表失败:', error);
     }
   };
@@ -68,7 +69,7 @@ const MagenticWorkflow: React.FC = () => {
     try {
       const data = await workflowTemplateApi.getAll(true);
       setTemplates(data || []);
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('加载模板失败:', error);
     } finally {
       setTemplatesLoading(false);
@@ -126,8 +127,8 @@ const MagenticWorkflow: React.FC = () => {
       } else {
         message.error(`生成失败: ${response.error || '未知错误'}`);
       }
-    } catch (error: any) {
-      message.error(`生成失败: ${error.message}`);
+    } catch (error: unknown) {
+      message.error(`生成失败: ${getErrorMessage(error)}`);
     } finally {
       setLoading(false);
     }
@@ -160,15 +161,15 @@ const MagenticWorkflow: React.FC = () => {
       );
       setCurrentStep('done');
       message.success('Magentic工作流执行完成');
-    } catch (error: any) {
-      message.error(`执行失败: ${error.message}`);
+    } catch (error: unknown) {
+      message.error(`执行失败: ${getErrorMessage(error)}`);
       setCurrentStep('preview');
     } finally {
       setLoading(false);
     }
   };
 
-  const handleSaveAsTemplate = async (values: any) => {
+  const handleSaveAsTemplate = async (values: Record<string, unknown>) => {
     if (!generatedWorkflow) return;
 
     try {
@@ -184,8 +185,8 @@ const MagenticWorkflow: React.FC = () => {
       });
       message.success('保存为模板成功');
       setSaveModalVisible(false);
-    } catch (error: any) {
-      message.error(`保存失败: ${error.message}`);
+    } catch (error: unknown) {
+      message.error(`保存失败: ${getErrorMessage(error)}`);
     }
   };
 

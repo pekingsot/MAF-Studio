@@ -1,4 +1,5 @@
 using Microsoft.Extensions.DependencyInjection;
+using MAFStudio.Core.Configuration;
 using MAFStudio.Core.Interfaces.Services;
 using MAFStudio.Application.Services;
 using MAFStudio.Application.Interfaces;
@@ -6,13 +7,16 @@ using MAFStudio.Application.Skills;
 using MAFStudio.Application.Capabilities;
 using MAFStudio.Application.Prompts;
 using MAFStudio.Application.Services.Rag;
+using Microsoft.Extensions.Configuration;
 
 namespace MAFStudio.Application;
 
 public static class DependencyInjection
 {
-    public static IServiceCollection AddApplication(this IServiceCollection services)
+    public static IServiceCollection AddApplication(this IServiceCollection services, IConfiguration configuration)
     {
+        services.Configure<WorkspaceOptions>(configuration.GetSection(WorkspaceOptions.SectionName));
+        
         services.AddScoped<IAgentService, AgentService>();
         services.AddScoped<IAuthService, AuthService>();
         services.AddScoped<ICollaborationService, CollaborationService>();
@@ -52,7 +56,7 @@ public static class DependencyInjection
         services.AddScoped<IRerankService, RerankService>();
         services.AddScoped<IVectorStoreService, VectorStoreService>();
         services.AddScoped<ITextSplitterService, TextSplitterService>();
-        services.AddScoped<RagService>();
+        services.AddScoped<IRagService, RagService>();
         
         return services;
     }

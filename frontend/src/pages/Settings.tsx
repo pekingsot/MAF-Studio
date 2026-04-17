@@ -1,3 +1,4 @@
+import { getErrorMessage } from '../utils/errorHandler';
 import React, { useState } from 'react';
 import { Card, Form, Input, Button, Switch, Divider, Typography, message, Space, Row, Col, Select } from 'antd';
 import { SaveOutlined, SettingOutlined, DatabaseOutlined, SafetyOutlined } from '@ant-design/icons';
@@ -10,25 +11,25 @@ const Settings: React.FC = () => {
   const [systemForm] = Form.useForm();
   const [modelForm] = Form.useForm();
 
-  const handleSaveSystemSettings = async (values: any) => {
+  const handleSaveSystemSettings = async (values: Record<string, unknown>) => {
     try {
       setLoading(true);
       console.log('System settings:', values);
       message.success('系统设置保存成功');
-    } catch (error: any) {
-      message.error(error.message || '保存失败');
+    } catch (error: unknown) {
+      message.error(getErrorMessage(error, '保存失败'));
     } finally {
       setLoading(false);
     }
   };
 
-  const handleSaveModelSettings = async (values: any) => {
+  const handleSaveModelSettings = async (values: Record<string, unknown>) => {
     try {
       setLoading(true);
       console.log('Model settings:', values);
       message.success('模型设置保存成功');
-    } catch (error: any) {
-      message.error(error.message || '保存失败');
+    } catch (error: unknown) {
+      message.error(getErrorMessage(error, '保存失败'));
     } finally {
       setLoading(false);
     }

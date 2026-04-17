@@ -2,6 +2,7 @@ using MAFStudio.Application.Capabilities;
 using MAFStudio.Application.Clients;
 using MAFStudio.Application.Interfaces;
 using MAFStudio.Core.Entities;
+using MAFStudio.Core.Exceptions;
 using MAFStudio.Core.Interfaces.Repositories;
 using MAFStudio.Core.Interfaces.Services;
 using Microsoft.Extensions.AI;
@@ -170,14 +171,4 @@ internal class LlmConfigVo
     public int Priority { get; set; }
     public bool IsValid { get; set; }
     public string Msg { get; set; } = string.Empty;
-}
-
-public class NotFoundException : Exception
-{
-    public NotFoundException(string message) : base(message) { }
-}
-
-public class BusinessException : Exception
-{
-    public BusinessException(string message) : base(message) { }
 }

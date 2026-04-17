@@ -1,3 +1,4 @@
+import { getErrorMessage } from '../utils/errorHandler';
 import React, { useState, useCallback, useMemo } from 'react';
 import {
   Table, Button, Space, Popconfirm, Tag, message, Tooltip, Drawer,
@@ -10,13 +11,13 @@ import {
 } from '@ant-design/icons';
 import type { Key } from 'react';
 import type { ColumnsType } from 'antd/es/table';
-import ReactFlow, { Background, Controls, MiniMap, useNodesState, useEdgesState } from 'reactflow';
+import ReactFlow, { Background, Controls, MiniMap, useNodesState, useEdgesState, Edge } from 'reactflow';
 import 'reactflow/dist/style.css';
 import { collaborationService } from '../services/collaborationService';
 import { collaborationWorkflowService } from '../services/collaborationWorkflowService';
 import { nodeTypes } from '../components/workflow/CustomNodes';
 import { edgeTypes } from '../components/workflow/CustomEdges';
-import type { WorkflowDefinition, WorkflowNode } from '../types/workflow-template';
+import type { WorkflowDefinition, WorkflowNode, NodeType as NodeTypeEnum } from '../types/workflow-template';
 
 const { TextArea } = Input;
 const { Option } = Select;
@@ -141,8 +142,8 @@ const CollaborationTasks: React.FC<CollaborationTasksProps> = ({
           position: { x: 250, y: index * 120 },
           data: node,
         }));
-        const reactFlowEdges: any[] = [];
-        flow.edges.forEach((edge: any, index: number) => {
+        const reactFlowEdges: Edge[] = [];
+        flow.edges.forEach((edge: { from: string; to: string | string[]; type?: string; description?: string }, index: number) => {
           const targets = Array.isArray(edge.to) ? edge.to : [edge.to];
           targets.forEach((target: string, targetIndex: number) => {
             reactFlowEdges.push({
@@ -172,7 +173,7 @@ const CollaborationTasks: React.FC<CollaborationTasksProps> = ({
     const id = `node-${Date.now()}`;
     const newNode: WorkflowNode = {
       id,
-      type: type as any,
+      type: type as NodeTypeEnum,
       name: type === 'start' ? '开始' : type === 'agent' ? '新Agent节点' : type === 'aggregator' ? '汇总结果' : type === 'condition' ? '条件判断' : type === 'review' ? '审核节点' : '循环节点',
     };
     const yPos = orchestrationNodes.length > 0
@@ -184,7 +185,7 @@ const CollaborationTasks: React.FC<CollaborationTasksProps> = ({
     ]);
   };
 
-  const handleOrchestrationNodeClick = (_: React.MouseEvent, node: any) => {
+  const handleOrchestrationNodeClick = (_: React.MouseEvent, node: { data: WorkflowNode }) => {
     setSelectedNode(node.data as WorkflowNode);
   };
 
@@ -235,8 +236,8 @@ const CollaborationTasks: React.FC<CollaborationTasksProps> = ({
       } else {
         message.error(result.error || '自动生成流程编排失败');
       }
-    } catch (error: any) {
-      message.error('自动生成流程编排失败: ' + (error.message || '未知错误'));
+    } catch (error: unknown) {
+      message.error('自动生成流程编排失败: ' + (getErrorMessage(error)));
     } finally {
       setAutoGenerating(false);
     }
@@ -248,10 +249,10 @@ const CollaborationTasks: React.FC<CollaborationTasksProps> = ({
     try {
       const nodes = orchestrationNodes.map(n => n.data as WorkflowNode);
       const edges = orchestrationEdges.map((e, index) => ({
-        type: (e.data as any)?.type || 'sequential',
+        type: (e.data as Record<string, unknown> | undefined)?.type as string || 'sequential',
         from: e.source,
         to: e.target,
-        description: (e.data as any)?.description,
+        description: (e.data as Record<string, unknown> | undefined)?.description as string | undefined,
       }));
       const taskFlow = JSON.stringify({ nodes, edges });
       await collaborationService.updateTaskFlow(String(orchestrationTask.id), taskFlow);
@@ -259,8 +260,8 @@ const CollaborationTasks: React.FC<CollaborationTasksProps> = ({
       setOrchestrationDrawerVisible(false);
       setSelectedNode(null);
       onRefresh();
-    } catch (error: any) {
-      message.error('保存失败: ' + (error.message || '未知错误'));
+    } catch (error: unknown) {
+      message.error('保存失败: ' + (getErrorMessage(error)));
     } finally {
       setOrchestrationSaving(false);
     }
@@ -320,7 +321,7 @@ const CollaborationTasks: React.FC<CollaborationTasksProps> = ({
       title: 'Git配置',
       key: 'git',
       width: 80,
-      render: (_: any, record: Task) => {
+      render: (_: unknown, record: Task) => {
         if (!record.gitUrl) {
           return <Tag color="default">无</Tag>;
         }
@@ -349,7 +350,7 @@ const CollaborationTasks: React.FC<CollaborationTasksProps> = ({
       title: '操作',
       key: 'action',
       width: 280,
-      render: (_: any, record: Task) => {
+      render: (_: unknown, record: Task) => {
         const magentic = isMagenticTask(record);
         const hasFlow = hasTaskFlow(record);
         const canExecute = record.status !== 'Completed' && record.status !== 'Cancelled'

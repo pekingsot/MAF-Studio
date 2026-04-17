@@ -89,7 +89,7 @@ const TaskTable: React.FC<TaskTableProps> = memo(({
       title: '操作',
       key: 'action',
       width: '19%',
-      render: (_: any, record: Task) => (
+      render: (_: unknown, record: Task) => (
         <Space size="small" wrap>
           <Button 
             type="link" 

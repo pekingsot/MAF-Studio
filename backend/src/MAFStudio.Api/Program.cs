@@ -111,7 +111,7 @@ builder.Services.AddOpenTelemetry()
         }));
 
 builder.Services.AddInfrastructure();
-builder.Services.AddApplication();
+builder.Services.AddApplication(builder.Configuration);
 
 builder.Services.AddHttpClient("Infinity", client =>
 {
@@ -156,6 +156,7 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseCors();
+app.UseMiddleware<GlobalExceptionMiddleware>();
 app.UseAuthentication();
 app.UseAuthorization();
 app.UseMiddleware<GlobalAuthorizationMiddleware>();

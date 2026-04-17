@@ -1,3 +1,4 @@
+import { getErrorMessage } from '../../utils/errorHandler';
 import React, { useEffect, useState } from 'react';
 import { Modal, Form, Input, Select, Divider, Row, Col, Tag, Button, Space, List, Tooltip, Checkbox, message, Popover } from 'antd';
 import { ArrowUpOutlined, ArrowDownOutlined, DeleteOutlined, StarOutlined, ReloadOutlined } from '@ant-design/icons';
@@ -203,8 +204,8 @@ const AgentFormModal: React.FC<AgentFormModalProps> = ({
       const response = await api.post('/llmconfigs/test-all-models');
       const results = response.data.results || [];
       
-      const successCount = results.filter((r: any) => r.success).length;
-      const failedCount = results.filter((r: any) => !r.success).length;
+      const successCount = results.filter((r: { success: boolean }) => r.success).length;
+      const failedCount = results.filter((r: { success: boolean }) => !r.success).length;
       
       message.success({ 
         content: `测试完成！成功: ${successCount}, 失败: ${failedCount}`, 
@@ -213,10 +214,10 @@ const AgentFormModal: React.FC<AgentFormModalProps> = ({
       });
       
       await onRefreshModels();
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('批量测试失败:', error);
       message.error({ 
-        content: `批量测试失败: ${error.message || '未知错误'}`, 
+        content: `批量测试失败: ${getErrorMessage(error)}`, 
         key: 'testAllModels' 
       });
     } finally {

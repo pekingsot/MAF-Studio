@@ -1,3 +1,4 @@
+import { getErrorMessage } from '../utils/errorHandler';
 import React, { useState, useCallback, useRef, useEffect } from 'react';
 import ReactFlow, {
   Node,
@@ -243,7 +244,7 @@ const WorkflowEditor: React.FC = () => {
           </div>
         ),
         onOk: () => {
-          const selectElement = document.getElementById('edge-type-select') as any;
+          const selectElement = document.getElementById('edge-type-select') as HTMLSelectElement | null;
           const edgeType = selectElement?.value || 'sequential';
 
           const newEdge: Edge = {
@@ -368,17 +369,17 @@ const WorkflowEditor: React.FC = () => {
   /**
    * 保存模板
    */
-  const handleSave = async (values: any) => {
+  const handleSave = async (values: Record<string, unknown>) => {
     try {
       const workflow = exportWorkflow();
 
       const request: CreateWorkflowTemplateRequest = {
-        name: values.name,
-        description: values.description,
-        category: values.category,
-        tags: values.tags?.split(',').map((t: string) => t.trim()),
+        name: values.name as string,
+        description: values.description as string,
+        category: values.category as string,
+        tags: (values.tags as string)?.split(',').map((t: string) => t.trim()),
         workflow,
-        isPublic: values.isPublic || false,
+        isPublic: (values.isPublic as boolean) || false,
         source: 'manual',
       };
 
@@ -386,8 +387,8 @@ const WorkflowEditor: React.FC = () => {
       message.success('保存成功');
       setSaveModalVisible(false);
       navigate('/workflow-templates');
-    } catch (error: any) {
-      message.error(`保存失败: ${error.message}`);
+    } catch (error: unknown) {
+      message.error(`保存失败: ${getErrorMessage(error)}`);
     }
   };
 

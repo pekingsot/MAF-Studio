@@ -1,3 +1,4 @@
+import { getErrorMessage } from '../../utils/errorHandler';
 import React, { useState, useCallback } from 'react';
 import { Button, Modal, List, Tag, Space, Typography, message } from 'antd';
 import { PlusOutlined, CheckCircleOutlined, CloseCircleOutlined } from '@ant-design/icons';
@@ -79,7 +80,7 @@ const LLMConfigs: React.FC = () => {
       }
 
       const data = await response.json();
-      const successCount = data.results.filter((r: any) => r.success).length;
+      const successCount = data.results.filter((r: { success: boolean }) => r.success).length;
       const totalCount = data.results.length;
       
       hide();
@@ -90,7 +91,7 @@ const LLMConfigs: React.FC = () => {
           return prevConfigs.map((config) => {
             if (config.id === configId) {
               const updatedModels = config.models.map((m) => {
-                const testResult = data.results.find((r: any) => r.modelId === m.id);
+                const testResult = data.results.find((r: { modelId: number }) => r.modelId === m.id);
                 if (testResult && testResult.model) {
                   return { ...m, ...testResult.model };
                 }
@@ -102,9 +103,9 @@ const LLMConfigs: React.FC = () => {
           });
         });
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       hide();
-      message.error(error.message || '批量测试失败');
+      message.error(getErrorMessage(error, '批量测试失败'));
     }
   }, []);
 

@@ -1,3 +1,4 @@
+import { getErrorMessage } from '../../utils/errorHandler';
 import React, { useState, useMemo } from 'react';
 import { Table, Button, Tag, Space, Tooltip, Typography, Modal, Input, message, Select } from 'antd';
 import { EditOutlined, DeleteOutlined, PlayCircleOutlined, ThunderboltOutlined, SendOutlined, StarOutlined, StarFilled, ArrowUpOutlined, ArrowDownOutlined } from '@ant-design/icons';
@@ -105,9 +106,9 @@ const AgentTable: React.FC<AgentTableProps> = ({
       }));
 
       message.success('主模型设置成功');
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('设置主模型失败:', error);
-      message.error(`设置主模型失败: ${error.message || '未知错误'}`);
+      message.error(`设置主模型失败: ${getErrorMessage(error)}`);
     }
   };
 
@@ -142,9 +143,9 @@ const AgentTable: React.FC<AgentTableProps> = ({
       }));
 
       message.success('上移成功');
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('上移失败:', error);
-      message.error(`上移失败: ${error.message || '未知错误'}`);
+      message.error(`上移失败: ${getErrorMessage(error)}`);
     }
   };
 
@@ -179,9 +180,9 @@ const AgentTable: React.FC<AgentTableProps> = ({
       }));
 
       message.success('下移成功');
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('下移失败:', error);
-      message.error(`下移失败: ${error.message || '未知错误'}`);
+      message.error(`下移失败: ${getErrorMessage(error)}`);
     }
   };
 
@@ -241,7 +242,7 @@ const AgentTable: React.FC<AgentTableProps> = ({
         message.error(result.message);
         setTestResponse(`错误: ${result.message}`);
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       message.error(error.response?.data?.message || '测试失败');
       setTestResponse(`错误: ${error.response?.data?.message || '测试失败'}`);
     } finally {

@@ -1,15 +1,8 @@
-import { Agent, AgentType, LlmConfigInfo } from '../../services/agentService';
+import { Agent, AgentType } from '../../services/agentService';
 import { AgentRuntimeStatus } from '../../services/agentRuntimeService';
+import type { LLMConfig, LlmConfigInfo } from '../../types/llm';
 
-export interface LLMConfig {
-  id: number;
-  name: string;
-  provider: string;
-  models?: LlmModel[];
-  endpoint?: string;
-  isEnabled: boolean;
-  isDefault: boolean;
-}
+export type { LLMConfig, LlmConfigInfo };
 
 export interface LlmModel {
   id: number;
@@ -46,8 +39,6 @@ export interface AgentFormData {
   llmModelConfigId: number;
   llmConfigs?: string;
 }
-
-export type { LlmConfigInfo };
 
 export interface AgentTableProps {
   agents: Agent[];

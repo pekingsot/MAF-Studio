@@ -1,3 +1,4 @@
+import { getErrorMessage } from '../utils/errorHandler';
 import React, { useState, useEffect } from 'react';
 import {
   Card,
@@ -50,8 +51,8 @@ const WorkflowTemplateManagement: React.FC = () => {
     try {
       const data = await workflowTemplateApi.getAll(publicFilter, categoryFilter);
       setTemplates(data);
-    } catch (error: any) {
-      message.error(`加载模板失败: ${error.message}`);
+    } catch (error: unknown) {
+      message.error(`加载模板失败: ${getErrorMessage(error)}`);
     } finally {
       setLoading(false);
     }
@@ -70,8 +71,8 @@ const WorkflowTemplateManagement: React.FC = () => {
     try {
       const data = await workflowTemplateApi.search(searchKeyword);
       setTemplates(data);
-    } catch (error: any) {
-      message.error(`搜索失败: ${error.message}`);
+    } catch (error: unknown) {
+      message.error(`搜索失败: ${getErrorMessage(error)}`);
     } finally {
       setLoading(false);
     }
@@ -85,8 +86,8 @@ const WorkflowTemplateManagement: React.FC = () => {
       await workflowTemplateApi.delete(id);
       message.success('删除成功');
       loadTemplates();
-    } catch (error: any) {
-      message.error(`删除失败: ${error.message}`);
+    } catch (error: unknown) {
+      message.error(`删除失败: ${getErrorMessage(error)}`);
     }
   };
 
@@ -234,7 +235,7 @@ const WorkflowTemplateManagement: React.FC = () => {
       key: 'action',
       width: 200,
       fixed: 'right' as const,
-      render: (_: any, record: WorkflowTemplate) => (
+      render: (_: unknown, record: WorkflowTemplate) => (
         <Space size="small">
           <Tooltip title="执行">
             <Button

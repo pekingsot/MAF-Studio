@@ -119,7 +119,7 @@ const CoordinationSessions: React.FC = () => {
       title: '操作',
       key: 'action',
       width: 100,
-      render: (_: any, record: CoordinationSession) => (
+      render: (_: unknown, record: CoordinationSession) => (
         <Button
           type="link"
           size="small"

@@ -16,7 +16,7 @@ export const getMessages = (locale: Locale): Messages => {
 };
 
 export const getBrowserLocale = (): Locale => {
-  const browserLang = navigator.language || (navigator as any).userLanguage;
+  const browserLang = navigator.language || (navigator as unknown as { userLanguage?: string }).userLanguage || '';
   if (browserLang.startsWith('zh')) {
     return 'zh-CN';
   }

@@ -34,11 +34,11 @@ export const I18nProvider: React.FC<I18nProviderProps> = ({ children, defaultLoc
 
   const t = useCallback((key: string, params?: Record<string, string | number>): string => {
     const keys = key.split('.');
-    let value: any = messages;
+    let value: Record<string, unknown> | string | undefined = messages as Record<string, unknown>;
 
     for (const k of keys) {
       if (value && typeof value === 'object' && k in value) {
-        value = value[k];
+        value = value[k] as Record<string, unknown> | string | undefined;
       } else {
         console.warn(`Translation key not found: ${key}`);
         return key;

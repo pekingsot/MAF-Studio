@@ -19,7 +19,7 @@ const SkillManagementPage: React.FC = () => {
     try {
       const data = await agentService.getAllAgents();
       setAgents(data);
-    } catch (error: any) {
+    } catch (error: unknown) {
       message.error('加载Agent列表失败');
     }
   };

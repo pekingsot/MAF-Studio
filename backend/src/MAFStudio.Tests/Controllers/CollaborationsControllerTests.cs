@@ -15,6 +15,7 @@ using MAFStudio.Core.Enums;
 using MAFStudio.Core.Interfaces.Repositories;
 using MAFStudio.Core.Interfaces.Services;
 using MAFStudio.Application.Skills;
+using MAFStudio.Application.VOs;
 using Xunit;
 
 namespace MAFStudio.Tests.Controllers;
@@ -2021,11 +2022,11 @@ public class CollaborationsControllerTests : TestBase
     }
 
     [Fact]
-    public void LlmConfigItem_DeserializeFromDbJson_ShouldMapLlmConfigName()
+    public void LlmConfigInfoVo_DeserializeFromDbJson_ShouldMapLlmConfigName()
     {
         var dbJson = @"[{""llmConfigId"":123,""llmConfigName"":""阿里云-通义千问3.5"",""llmModelConfigId"":456,""modelName"":""qwen3.5-35b-a3b"",""isPrimary"":true,""priority"":1,""isValid"":true,""msg"":""250ms""}]";
         var options = new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true };
-        var configs = System.Text.Json.JsonSerializer.Deserialize<List<LlmConfigItem>>(dbJson, options);
+        var configs = System.Text.Json.JsonSerializer.Deserialize<List<LlmConfigInfoVo>>(dbJson, options);
 
         Assert.NotNull(configs);
         Assert.Single(configs);
@@ -2035,11 +2036,11 @@ public class CollaborationsControllerTests : TestBase
     }
 
     [Fact]
-    public void LlmConfigItem_DeserializeMultipleConfigs_PrimaryFirst()
+    public void LlmConfigInfoVo_DeserializeMultipleConfigs_PrimaryFirst()
     {
         var dbJson = @"[{""llmConfigId"":1,""llmConfigName"":""备用配置"",""modelName"":""backup-model"",""isPrimary"":false,""priority"":2},{""llmConfigId"":2,""llmConfigName"":""主配置"",""modelName"":""main-model"",""isPrimary"":true,""priority"":1}]";
         var options = new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true };
-        var configs = System.Text.Json.JsonSerializer.Deserialize<List<LlmConfigItem>>(dbJson, options);
+        var configs = System.Text.Json.JsonSerializer.Deserialize<List<LlmConfigInfoVo>>(dbJson, options);
 
         Assert.NotNull(configs);
         Assert.Equal(2, configs.Count);

@@ -85,7 +85,7 @@ export const useAgents = () => {
       setRuntimeStatuses(prev => ({ ...prev, [agentId]: status }));
       message.success('智能体已激活');
       loadAgents();
-    } catch (error: any) {
+    } catch (error: unknown) {
       message.error(error.response?.data?.message || '激活失败');
     } finally {
       setActivatingAgent(null);
@@ -103,7 +103,7 @@ export const useAgents = () => {
       }
       const status = await agentRuntimeService.getStatus(agentId);
       setRuntimeStatuses(prev => ({ ...prev, [agentId]: status }));
-    } catch (error: any) {
+    } catch (error: unknown) {
       message.error(error.response?.data?.message || '测试失败');
     } finally {
       setTestingAgent(null);
