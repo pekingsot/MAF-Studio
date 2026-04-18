@@ -6,6 +6,7 @@ public class RagQueryDto
     public int? TopK { get; set; }
     public double? ScoreThreshold { get; set; }
     public long? LlmConfigId { get; set; }
+    public long? LlmModelConfigId { get; set; }
     public string? SystemPrompt { get; set; }
 }
 

@@ -2,6 +2,7 @@ import React, { useEffect, useState, useRef } from 'react';
 import { Card, Row, Col, Form, Input, Select, Button, message, Table, Tag, Space, Divider, InputNumber, Tabs, Popconfirm, Modal, Alert, Pagination, Upload, Radio, RadioChangeEvent, UploadFile } from 'antd';
 import { DeleteOutlined, CopyOutlined, FileTextOutlined, SplitCellsOutlined, DatabaseOutlined, SearchOutlined, RobotOutlined, UploadOutlined, InboxOutlined } from '@ant-design/icons';
 import { getAxiosErrorData } from '../utils/errorHandler';
+import { LLMConfig as FullLLMConfig, LLMModelConfig } from '../types/llm';
 import api from '../services/api';
 
 const { Option } = Select;
@@ -28,14 +29,6 @@ interface RagDocumentChunk {
   chunkIndex: number;
   vectorId?: string;
   createdAt: string;
-}
-
-interface LLMConfig {
-  id: string;
-  name: string;
-  provider: string;
-  defaultModel: string;
-  isEnabled: boolean;
 }
 
 interface VectorDocument {
@@ -72,7 +65,7 @@ const RagTest: React.FC = () => {
   const [documents, setDocuments] = useState<RagDocument[]>([]);
   const [splitMethods, setSplitMethods] = useState<OptionItem[]>([]);
   const [fileTypes, setFileTypes] = useState<OptionItem[]>([]);
-  const [llmConfigs, setLLMConfigs] = useState<LLMConfig[]>([]);
+  const [llmConfigs, setLLMConfigs] = useState<FullLLMConfig[]>([]);
   const [loading, setLoading] = useState(false);
   const [testResult, setTestResult] = useState<RagQueryResult | null>(null);
   const [selectedDocument, setSelectedDocument] = useState<RagDocument | null>(null);
@@ -115,7 +108,7 @@ const RagTest: React.FC = () => {
       setDocuments(docsRes.data || []);
       setSplitMethods(methodsRes.data || []);
       setFileTypes(typesRes.data || []);
-      setLLMConfigs((llmRes.data || []).filter((c: LLMConfig) => c.isEnabled));
+      setLLMConfigs((llmRes.data || []).filter((c: FullLLMConfig) => c.isEnabled));
       setSupportedTypes(supportedRes.data || []);
     } catch (error) {
       console.error('加载数据失败', error);
@@ -313,7 +306,20 @@ const RagTest: React.FC = () => {
         return;
       }
       setRagLoading(true);
-      const response = await api.post('/rag/query', values);
+      const submitData: Record<string, unknown> = {
+        query: values.query,
+        topK: values.topK,
+        scoreThreshold: values.scoreThreshold,
+        systemPrompt: values.systemPrompt,
+      };
+      if (values.llmConfigId) {
+        const [configIdStr, modelIdStr] = String(values.llmConfigId).split('|');
+        submitData.llmConfigId = parseInt(configIdStr, 10);
+        if (modelIdStr) {
+          submitData.llmModelConfigId = parseInt(modelIdStr, 10);
+        }
+      }
+      const response = await api.post('/rag/query', submitData);
       setRagQueryResult(response.data);
       message.success('RAG检索完成');
     } catch (error: unknown) {
@@ -790,11 +796,21 @@ const RagTest: React.FC = () => {
                     />
                     <Form form={ragForm} layout="vertical">
                       <Form.Item label="选择大模型" name="llmConfigId" rules={[{ required: true }]}>
-                        <Select placeholder="选择用于回答的大模型配置">
-                          {llmConfigs.map(c => (
-                            <Option key={c.id} value={c.id}>
-                              {c.name} ({c.provider} - {c.defaultModel})
-                            </Option>
+                        <Select placeholder="选择用于回答的大模型" showSearch optionFilterProp="label">
+                          {llmConfigs.map(config => (
+                            <Select.OptGroup key={config.id} label={`${config.name} (${config.provider})`}>
+                              {(config.models || [])
+                                .filter((m: LLMModelConfig) => m.isEnabled)
+                                .map((m: LLMModelConfig) => (
+                                  <Option key={`${config.id}|${m.id}`} value={`${config.id}|${m.id}`} label={`${config.name} - ${m.displayName || m.modelName}`}>
+                                    <Space direction="vertical" size={0}>
+                                      <span>{m.displayName || m.modelName}</span>
+                                      <span style={{ fontSize: 12, color: '#999' }}>{config.name} ({config.provider})</span>
+                                    </Space>
+                                  </Option>
+                                ))
+                              }
+                            </Select.OptGroup>
                           ))}
                         </Select>
                       </Form.Item>

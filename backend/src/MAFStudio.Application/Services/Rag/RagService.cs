@@ -209,7 +209,7 @@ public class RagService : IRagService
         }
     }
 
-    public async Task<RagQueryResult> QueryAsync(string query, int topK = 5, double scoreThreshold = 0.5, long? llmConfigId = null, string? systemPrompt = null)
+    public async Task<RagQueryResult> QueryAsync(string query, int topK = 5, double scoreThreshold = 0.5, long? llmConfigId = null, long? llmModelConfigId = null, string? systemPrompt = null)
     {
         var collectionName = await GetCollectionName();
         var queryVector = await _embeddingService.EmbedAsync(query);
@@ -256,7 +256,7 @@ public class RagService : IRagService
                         new(ChatRole.System, prompt),
                         new(ChatRole.User, userMessage),
                     };
-                    var chatResponse = await _chatService.SendMessageAsync(llmConfigId.Value, null, messages);
+                    var chatResponse = await _chatService.SendMessageAsync(llmConfigId.Value, llmModelConfigId, messages);
                     answer = chatResponse.Messages.LastOrDefault()?.Text;
                 }
             }
