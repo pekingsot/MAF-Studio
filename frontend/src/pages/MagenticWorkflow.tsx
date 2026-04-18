@@ -169,7 +169,7 @@ const MagenticWorkflow: React.FC = () => {
     }
   };
 
-  const handleSaveAsTemplate = async (values: Record<string, unknown>) => {
+  const handleSaveAsTemplate = async (values: { name: string; description?: string; category?: string; tags?: string; isPublic?: boolean; enableLearning?: boolean }) => {
     if (!generatedWorkflow) return;
 
     try {

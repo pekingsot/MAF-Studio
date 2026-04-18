@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { Card, Row, Col, Form, Input, Select, Button, message, Table, Tag, Space, Divider, InputNumber, Tabs, Popconfirm, Modal, Alert, Pagination, Upload, Radio, RadioChangeEvent, UploadFile } from 'antd';
 import { DeleteOutlined, CopyOutlined, FileTextOutlined, SplitCellsOutlined, DatabaseOutlined, SearchOutlined, RobotOutlined, UploadOutlined, InboxOutlined } from '@ant-design/icons';
+import { getAxiosErrorData } from '../utils/errorHandler';
 import api from '../services/api';
 
 const { Option } = Select;
@@ -49,10 +50,15 @@ interface OptionItem {
   value: string;
   label: string;
   extension?: string;
+  description?: string;
+  name?: string;
+  ext?: string;
+  needSplit?: boolean;
 }
 
 interface RagQueryResult {
   answer: string;
+  chunkCount?: number;
   sources?: Array<{
     content: string;
     score: number;
@@ -212,7 +218,12 @@ const RagTest: React.FC = () => {
     }
 
     const formData = new FormData();
-    formData.append('file', fileList[0]);
+    const file = fileList[0];
+    if (file.originFileObj) {
+      formData.append('file', file.originFileObj);
+    } else if (file instanceof Blob) {
+      formData.append('file', file);
+    }
     
     const splitMethod = uploadForm.getFieldValue('splitMethod');
     const chunkSize = uploadForm.getFieldValue('chunkSize');
@@ -233,7 +244,7 @@ const RagTest: React.FC = () => {
       setFileList([]);
       loadData();
     } catch (error: unknown) {
-      message.error(error.response?.data?.message || '上传失败');
+      message.error(getAxiosErrorData(error).data?.message || '上传失败');
     } finally {
       setUploading(false);
     }
@@ -288,7 +299,7 @@ const RagTest: React.FC = () => {
       loadData();
       loadVectorDocs(vectorDocsPage, vectorDocsPageSize, vectorDocsKeyword);
     } catch (error: unknown) {
-      message.error(error.response?.data?.message || '向量入库失败');
+      message.error(getAxiosErrorData(error).data?.message || '向量入库失败');
     } finally {
       setVectorizing(false);
     }
@@ -306,7 +317,7 @@ const RagTest: React.FC = () => {
       setRagQueryResult(response.data);
       message.success('RAG检索完成');
     } catch (error: unknown) {
-      message.error(error.response?.data?.message || 'RAG检索失败');
+      message.error(getAxiosErrorData(error).data?.message || 'RAG检索失败');
     } finally {
       setRagLoading(false);
     }
@@ -833,7 +844,7 @@ const RagTest: React.FC = () => {
                         </div>
                         
                         <Divider orientation="left">相关文档片段 ({ragQueryResult.sources?.length || 0})</Divider>
-                        {ragQueryResult.sources?.map((source: RagQueryResult["sources"][number], index: number) => (
+                        {ragQueryResult.sources?.map((source: { content: string; score: number; documentId: string; chunkIndex: number }, index: number) => (
                           <Card 
                             key={index} 
                             size="small" 

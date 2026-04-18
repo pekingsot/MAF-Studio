@@ -1,4 +1,4 @@
-import { getErrorMessage } from '../utils/errorHandler';
+import { getErrorMessage, getAxiosErrorData } from '../utils/errorHandler';
 import React, { useState, useRef, useMemo, useCallback } from 'react';
 import { Table, Button, Modal, Form, Input, Tag, Space, message, Tabs, Select, Popconfirm, Row, Col, Alert, Radio, InputNumber, Typography, Tooltip, Transfer, Collapse, Switch } from 'antd';
 import { PlusOutlined, EditOutlined, DeleteOutlined, TeamOutlined, UserOutlined, FolderOutlined, EyeOutlined, EyeInvisibleOutlined, SwapOutlined, CrownOutlined, BulbOutlined, InfoCircleOutlined, MailOutlined, ApartmentOutlined, DashboardOutlined, QuestionCircleOutlined, StopOutlined } from '@ant-design/icons';
@@ -8,7 +8,7 @@ import { useNavigate } from 'react-router-dom';
 import ChatHistory from './collaboration-detail/ChatHistory';
 import { getApiUrl } from '../config/api';
 import { useCollaborations } from '../hooks/useCollaborations';
-import CollaborationTasks from '../components/CollaborationTasks';
+import CollaborationTasks, { Task as CollaborationTaskItem } from '../components/CollaborationTasks';
 
 const { Option } = Select;
 const { Text } = Typography;
@@ -128,7 +128,7 @@ const Collaborations: React.FC = () => {
         await refreshCollaboration(selectedCollaboration.id);
       }
     } catch (error: unknown) {
-      const errorMessage = error?.response?.data?.message || error?.message || '添加失败';
+      const errorMessage = getAxiosErrorData(error).data?.message || getErrorMessage(error, '添加失败');
       message.error(errorMessage);
     }
   };
@@ -223,7 +223,7 @@ const Collaborations: React.FC = () => {
     }
   };
 
-  const handleEditTask = async (task: CollaborationTask) => {
+  const handleEditTask = async (task: CollaborationTaskItem) => {
     const collaboration = collaborations.find(c => c.id === task.collaborationId);
     if (!collaboration) {
       message.error('找不到对应的团队');
@@ -330,9 +330,9 @@ const Collaborations: React.FC = () => {
     }
   };
 
-  const handleDeleteTask = async (task: CollaborationTask) => {
+  const handleDeleteTask = async (task: CollaborationTaskItem) => {
     try {
-      await collaborationService.deleteTask(task.id);
+      await collaborationService.deleteTask(String(task.id));
       message.success('任务删除成功');
       await refreshCollaboration(task.collaborationId);
     } catch (error) {
@@ -340,7 +340,7 @@ const Collaborations: React.FC = () => {
     }
   };
 
-  const handleExecuteTask = (task: CollaborationTask) => {
+  const handleExecuteTask = (task: CollaborationTaskItem) => {
     const collaboration = collaborations.find(c => c.id === task.collaborationId);
     
     if (!collaboration) {
@@ -416,7 +416,7 @@ const Collaborations: React.FC = () => {
     executeTaskWithConfig(task, collaboration, config);
   };
 
-  const executeTaskWithConfig = async (task: CollaborationTask, collaboration: Collaboration, config: Record<string, unknown>) => {
+  const executeTaskWithConfig = async (task: CollaborationTaskItem, collaboration: Collaboration, config: Record<string, unknown>) => {
     const input = task.description || task.title;
     const token = localStorage.getItem('token');
     
@@ -503,7 +503,7 @@ const Collaborations: React.FC = () => {
     }
   };
 
-  const handleViewChatHistory = (task: CollaborationTask) => {
+  const handleViewChatHistory = (task: CollaborationTaskItem) => {
     setSelectedTask(task);
     setChatHistoryModalVisible(true);
   };
@@ -1918,12 +1918,12 @@ const Collaborations: React.FC = () => {
                     <Space wrap>
                       {agentsInfo.map((agent: CollaborationAgent) => (
                         <Tooltip 
-                          key={agent.id}
+                          key={agent.agentId}
                           title={
                             <div>
                               <div><strong>角色：</strong>{agent.role}</div>
-                              <div><strong>类型：</strong>{agent.typeName || '未设置'}</div>
-                              <div><strong>模型：</strong>{agent.modelName}</div>
+                              <div><strong>类型：</strong>{agent.agentType || '未设置'}</div>
+                              <div><strong>模型：</strong>{agent.agentName}</div>
                               <div style={{ marginTop: 8 }}><strong>最终提示词：</strong></div>
                               <div style={{ 
                                 maxWidth: 400, 
@@ -1932,7 +1932,7 @@ const Collaborations: React.FC = () => {
                                 whiteSpace: 'pre-wrap',
                                 wordBreak: 'break-word'
                               }}>
-                                {agent.prompt}
+                                {agent.customPrompt || agent.systemPrompt || ''}
                               </div>
                             </div>
                           }
@@ -1944,7 +1944,7 @@ const Collaborations: React.FC = () => {
                             icon={agent.role === 'Manager' ? <CrownOutlined /> : <UserOutlined />}
                             style={{ cursor: 'pointer' }}
                           >
-                            {agent.name}
+                            {agent.agentName}
                             {agent.role === 'Manager' && ' (协调者)'}
                           </Tag>
                         </Tooltip>

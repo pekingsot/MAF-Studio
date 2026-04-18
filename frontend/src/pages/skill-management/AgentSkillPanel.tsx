@@ -84,7 +84,7 @@ const AgentSkillPanel: React.FC<{ agentId: number; agentName: string }> = ({ age
     }
   };
 
-  const handleAddSkill = async (values: Record<string, unknown>) => {
+  const handleAddSkill = async (values: { skill_name: string; skill_content: string; enabled?: boolean; priority?: number; runtime?: string; entry_point?: string; allowed_tools?: string }) => {
     try {
       await skillService.addSkillToAgent(agentId, {
         skill_name: values.skill_name,
@@ -141,7 +141,7 @@ const AgentSkillPanel: React.FC<{ agentId: number; agentName: string }> = ({ age
     });
   };
 
-  const handleEditSkill = async (values: Record<string, unknown>) => {
+  const handleEditSkill = async (values: { skill_content: string; enabled?: boolean; priority?: number; runtime?: string; entry_point?: string; allowed_tools?: string }) => {
     if (!selectedSkill) return;
     try {
       await skillService.updateSkill(agentId, selectedSkill.id, {

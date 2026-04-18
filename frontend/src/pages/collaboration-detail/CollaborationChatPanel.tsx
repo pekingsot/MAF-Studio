@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { Button, Tag, Avatar, Space, Spin, Empty, Mentions, Tooltip, message as antMessage } from 'antd';
 import { SendOutlined, RobotOutlined, UserOutlined, TeamOutlined, LoadingOutlined } from '@ant-design/icons';
 import { collaborationService, CollaborationAgent } from '../../services/collaborationService';
+import { getAxiosErrorData } from '../../utils/errorHandler';
 
 interface ChatMsg {
   id: string | number;
@@ -174,7 +175,7 @@ const CollaborationChatPanel: React.FC<CollaborationChatPanelProps> = ({
         antMessage.error(response.message || '发送失败');
       }
     } catch (error: unknown) {
-      antMessage.error(error?.response?.data?.message || '聊天请求失败');
+      antMessage.error(getAxiosErrorData(error).data?.message || '聊天请求失败');
     } finally {
       setSending(false);
       setThinkingAgent('');

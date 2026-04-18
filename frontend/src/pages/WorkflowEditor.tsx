@@ -369,17 +369,17 @@ const WorkflowEditor: React.FC = () => {
   /**
    * 保存模板
    */
-  const handleSave = async (values: Record<string, unknown>) => {
+  const handleSave = async (values: { name: string; description: string; category: string; tags?: string; isPublic?: boolean }) => {
     try {
       const workflow = exportWorkflow();
 
       const request: CreateWorkflowTemplateRequest = {
-        name: values.name as string,
-        description: values.description as string,
-        category: values.category as string,
-        tags: (values.tags as string)?.split(',').map((t: string) => t.trim()),
+        name: values.name,
+        description: values.description,
+        category: values.category,
+        tags: values.tags?.split(',').map((t: string) => t.trim()),
         workflow,
-        isPublic: (values.isPublic as boolean) || false,
+        isPublic: values.isPublic || false,
         source: 'manual',
       };
 

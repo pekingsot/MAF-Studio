@@ -22,7 +22,7 @@ import type { WorkflowDefinition, WorkflowNode, NodeType as NodeTypeEnum } from 
 const { TextArea } = Input;
 const { Option } = Select;
 
-interface Task {
+export interface Task {
   id: number | string;
   title: string;
   description?: string;
@@ -37,7 +37,7 @@ interface Task {
   taskFlow?: string;
 }
 
-interface Agent {
+export interface Agent {
   agentId: number;
   agentName: string;
   agentType?: string;

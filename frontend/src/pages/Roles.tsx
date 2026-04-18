@@ -184,7 +184,7 @@ const Roles: React.FC = () => {
     }
   };
 
-  const handlePermissionChange = async (targetKeys: string[]) => {
+  const handlePermissionChange = async (targetKeys: React.Key[]) => {
     if (!selectedRole) return;
 
     try {

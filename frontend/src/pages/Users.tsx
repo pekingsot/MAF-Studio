@@ -107,7 +107,7 @@ const Users: React.FC = () => {
     }
   };
 
-  const handleRoleChange = async (targetKeys: string[]) => {
+  const handleRoleChange = async (targetKeys: React.Key[]) => {
     if (!selectedUser) return;
 
     try {
@@ -123,12 +123,12 @@ const Users: React.FC = () => {
       const currentRoleCodes = currentRoles.map((r: Role) => r.code);
 
       // 计算需要添加和删除的角色
-      const rolesToAdd = targetKeys.filter(code => !currentRoleCodes.includes(code));
+      const rolesToAdd = targetKeys.filter(code => !currentRoleCodes.includes(String(code)));
       const rolesToRemove = currentRoleCodes.filter((code: string) => !targetKeys.includes(code));
 
       // 添加新角色
       for (const code of rolesToAdd) {
-        const role = roles.find(r => r.code === code);
+        const role = roles.find(r => r.code === String(code));
         if (role) {
           await fetch(getApiUrl(`/users/${selectedUser.id}/roles/${role.id}`), {
             method: 'POST',

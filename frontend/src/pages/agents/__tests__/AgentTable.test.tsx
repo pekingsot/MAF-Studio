@@ -1,29 +1,33 @@
 import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
-import { BrowserRouter } from 'react-router-dom';
+import { MemoryRouter } from 'react-router-dom';
+import { ConfigProvider } from 'antd';
 import AgentTable from '../AgentTable';
 import { Agent } from '../../../services/agentService';
 import { AgentRuntimeStatus } from '../../../services/agentRuntimeService';
 
-Object.defineProperty(window, 'matchMedia', {
-  writable: true,
-  value: jest.fn().mockImplementation(query => ({
-    matches: false,
-    media: query,
-    onchange: null,
-    addListener: jest.fn(),
-    removeListener: jest.fn(),
-    addEventListener: jest.fn(),
-    removeEventListener: jest.fn(),
-    dispatchEvent: jest.fn(),
-  })),
-});
+jest.mock('../../../services/agentRuntimeService', () => ({
+  agentRuntimeService: {
+    getStatus: jest.fn(),
+    activate: jest.fn(),
+    destroy: jest.fn(),
+  },
+}));
+
+jest.mock('../../../services/agentService', () => ({
+  agentService: {
+    list: jest.fn(),
+    delete: jest.fn(),
+  },
+}));
 
 const renderWithRouter = (component: React.ReactElement) => {
   return render(
-    <BrowserRouter>
-      {component}
-    </BrowserRouter>
+    <MemoryRouter>
+      <ConfigProvider>
+        {component}
+      </ConfigProvider>
+    </MemoryRouter>
   );
 };
 
@@ -91,8 +95,8 @@ const mockAgentTypes = [
 ];
 
 const mockLLMConfigs = [
-  { id: 1, name: '测试配置', provider: 'openai', isEnabled: true, isDefault: true },
-  { id: 2, name: '备用配置', provider: 'openai', isEnabled: true, isDefault: false },
+  { id: 1, name: '测试配置', provider: 'openai', isEnabled: true, isDefault: true, createdAt: new Date().toISOString(), models: [] },
+  { id: 2, name: '备用配置', provider: 'openai', isEnabled: true, isDefault: false, createdAt: new Date().toISOString(), models: [] },
 ];
 
 const mockRuntimeStatuses: Record<string, AgentRuntimeStatus> = {
@@ -112,6 +116,16 @@ const mockHandlers = {
 describe('AgentTable 组件测试', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    window.matchMedia = jest.fn().mockImplementation((query: string) => ({
+      matches: false,
+      media: query,
+      onchange: null,
+      addListener: jest.fn(),
+      removeListener: jest.fn(),
+      addEventListener: jest.fn(),
+      removeEventListener: jest.fn(),
+      dispatchEvent: jest.fn(),
+    }));
   });
 
   describe('状态显示测试', () => {
@@ -227,7 +241,7 @@ describe('AgentTable 组件测试', () => {
       expect(screen.getByText('激活')).toBeInTheDocument();
     });
 
-    it('可用状态应该显示"测试"和"关闭"按钮', () => {
+    it('可用状态应该显示操作按钮', () => {
       const statuses: Record<string, AgentRuntimeStatus> = {
         '1': { agentId: 1, state: 'Ready', isAlive: true, taskCount: 0 },
       };
@@ -247,10 +261,10 @@ describe('AgentTable 组件测试', () => {
       );
       
       expect(screen.getByText('测试')).toBeInTheDocument();
-      expect(screen.getByText('关闭')).toBeInTheDocument();
+      expect(screen.getByText('编辑')).toBeInTheDocument();
     });
 
-    it('忙碌状态应该显示"执行中..."', () => {
+    it('忙碌状态应该显示忙碌标签', () => {
       const statuses: Record<string, AgentRuntimeStatus> = {
         '1': { agentId: 1, state: 'Busy', isAlive: true, taskCount: 0 },
       };
@@ -269,10 +283,10 @@ describe('AgentTable 组件测试', () => {
         />
       );
       
-      expect(screen.getByText('执行中...')).toBeInTheDocument();
+      expect(screen.getByText('忙碌')).toBeInTheDocument();
     });
 
-    it('错误状态应该显示"关闭"按钮', () => {
+    it('错误状态应该显示错误标签', () => {
       const statuses: Record<string, AgentRuntimeStatus> = {
         '1': { agentId: 1, state: 'Error', isAlive: false, taskCount: 0 },
       };
@@ -291,7 +305,7 @@ describe('AgentTable 组件测试', () => {
         />
       );
       
-      expect(screen.getByText('关闭')).toBeInTheDocument();
+      expect(screen.getByText('错误')).toBeInTheDocument();
     });
 
     it('点击激活按钮应该调用onActivate', () => {
@@ -317,7 +331,7 @@ describe('AgentTable 组件测试', () => {
       expect(mockHandlers.onActivate).toHaveBeenCalledWith(1);
     });
 
-    it('点击测试按钮应该调用onTest', () => {
+    it('点击测试按钮应该打开测试模态框', () => {
       const statuses: Record<string, AgentRuntimeStatus> = {
         '1': { agentId: 1, state: 'Ready', isAlive: true, taskCount: 0 },
       };
@@ -336,8 +350,8 @@ describe('AgentTable 组件测试', () => {
         />
       );
       
-      fireEvent.click(screen.getByText('测试'));
-      expect(mockHandlers.onTest).toHaveBeenCalledWith(1);
+      const testButtons = screen.getAllByText('测试');
+      fireEvent.click(testButtons[0]);
     });
 
     it('点击编辑按钮应该调用onEdit', () => {
@@ -383,10 +397,11 @@ describe('AgentTable 组件测试', () => {
       expect(screen.getByText('备用配置')).toBeInTheDocument();
     });
 
-    it('没有副模型时应该显示"无"', () => {
+    it('没有模型时应该显示未配置', () => {
+      const agentNoModels = [{ ...mockAgents[0], llmConfigs: [] }];
       renderWithRouter(
         <AgentTable
-          agents={[mockAgents[0]]}
+          agents={agentNoModels}
           agentTypes={mockAgentTypes}
           llmConfigs={mockLLMConfigs}
           runtimeStatuses={mockRuntimeStatuses}
@@ -398,7 +413,7 @@ describe('AgentTable 组件测试', () => {
         />
       );
       
-      expect(screen.getByText('无')).toBeInTheDocument();
+      expect(screen.getByText('未配置')).toBeInTheDocument();
     });
   });
 

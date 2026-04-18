@@ -1,4 +1,4 @@
-import { getErrorMessage } from '../../utils/errorHandler';
+import { getErrorMessage, getAxiosErrorData } from '../../utils/errorHandler';
 import React, { useState, useMemo } from 'react';
 import { Table, Button, Tag, Space, Tooltip, Typography, Modal, Input, message, Select } from 'antd';
 import { EditOutlined, DeleteOutlined, PlayCircleOutlined, ThunderboltOutlined, SendOutlined, StarOutlined, StarFilled, ArrowUpOutlined, ArrowDownOutlined } from '@ant-design/icons';
@@ -243,8 +243,9 @@ const AgentTable: React.FC<AgentTableProps> = ({
         setTestResponse(`错误: ${result.message}`);
       }
     } catch (error: unknown) {
-      message.error(error.response?.data?.message || '测试失败');
-      setTestResponse(`错误: ${error.response?.data?.message || '测试失败'}`);
+      const { data } = getAxiosErrorData(error);
+      message.error(data?.message || '测试失败');
+      setTestResponse(`错误: ${data?.message || '测试失败'}`);
     } finally {
       setTestLoading(false);
     }

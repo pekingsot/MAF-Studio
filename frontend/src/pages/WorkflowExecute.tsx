@@ -102,9 +102,9 @@ const WorkflowExecute: React.FC = () => {
 
     try {
       const result = await workflowTemplateApi.execute(selectedTemplate.id, {
-        collaborationId: values.collaborationId,
-        input: values.input,
-        parameterValues: values.parameterValues,
+        collaborationId: Number(values.collaborationId),
+        input: values.input as string,
+        parameterValues: values.parameterValues as Record<string, unknown> | undefined,
       });
 
       if (result.success) {

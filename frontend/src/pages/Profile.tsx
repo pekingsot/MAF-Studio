@@ -48,7 +48,7 @@ const Profile: React.FC = () => {
     }
   };
 
-  const handleChangePassword = async (values: Record<string, unknown>) => {
+  const handleChangePassword = async (values: { newPassword: string; confirmPassword: string }) => {
     if (values.newPassword !== values.confirmPassword) {
       message.error('两次输入的密码不一致');
       return;

@@ -13,6 +13,17 @@ export const getErrorMessage = (error: unknown, fallback = '操作失败'): stri
   return fallback;
 };
 
+export const isAxiosError = (error: unknown): error is AxiosError => {
+  return error instanceof AxiosError;
+};
+
+export const getAxiosErrorData = (error: unknown): { status?: number; data?: ApiError } => {
+  if (isAxiosError(error) && error.response) {
+    return { status: error.response.status, data: error.response.data as ApiError };
+  }
+  return {};
+};
+
 export const handleApiError = (error: unknown, fallbackMessage = '操作失败'): string => {
   let errorMessage = fallbackMessage;
 

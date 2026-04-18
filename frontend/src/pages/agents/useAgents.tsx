@@ -3,6 +3,7 @@ import { message, Modal } from 'antd';
 import { agentService, Agent, AgentType } from '../../services/agentService';
 import { agentRuntimeService, AgentRuntimeStatus } from '../../services/agentRuntimeService';
 import api from '../../services/api';
+import { getAxiosErrorData } from '../../utils/errorHandler';
 import { LLMConfig, SelectedModel } from './types';
 
 export const useAgents = () => {
@@ -86,7 +87,7 @@ export const useAgents = () => {
       message.success('智能体已激活');
       loadAgents();
     } catch (error: unknown) {
-      message.error(error.response?.data?.message || '激活失败');
+      message.error(getAxiosErrorData(error).data?.message || '激活失败');
     } finally {
       setActivatingAgent(null);
     }
@@ -104,7 +105,7 @@ export const useAgents = () => {
       const status = await agentRuntimeService.getStatus(agentId);
       setRuntimeStatuses(prev => ({ ...prev, [agentId]: status }));
     } catch (error: unknown) {
-      message.error(error.response?.data?.message || '测试失败');
+      message.error(getAxiosErrorData(error).data?.message || '测试失败');
     } finally {
       setTestingAgent(null);
     }

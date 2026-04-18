@@ -73,7 +73,7 @@ const TaskTable: React.FC<TaskTableProps> = ({ tasks, agents, collaborationId, o
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [execMessages]);
 
-  const handleCreate = async (values: Record<string, unknown>) => {
+  const handleCreate = async (values: { title: string; description?: string; prompt?: string; agentIds?: number[]; workflowType?: string }) => {
     setSaving(true);
     try {
       const config: Record<string, unknown> = {};
@@ -81,10 +81,10 @@ const TaskTable: React.FC<TaskTableProps> = ({ tasks, agents, collaborationId, o
         config.workflowType = values.workflowType;
       }
       await collaborationService.createTask(collaborationId, {
-        title: values.title as string,
-        description: values.description as string | undefined,
-        prompt: values.prompt as string | undefined,
-        agentIds: values.agentIds as number[] | undefined,
+        title: values.title,
+        description: values.description,
+        prompt: values.prompt,
+        agentIds: values.agentIds,
         config: Object.keys(config).length > 0 ? JSON.stringify(config) : undefined,
       });
       message.success('任务创建成功');
@@ -116,7 +116,7 @@ const TaskTable: React.FC<TaskTableProps> = ({ tasks, agents, collaborationId, o
     setEditModalVisible(true);
   };
 
-  const handleUpdate = async (values: Record<string, unknown>) => {
+  const handleUpdate = async (values: { title: string; description?: string; prompt?: string; workflowType?: string }) => {
     if (!currentTask) return;
     setSaving(true);
     try {
@@ -125,9 +125,9 @@ const TaskTable: React.FC<TaskTableProps> = ({ tasks, agents, collaborationId, o
         config.workflowType = values.workflowType;
       }
       await collaborationService.updateTask(currentTask.id, {
-        title: values.title as string,
-        description: values.description as string | undefined,
-        prompt: values.prompt as string | undefined,
+        title: values.title,
+        description: values.description,
+        prompt: values.prompt,
         config: Object.keys(config).length > 0 ? JSON.stringify(config) : undefined,
       });
       message.success('任务更新成功');
@@ -281,18 +281,18 @@ const TaskTable: React.FC<TaskTableProps> = ({ tasks, agents, collaborationId, o
     }
   };
 
-  const handleSaveAsTemplate = async (values: Record<string, unknown>) => {
+  const handleSaveAsTemplate = async (values: { name: string; description?: string; category?: string; tags?: string; isPublic?: boolean; enableLearning?: boolean }) => {
     if (!generatedWorkflow) return;
 
     try {
       await workflowTemplateApi.saveMagenticPlan({
-        name: values.name as string,
-        description: values.description as string | undefined,
-        category: values.category as string | undefined,
-        tags: (values.tags as string)?.split(',').map((t: string) => t.trim()),
+        name: values.name,
+        description: values.description,
+        category: values.category,
+        tags: values.tags?.split(',').map((t: string) => t.trim()),
         workflow: generatedWorkflow,
-        isPublic: (values.isPublic as boolean) || false,
-        enableLearning: (values.enableLearning as boolean) || false,
+        isPublic: values.isPublic || false,
+        enableLearning: values.enableLearning || false,
         originalTask: taskInput,
       });
       message.success('保存为模板成功');

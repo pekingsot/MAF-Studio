@@ -1,4 +1,4 @@
-import { getErrorMessage } from '../utils/errorHandler';
+import { getErrorMessage, getAxiosErrorData } from '../utils/errorHandler';
 import React, { useEffect, useState, useRef } from 'react';
 import { Table, Button, Modal, Form, Input, Select, Tag, Space, message, Switch, InputNumber, Divider, Row, Col, Tooltip, Typography } from 'antd';
 import { PlusOutlined, EditOutlined, DeleteOutlined, LockOutlined } from '@ant-design/icons';
@@ -83,8 +83,9 @@ const AgentTypes: React.FC = () => {
       message.success('删除成功');
       loadTypes();
     } catch (error: unknown) {
-      if (error.response?.status === 400) {
-        message.error(error.response.data || '系统内置类型不能删除');
+      const { status, data } = getAxiosErrorData(error);
+      if (status === 400) {
+        message.error(data?.message || '系统内置类型不能删除');
       } else {
         message.error('删除失败');
       }
@@ -109,17 +110,16 @@ const AgentTypes: React.FC = () => {
       setModalVisible(false);
       loadTypes();
     } catch (error: unknown) {
-      console.error('[DEBUG] 错误:', error);
-      console.error('[DEBUG] 错误响应:', error.response);
+      const { status, data } = getAxiosErrorData(error);
       
-      if (error.response?.status === 403) {
+      if (status === 403) {
         message.error('权限不足：需要管理员权限');
-      } else if (error.response?.status === 400) {
-        message.error(error.response?.data?.message || '请求参数错误');
-      } else if (error.response?.status === 401) {
+      } else if (status === 400) {
+        message.error(data?.message || '请求参数错误');
+      } else if (status === 401) {
         message.error('未登录或登录已过期');
       } else {
-        message.error(error.response?.data?.message || getErrorMessage(error, '操作失败'));
+        message.error(data?.message || getErrorMessage(error, '操作失败'));
       }
     }
   };
