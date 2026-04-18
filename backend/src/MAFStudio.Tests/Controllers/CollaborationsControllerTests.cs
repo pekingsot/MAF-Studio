@@ -1128,7 +1128,7 @@ public class CollaborationsControllerTests : TestBase
         };
 
         _mockGroupMessageRepository
-            .Setup(r => r.GetByCollaborationIdAsync(1L, 20, 10L))
+            .Setup(r => r.GetByCollaborationIdAsync(1L, 60, 10L))
             .ReturnsAsync(existingMessages);
 
         var controller = new CollaborationsController(
@@ -1159,7 +1159,7 @@ public class CollaborationsControllerTests : TestBase
         var okResult = Assert.IsType<OkObjectResult>(result);
         Assert.NotNull(okResult.Value);
 
-        _mockGroupMessageRepository.Verify(r => r.GetByCollaborationIdAsync(1L, 20, 10L), Times.Once);
+        _mockGroupMessageRepository.Verify(r => r.GetByCollaborationIdAsync(1L, 60, 10L), Times.Once);
     }
 
     [Fact]

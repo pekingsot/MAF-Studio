@@ -94,10 +94,10 @@ public class MafMiddlewareMigrationTests
         Log($"任务: {task.title}");
 
         var agents = await connection.QueryAsync<dynamic>(
-            @"SELECT a.id, a.name, a.type_name, a.llm_config_id, a.llm_model_config_id, a.fallback_models 
-              FROM task_agents ta 
-              JOIN agents a ON ta.agent_id = a.id 
-              WHERE ta.task_id = @TaskId",
+            @"SELECT a.id, a.name, a.type_name, a.llm_configs 
+              FROM collaboration_agents ca 
+              JOIN agents a ON ca.agent_id = a.id 
+              WHERE ca.collaboration_id = (SELECT collaboration_id FROM collaboration_tasks WHERE id = @TaskId)",
             new { TaskId = TestTaskId });
 
         var agentList = agents.ToList();
@@ -110,7 +110,7 @@ public class MafMiddlewareMigrationTests
             if (collaborationId > 0)
             {
                 agents = await connection.QueryAsync<dynamic>(
-                    @"SELECT a.id, a.name, a.type_name, a.llm_config_id, a.llm_model_config_id, a.fallback_models 
+                    @"SELECT a.id, a.name, a.type_name, a.llm_configs 
                       FROM collaboration_agents ca 
                       JOIN agents a ON ca.agent_id = a.id 
                       WHERE ca.collaboration_id = @CollaborationId",
@@ -167,10 +167,10 @@ public class MafMiddlewareMigrationTests
         await connection.OpenAsync();
 
         var agents = await connection.QueryAsync<dynamic>(
-            @"SELECT a.id, a.name, a.llm_config_id, a.llm_model_config_id 
-              FROM task_agents ta 
-              JOIN agents a ON ta.agent_id = a.id 
-              WHERE ta.task_id = @TaskId",
+            @"SELECT a.id, a.name, a.llm_configs 
+              FROM collaboration_agents ca 
+              JOIN agents a ON ca.agent_id = a.id 
+              WHERE ca.collaboration_id = (SELECT collaboration_id FROM collaboration_tasks WHERE id = @TaskId)",
             new { TaskId = TestTaskId });
 
         var agentList = agents.ToList();
@@ -183,7 +183,7 @@ public class MafMiddlewareMigrationTests
             if (collaborationId > 0)
             {
                 agents = await connection.QueryAsync<dynamic>(
-                    @"SELECT a.id, a.name, a.llm_config_id, a.llm_model_config_id 
+                    @"SELECT a.id, a.name, a.llm_configs 
                       FROM collaboration_agents ca 
                       JOIN agents a ON ca.agent_id = a.id 
                       WHERE ca.collaboration_id = @CollaborationId",

@@ -74,10 +74,10 @@ public class ToolCallingIntegrationTests
         Log($"  是否配置令牌: {task.has_git_token}");
 
         var agents = await connection.QueryAsync<dynamic>(
-            @"SELECT a.id, a.name, a.type_name, a.llm_config_id, a.llm_model_config_id 
-              FROM task_agents ta 
-              JOIN agents a ON ta.agent_id = a.id 
-              WHERE ta.task_id = @TaskId",
+            @"SELECT a.id, a.name, a.type_name, a.llm_configs 
+              FROM collaboration_agents ca 
+              JOIN agents a ON ca.agent_id = a.id 
+              WHERE ca.collaboration_id = (SELECT collaboration_id FROM collaboration_tasks WHERE id = @TaskId)",
             new { TaskId = TestTaskId });
 
         var agentList = agents.ToList();
@@ -85,7 +85,7 @@ public class ToolCallingIntegrationTests
         foreach (var agent in agentList)
         {
             Log($"  - ID:{agent.id} {agent.name} ({agent.type_name})");
-            Log($"    LLM配置ID: {agent.llm_config_id}, 模型配置ID: {agent.llm_model_config_id}");
+            Log($"    LLM配置: {agent.llm_configs}");
         }
 
         if (agentList.Count == 0)
@@ -99,7 +99,7 @@ public class ToolCallingIntegrationTests
             if (collaborationId > 0)
             {
                 agents = await connection.QueryAsync<dynamic>(
-                    @"SELECT a.id, a.name, a.type_name, a.llm_config_id, a.llm_model_config_id 
+                    @"SELECT a.id, a.name, a.type_name, a.llm_configs 
                       FROM collaboration_agents ca 
                       JOIN agents a ON ca.agent_id = a.id 
                       WHERE ca.collaboration_id = @CollaborationId",
@@ -199,7 +199,7 @@ public class ToolCallingIntegrationTests
         await connection.OpenAsync();
 
         var agent = await connection.QueryFirstOrDefaultAsync<dynamic>(
-            "SELECT id, name, llm_config_id, llm_model_config_id FROM agents WHERE llm_config_id IS NOT NULL AND llm_model_config_id IS NOT NULL LIMIT 1");
+            "SELECT id, name, llm_configs FROM agents WHERE llm_configs IS NOT NULL AND llm_configs != '' LIMIT 1");
 
         if (agent == null)
         {

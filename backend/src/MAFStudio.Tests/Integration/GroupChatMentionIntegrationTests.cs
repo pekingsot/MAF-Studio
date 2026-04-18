@@ -150,7 +150,7 @@ public class GroupChatMentionIntegrationTests
         Log($"协作描述: {collaboration?.description}");
 
         var agents = await connection.QueryAsync<dynamic>(
-            @"SELECT a.id, a.name, a.type_name, ca.role, a.llm_config_id, a.llm_model_config_id 
+            @"SELECT a.id, a.name, a.type_name, ca.role, a.llm_configs 
               FROM collaboration_agents ca 
               JOIN agents a ON ca.agent_id = a.id 
               WHERE ca.collaboration_id = @Id",
@@ -160,9 +160,9 @@ public class GroupChatMentionIntegrationTests
         foreach (var agent in agents)
         {
             Log($"  - ID:{agent.id} {agent.name} ({agent.type_name}) - 角色: {agent.role}");
-            Log($"    LLM配置ID: {agent.llm_config_id}, 模型配置ID: {agent.llm_model_config_id}");
+            Log($"    LLM配置: {agent.llm_configs}");
             
-            if (agent.llm_config_id == null || agent.llm_model_config_id == null)
+            if (string.IsNullOrEmpty(agent.llm_configs?.ToString()))
             {
                 Log($"    ⚠️ 警告: Agent缺少LLM配置!");
             }

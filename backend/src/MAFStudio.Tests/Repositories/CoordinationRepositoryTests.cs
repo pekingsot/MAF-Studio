@@ -313,7 +313,7 @@ public class CoordinationRepositoryTests : IAsyncLifetime
             StartTime = DateTime.UtcNow
         });
 
-        var sessions = await repository.GetByCollaborationIdAsync(_testCollaborationId);
+        var sessions = await repository.GetByCollaborationIdAsync(_testCollaborationId, 100);
 
         Assert.NotNull(sessions);
         Assert.True(sessions.Count >= 2);
